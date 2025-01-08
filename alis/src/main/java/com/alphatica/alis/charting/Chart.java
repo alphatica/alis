@@ -114,7 +114,8 @@ public class Chart<X extends Comparable<X>> {
 
 	private void drawLines(Graphics2D graphics, List<X> xValues, MinMaxValue yMinMax) {
 		int offset = MARGIN_TOP + 20;
-		List<Color> colors = arrayList(Color.WHITE, Color.GREEN, Color.ORANGE, Color.CYAN, Color.GRAY, Color.RED, Color.MAGENTA, Color.PINK, Color.YELLOW, Color.BLUE, Color.RED);
+		List<Color> colors = arrayList(Color.WHITE, Color.GREEN, Color.ORANGE, Color.CYAN, Color.GRAY, Color.RED, Color.MAGENTA, Color.PINK,
+				Color.YELLOW, Color.BLUE, Color.RED);
 		graphics.setFont(CHART_LABELS_FONT);
 		offset = drawDataLines(graphics, xValues, yMinMax, colors, offset);
 		drawHorizontalLines(graphics, yMinMax, colors, offset);
@@ -264,10 +265,7 @@ public class Chart<X extends Comparable<X>> {
 	}
 
 	List<X> xValues() {
-		Set<X> set = dataLines.stream()
-							  .map(line -> line.getData().keySet())
-							  .flatMap(Set::stream)
-							  .collect(Collectors.toSet());
+		Set<X> set = dataLines.stream().map(line -> line.getData().keySet()).flatMap(Set::stream).collect(Collectors.toSet());
 		return set.stream().sorted().toList();
 	}
 }

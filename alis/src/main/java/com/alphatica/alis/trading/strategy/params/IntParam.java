@@ -1,38 +1,16 @@
 package com.alphatica.alis.trading.strategy.params;
 
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class IntParam implements Param {
-	private final String name;
-	private final Consumer<Integer> setter;
-	private final Supplier<Integer> getter;
-	private final Supplier<Integer> generator;
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.FIELD})
+public @interface IntParam {
+	int start();
 
-	public IntParam(String name, Supplier<Integer> generator, Consumer<Integer> setter, Supplier<Integer> getter) {
-		this.name = name;
-		this.setter = setter;
-		this.generator = generator;
-		this.getter = getter;
-	}
+	int step();
 
-	@Override
-	public void setFromSupplier() {
-		setter.accept(generator.get());
-	}
-
-	@Override
-	public String getName() {
-		return name;
-	}
-
-	@Override
-	public Object get() {
-		return getter.get();
-	}
-
-	@Override
-	public void set(Object o) {
-		setter.accept((Integer) o);
-	}
+	int end();
 }

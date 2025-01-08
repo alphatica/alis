@@ -19,15 +19,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StooqLoaderTests {
 
-	private static Market loadStooqMarket(MarketName name) throws ExecutionException, InterruptedException {
+	private static Market loadPLStooqMarket(MarketName name) throws ExecutionException, InterruptedException {
 		String path = Path.of("src", "test", "resources").toAbsolutePath().toString();
-		MarketData data = StooqLoader.load(path);
+		MarketData data = StooqLoader.loadPL(path);
 		return data.getMarket(name);
 	}
 
 	@Test
-	void shouldLoadStock() throws ExecutionException, InterruptedException {
-		Market market = loadStooqMarket(new MarketName("ind"));
+	void shouldLoadPLStock() throws ExecutionException, InterruptedException {
+		Market market = loadPLStooqMarket(new MarketName("ind"));
 		assertEquals(MarketType.INDICE, market.getType());
 		Time timeFirst = new Time(20100104);
 		TimeMarketData firstTimeMarketData = market.getAtOrNext(timeFirst);
@@ -47,8 +47,8 @@ class StooqLoaderTests {
 	}
 
 	@Test
-	void shouldLoadPartOfHistory() throws ExecutionException, InterruptedException {
-		Market market = loadStooqMarket(new MarketName("ind"));
+	void shouldLoadPLPartOfHistory() throws ExecutionException, InterruptedException {
+		Market market = loadPLStooqMarket(new MarketName("ind"));
 		TimeMarketData marketData = market.getAtOrNext(new Time(20100111));
 		DoubleArraySlice closes = marketData.getLayer(Layer.CLOSE);
 		assertEquals(6.2, closes.get(0), 0.001);

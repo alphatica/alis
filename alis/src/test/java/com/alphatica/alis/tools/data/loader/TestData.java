@@ -19,44 +19,43 @@ import java.util.stream.Collectors;
 
 public class TestData implements MarketData {
 
-	private final Map<MarketName, Market> markets;
+	private final Map<MarketName, Market> markets = new HashMap<>();
 	private final MarketName marketName = new MarketName("test_market");
 	private final MarketType marketType = MarketType.STOCK;
 
 	public TestData() {
-		markets = new HashMap<>();
 		TreeMap<Time, TimeMarketData> data = new TreeMap<>();
-		double[] allPrices = {1.0, 2.0, 3.0, 4.0, 5.0};
-		putData(data, new Time(0), new DoubleArraySlice(allPrices, 3));
-		putData(data, new Time(1), new DoubleArraySlice(allPrices, 2));
-		putData(data, new Time(2), new DoubleArraySlice(allPrices, 1));
-		putData(data, new Time(3), new DoubleArraySlice(allPrices, 0));
+		final int COUNT = 1024;
+		double[] allPrices = new double[COUNT];
+		for (int i = 0; i < COUNT; i++) {
+			allPrices[i] = COUNT - i;
+		}
+		for (int i = 0; i < COUNT; i++) {
+			putData(data, new Time(i + 1), new DoubleArraySlice(allPrices, allPrices.length - i - 1));
+		}
 		Market market = new TestMarket(marketName, data);
 		markets.put(market.getName(), market);
 	}
 
-	private void putData(TreeMap<Time, TimeMarketData> data, Time time, DoubleArraySlice doubleArraySlice) {
-		TimeMarketData timeMarketData = new TimeMarketData(marketName, marketType, time, List.of(doubleArraySlice, doubleArraySlice, doubleArraySlice, doubleArraySlice));
-		data.put(time, timeMarketData);
-	}
-
 	@Override
 	public List<Time> getTimes() {
-		Set<Time> set = markets.values()
-							   .stream()
-							   .map(Market::getTimes)
-							   .flatMap(Collection::stream)
-							   .collect(Collectors.toSet());
+		Set<Time> set = markets.values().stream().map(Market::getTimes).flatMap(Collection::stream).collect(Collectors.toSet());
 		return set.stream().sorted().toList();
 	}
 
 	@Override
 	public Market getMarket(MarketName marketName) {
-		return null;
+		return markets.get(marketName);
 	}
 
 	@Override
 	public List<Market> listMarkets(Predicate<Market> filter) {
 		return markets.values().stream().filter(filter).toList();
+	}
+
+	private void putData(TreeMap<Time, TimeMarketData> data, Time time, DoubleArraySlice doubleArraySlice) {
+		TimeMarketData timeMarketData = new TimeMarketData(marketName, marketType, time, List.of(doubleArraySlice, doubleArraySlice,
+				doubleArraySlice, doubleArraySlice));
+		data.put(time, timeMarketData);
 	}
 }

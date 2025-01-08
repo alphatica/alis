@@ -19,7 +19,7 @@ public class OHLCVRow {
 	public static OHLCVRow fromParts(String date, String open, String high, String low, String close, String volume) {
 		OHLCVRow quote = new OHLCVRow();
 		quote.data = new ArrayList<>();
-		quote.time = new Time(Integer.parseInt(date));
+		quote.time = new Time(Integer.parseInt(date.replace(" ", "").replace("-", "")));
 		quote.data.add(Double.parseDouble(open));
 		quote.data.add(Double.parseDouble(high));
 		quote.data.add(Double.parseDouble(low));
@@ -28,28 +28,6 @@ public class OHLCVRow {
 		quote.data.add(-1.0);
 		quote.data.add(-1.0);
 		quote.data.add(-1.0);
-		return quote;
-	}
-
-	public static OHLCVRow fromParts(String date, String open, String high, String low, String close) {
-		OHLCVRow quote = new OHLCVRow();
-		quote.data = new ArrayList<>();
-		quote.time = new Time(Long.parseLong(date.replace("-", "")));
-		quote.data.add(Double.parseDouble(open));
-		quote.data.add(Double.parseDouble(high));
-		quote.data.add(Double.parseDouble(low));
-		quote.data.add(Double.parseDouble(close));
-		quote.data.add(0.0);
-		quote.data.add(-1.0);
-		quote.data.add(-1.0);
-		quote.data.add(-1.0);
-		return quote;
-	}
-
-	public static OHLCVRow fromValues(Time time, List<Double> data) {
-		OHLCVRow quote = new OHLCVRow();
-		quote.time = time;
-		quote.data = data;
 		return quote;
 	}
 

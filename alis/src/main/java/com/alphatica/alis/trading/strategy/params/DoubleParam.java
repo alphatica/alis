@@ -1,38 +1,16 @@
 package com.alphatica.alis.trading.strategy.params;
 
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class DoubleParam implements Param {
-	private final String name;
-	private final Supplier<Double> generator;
-	private final Consumer<Double> setter;
-	private final Supplier<Double> getter;
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.FIELD})
+public @interface DoubleParam {
+	double start();
 
-	public DoubleParam(String name, Supplier<Double> generator, Consumer<Double> setter, Supplier<Double> getter) {
-		this.name = name;
-		this.generator = generator;
-		this.setter = setter;
-		this.getter = getter;
-	}
+	double step();
 
-	@Override
-	public void setFromSupplier() {
-		setter.accept(generator.get());
-	}
-
-	@Override
-	public String getName() {
-		return name;
-	}
-
-	@Override
-	public Object get() {
-		return getter.get();
-	}
-
-	@Override
-	public void set(Object o) {
-		setter.accept((Double)o);
-	}
+	double end();
 }

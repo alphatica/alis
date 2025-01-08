@@ -6,6 +6,6 @@ import com.alphatica.alis.data.time.TimeMarketDataSet;
 
 import java.util.List;
 
-public record ChangeCheckTask(Time conditionTime, Time startTime, Time endTime, List<Market> markets,
-							  TimeMarketDataSet marketDataSet, ChangeCheck changeCheck) {
+public record ChangeCheckTask(Time conditionTime, Time startTime, Time endTime, List<Market> markets, TimeMarketDataSet marketDataSet,
+							  ChangeCheck changeCheck) {
 }

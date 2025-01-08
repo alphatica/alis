@@ -1,5 +1,14 @@
 package com.alphatica.alis.trading.order;
 
 public enum OrderSize {
-	PROPORTION, COUNT,
+	PERCENTAGE, COUNT,
+	;
+
+	@Override
+	public String toString() {
+		return switch (this) {
+			case PERCENTAGE -> "Percent (%)";
+			case COUNT -> "Count";
+		};
+	}
 }

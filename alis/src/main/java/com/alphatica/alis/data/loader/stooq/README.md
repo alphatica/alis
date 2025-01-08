@@ -22,7 +22,7 @@ Then, data can be loaded up with:
 
 ```java
 private static final String WORK_DIR = System.getProperty("user.home") + File.separator + "Alphatica" + File.separator + "stooq_gpw";
-MarketData stooqData = StooqLoader.load(WORK_DIR);
+MarketData standardMarketData = StooqLoader.load(WORK_DIR);
 ```
 
 Alternatively, you can unzip downloaded file straight from your 'Download' directory:
@@ -35,5 +35,5 @@ Alternatively, you can unzip downloaded file straight from your 'Download' direc
 unzipNew(WORK_DIR, "Downloads");
 
 // Work with new data:
-MarketData stooqData = StooqLoader.load(WORK_DIR);
+MarketData standardMarketData = StooqLoader.load(WORK_DIR);
 ```

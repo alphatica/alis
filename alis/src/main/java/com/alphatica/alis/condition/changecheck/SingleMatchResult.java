@@ -5,6 +5,6 @@ import com.alphatica.alis.data.time.Time;
 
 import java.util.List;
 
-public record SingleMatchResult(Time time, Market market, Time openTime, double openPrice, Time closeTime,
-								double closePrice, double change, List<LevelReachedStat> higherThanLevelsReached) {
+public record SingleMatchResult(Time time, Market market, Time openTime, double openPrice, Time closeTime, double closePrice, double change,
+								List<LevelReachedStat> higherThanLevelsReached) {
 }

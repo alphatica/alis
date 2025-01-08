@@ -9,7 +9,7 @@ public class NumberTools {
 	public static void assertPositive(double... values) {
 		for (int i = 0; i < values.length; i++) {
 			if (values[i] <= 0.0) {
-				throw new IllegalArgumentException(format("Value %f at index %d is negative", values[i], i));
+				throw new IllegalArgumentException(format("Value %f at index %d is not > 0.0", values[i], i));
 			}
 		}
 	}

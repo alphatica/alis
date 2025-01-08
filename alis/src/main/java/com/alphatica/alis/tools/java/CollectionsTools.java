@@ -13,4 +13,5 @@ public class CollectionsTools {
 		Collections.addAll(list, elements);
 		return list;
 	}
+
 }

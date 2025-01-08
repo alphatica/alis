@@ -22,7 +22,7 @@ public class Lowest extends Indicator {
 			return Double.NaN;
 		}
 		double m = values.get(offset);
-		for(int i=1; i < len; i++) {
+		for (int i = 1; i < len; i++) {
 			if (values.get(i + offset) < m) {
 				m = values.get(i + offset);
 			}

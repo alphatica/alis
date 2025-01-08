@@ -1,47 +1,28 @@
-# ALIS :: Algorithmic Investing Software
+# Alis - Algorithmic Investing Software
 
-Alis is a Java library that helps to analyze financial markets.
-More about using Alis can be found at [Alphatica.com](https://alphatica.com)
+Alis consists of two main components:
 
-## Features
+- **Library**: A collection of primitives designed to assist with portfolio management, testing, and market analysis.
+- **Studio**: A standalone desktop application for managing daily trading and research activities.
 
-### Loading data
+## Main Features
 
-[Loading Stooq.pl data](alis/src/main/java/com/alphatica/alis/data/loader/stooq/README.md)
+- Portfolio statistics
+- Strategy backtesting
+- Drawdown analysis
+- Strategy parameter optimization
+- Alpha verification
+- Data mining for portfolio and strategy improvements
 
-### Analyse market prices
+## Current Version
 
-[Checks for the most recent data](alis-examples/CurrentChecks/README.md)
+The current version is a Minimum Viable Product (MVP). If you find it useful, please give it a star!
 
-### Simulated trading for trading strategies
+## Bug Reporting and Feature Requests
 
-[Simulate trading with mechanical systems](alis-examples/StrategiesTests/README.md)
+If you encounter any bugs, please report them to [lw@alphatica.com](mailto:lw@alphatica.com).  
+Feature requests are welcome at [https://alphatica.com/feature-request/new/](https://alphatica.com/feature-request/new/).
 
-### Charts
+## More Information
 
-You can easily generate reasonably looking charts. Consult [examples](alis-examples/README.md) to see how.
-
-## Documentation
-
-The source code is the best documentation. Check [examples](alis-examples/README.md)
-to see what can be done.
-
-## Installation
-
-At the moment, only installation from source is possible
-
-```bash
-git clone https://github.com/alphatica/alis.git
-cd alis
-mvn install
-```
-
-Then you can use Alis as normal maven dependency:
-
-    <dependencies>
-        <dependency>
-            <groupId>com.alphatica</groupId>
-            <artifactId>alis</artifactId>
-            <version>...</version>
-        </dependency>
-    </dependencies>
+Visit [https://alphatica.com/](https://alphatica.com/) for additional details and market research.

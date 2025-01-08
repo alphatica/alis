@@ -9,19 +9,22 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutionException;
 
+import static com.alphatica.alis.tools.java.NumberTools.percentChange;
+
 
 class ChangeCheckTest {
 
 	@Test
 	void shouldCheckChange() throws ExecutionException, InterruptedException {
 		MarketData data = new TestData();
-		Condition condition = (market, allData) -> market.getTime().equals(new Time(0)) || market.getTime()
-																								 .equals(new Time(1));
-		ChangeCheck check = ChangeCheck.condition(Condition.all(condition)).windowLength(1);
+		Condition condition = (market, allData) -> market.getTime().equals(new Time(99)) || market.getTime().equals(new Time(100));
+		ChangeCheck check = ChangeCheck.condition(Condition.all(condition)).windowLength(10);
 		ChangeCheckResult results = ChangeCheckExecutor.execute(check, data);
 		Assertions.assertTrue(results.average().isPresent());
-		Assertions.assertEquals(-41.66, results.average().get(), 0.01);
+		double firstChange = percentChange(100, 110);
+		double secondChange = percentChange(101, 111);
+		Assertions.assertEquals((firstChange + secondChange) / 2, results.average().get(), 0.001);
 		results.removeOverlapping();
-		Assertions.assertEquals(-33.33, results.average().get(), 0.01);
+		Assertions.assertEquals(firstChange, results.average().get(), 0.001);
 	}
 }

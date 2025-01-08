@@ -15,7 +15,8 @@ import java.util.TreeMap;
 
 public record ChangeCheckResult(TreeMap<Time, List<SingleMatchResult>> results, List<Double> levels) {
 
-	private static List<LevelReachedProbability> getLevelReachedProbabilities(List<Double> levels, List<Integer> reachedCounters, List<Integer> sessionCounters, int count) {
+	private static List<LevelReachedProbability> getLevelReachedProbabilities(List<Double> levels, List<Integer> reachedCounters,
+																			  List<Integer> sessionCounters, int count) {
 		List<LevelReachedProbability> ratios = new ArrayList<>();
 		if (reachedCounters != null) {
 			for (int i = 0; i < reachedCounters.size(); i++) {
@@ -36,9 +37,8 @@ public record ChangeCheckResult(TreeMap<Time, List<SingleMatchResult>> results, 
 		stream.println("Count: " + count());
 		List<LevelReachedProbability> levelReachedProbabilities = movesLevelsProbabilities();
 		for (int i = 0; i < levelReachedProbabilities.size(); i++) {
-			stream.printf("%.0f%%: %.2f %.0f%n", levels.get(i), levelReachedProbabilities.get(i)
-																						 .ratio(), levelReachedProbabilities.get(i)
-																															.averageSessions());
+			stream.printf("%.0f%%: %.2f %.0f%n", levels.get(i), levelReachedProbabilities.get(i).ratio(), levelReachedProbabilities.get(i)
+																																   .averageSessions());
 		}
 	}
 
@@ -60,17 +60,11 @@ public record ChangeCheckResult(TreeMap<Time, List<SingleMatchResult>> results, 
 	}
 
 	public Optional<Double> median() {
-		List<Double> values = results.values()
-									 .stream()
-									 .flatMap(List::stream)
-									 .mapToDouble(SingleMatchResult::change)
-									 .boxed()
-									 .sorted()
-									 .toList();
+		List<Double> values = results.values().stream().flatMap(List::stream).mapToDouble(SingleMatchResult::change).boxed().sorted().toList();
 		if (values.isEmpty()) {
 			return Optional.empty();
 		} else {
-			return Optional.of(Statistics.median(values));
+			return Optional.of(Statistics.median(new ArrayList<>(values)));
 		}
 	}
 

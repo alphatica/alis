@@ -20,13 +20,13 @@ public class TaskExecutor<T> {
 
 	public List<T> getResults() throws ExecutionException, InterruptedException {
 		List<T> results = new ArrayList<>();
-		try(ExecutorService executorService = ForkJoinPool.commonPool()) {
+		try (ExecutorService executorService = ForkJoinPool.commonPool()) {
 			List<Future<T>> futures = new ArrayList<>();
-			for(Callable<T> task : tasks) {
+			for (Callable<T> task : tasks) {
 				Future<T> future = executorService.submit(task);
 				futures.add(future);
 			}
-			for(Future<T> future : futures) {
+			for (Future<T> future : futures) {
 				T t = future.get();
 				if (t != null) {
 					results.add(t);

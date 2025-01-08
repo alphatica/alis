@@ -1,45 +1,46 @@
 package com.alphatica.alis.trading.strategy;
 
-import com.alphatica.alis.charting.LineChartData;
 import com.alphatica.alis.data.market.MarketData;
-import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.Account;
-import com.alphatica.alis.trading.account.Position;
+import com.alphatica.alis.trading.account.PositionEntry;
 import com.alphatica.alis.trading.account.PositionExit;
+import com.alphatica.alis.trading.account.actions.AccountAction;
+import com.alphatica.alis.trading.account.actions.AccountActionException;
+import com.alphatica.alis.trading.account.actions.Deposit;
+import com.alphatica.alis.trading.account.actions.Trade;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.order.TradePrice;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
-import static com.alphatica.alis.data.layer.Layer.CLOSE;
 import static com.alphatica.alis.data.layer.Layer.TURNOVER;
-import static com.alphatica.alis.trading.order.Direction.LONG;
-import static com.alphatica.alis.trading.order.Direction.EXIT;
-
+import static com.alphatica.alis.trading.order.Direction.BUY;
+import static com.alphatica.alis.trading.order.Direction.SELL;
 
 public class StrategyExecutor {
-	private double commission = 0.01;
+
+	private double commissionRate = 0.01;
 	private double initialCash = 100_000.0;
 	private Time timeFrom = new Time(0);
 	private Time timeTo = new Time(Integer.MAX_VALUE);
 	private Double limitOrderSize = Double.NaN;
 	private TradePrice tradePrice = TradePrice.OPEN;
-	private LineChartData<Time> benchmarkLine = new LineChartData<>();
-	private LineChartData<Time> equityLine = new LineChartData<>();
+	private double skipTradesProbability = 0.0;
+	private BarExecutedConsumer barExecutedConsumer = (time, account, pendingOrders) -> {};
 
 	public StrategyExecutor withInitialCash(double initialCash) {
 		this.initialCash = initialCash;
 		return this;
 	}
 
-	public StrategyExecutor withCommission(double commission) {
-		this.commission = commission;
+	public StrategyExecutor withCommissionRate(double commissionRate) {
+		this.commissionRate = commissionRate;
 		return this;
 	}
 
@@ -59,57 +60,52 @@ public class StrategyExecutor {
 		return this;
 	}
 
+	public StrategyExecutor withBarExecutedConsumer(BarExecutedConsumer barExecutedConsumer) {
+		this.barExecutedConsumer = barExecutedConsumer;
+		return this;
+	}
+
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
-	public Account execute(MarketData marketData, Strategy strategy) {
-		List<Time> times = marketData.getTimes()
-									 .stream()
-									 .filter(time -> !time.isBefore(timeFrom) && !time.isAfter(timeTo))
-									 .toList();
+	public Account execute(MarketData marketData, Strategy strategy) throws AccountActionException {
+		List<Time> times = marketData.getTimes().stream().filter(time -> !time.isBefore(timeFrom) && !time.isAfter(timeTo)).toList();
+		Account account = new Account(initialCash);
+		if (times.isEmpty()) {
+			return account;
+		}
 		List<Order> pendingOrders = new ArrayList<>();
-		Account account = new Account(initialCash, commission);
-		TimeMarketDataSet current = null;
-		equityLine.setConnectPoints(true);
-		benchmarkLine.setConnectPoints(true);
+		account.getAccountHistory().addAction(new AccountAction(times.getFirst(), new Deposit(initialCash)));
 		for (Time time : times) {
-			current = TimeMarketDataSet.build(time, marketData);
-			TimeMarketData benchmark = current.get(new MarketName("wig"));
-			if (benchmark != null) {
-				equityLine.addPoint(time, account.getNAV());
-				benchmarkLine.addPoint(time, benchmark.getData(CLOSE, 0));
-			}
+			TimeMarketDataSet current = TimeMarketDataSet.build(time, marketData);
 			executeSells(pendingOrders, current, account);
 			executeBuys(pendingOrders, current, account);
 			account.updateLastKnown(current);
 			pendingOrders = strategy.afterClose(current, account);
+			if (skipTradesProbability > 0.0) {
+				pendingOrders.removeIf(o -> ThreadLocalRandom.current().nextDouble() < skipTradesProbability);
+			}
 			Collections.sort(pendingOrders);
 			Collections.reverse(pendingOrders);
+			barExecutedConsumer.execute(time, account, pendingOrders);
 		}
-		if (current != null) {
-			closeAccount(account);
-		}
+		account.close(commissionRate);
 		strategy.finished(account);
 		return account;
 	}
 
-	public LineChartData<Time> getBenchmarkLine() {
-		return benchmarkLine;
-	}
-
-	public LineChartData<Time> getEquityLine() {
-		return equityLine;
+	public void skipTrades(double skipTradesProbability) {
+		this.skipTradesProbability = skipTradesProbability;
 	}
 
 	@SuppressWarnings("java:S1301")
-	private double getRequestedCount(Order order, Account account, double price) {
+	private int getRequestedCount(Order order, Account account, double price) {
 		switch (order.size()) {
-			case PROPORTION -> {
+			case PERCENTAGE -> {
 				switch (order.direction()) {
-					case LONG -> {
-						// Multiply ratio by 0.9999 to avoid "Not enough cash to buy" due to double precision issues.
-						return order.sizeValue() * account.getNAV() * 0.9999 / price;
+					case BUY -> {
+						return (int) Math.floor(order.sizeValue() * (account.getNAV() / price) / 100);
 					}
-					case EXIT -> {
-						return order.sizeValue() * account.getPosition(order.market()).getQuantity();
+					case SELL -> {
+						return order.sizeValue() * account.getPosition(order.market()).getQuantity() / 100;
 					}
 				}
 			}
@@ -120,52 +116,57 @@ public class StrategyExecutor {
 		throw new AssertionError("Not all OrderSize variants have been processed");
 	}
 
-	private void closeAccount(Account account) {
-		for (Map.Entry<MarketName, Position> next : account.getPositions().entrySet()) {
-			PositionExit exit = new PositionExit(next.getValue().getQuantity(), next.getValue().getLastPrice());
-			account.reducePosition(next.getKey(), exit);
+	private void executeBuys(List<Order> pendingOrders, TimeMarketDataSet current, Account account) throws AccountActionException {
+		for (Order order : pendingOrders) {
+			if (order.direction() == BUY) {
+				TimeMarketData marketData = current.get(order.market());
+				if (marketData != null) {
+					double price = tradePrice.getPrice(marketData);
+					int quantity = getPossibleCount(getRequestedCount(order, account, price), marketData);
+					if (quantity == 0) {
+						continue;
+					}
+					double commissionValue = quantity * price * commissionRate;
+					double value = quantity * price + commissionValue;
+					if (value > account.getCash()) {
+						return;
+					}
+					account.addPosition(order.market(), new PositionEntry(current.getTime(), quantity, tradePrice.getPrice(marketData)),
+							commissionValue);
+					account.getAccountHistory()
+						   .addAction(new AccountAction(current.getTime(), new Trade(marketData.getMarketName(), BUY, price, quantity,
+								   commissionValue)));
+				}
+			}
 		}
 	}
 
-	private void executeBuys(List<Order> pendingOrders, TimeMarketDataSet current, Account account) {
+	private void executeSells(List<Order> pendingOrders, TimeMarketDataSet current, Account account) throws AccountActionException {
 		for (Order order : pendingOrders) {
-			if (order.direction() == LONG) {
+			if (order.direction() == SELL) {
 				TimeMarketData marketData = current.get(order.market());
 				if (marketData != null) {
-					double price = tradePrice.getPrice(marketData) * (1 + commission);
-					double possibleCount = getPossibleCount(getRequestedCount(order, account, price), marketData);
-					double value = possibleCount * price;
-					if (value <= account.getCash()) {
-						account.addPosition(order.market(), tradePrice.getPrice(marketData), possibleCount);
-					} else {
-						break;
+					double price = tradePrice.getPrice(marketData);
+					int quantity = getPossibleCount(getRequestedCount(order, account, price), marketData);
+					if (quantity > 0) {
+						double commissionValue = quantity * price * commissionRate;
+						PositionExit exit = new PositionExit(current.getTime(), quantity, price);
+						account.reducePosition(order.market(), exit, commissionValue);
+						account.getAccountHistory()
+							   .addAction(new AccountAction(current.getTime(), new Trade(marketData.getMarketName(), SELL, price, quantity,
+									   commissionValue)));
 					}
 				}
 			}
 		}
 	}
 
-	private void executeSells(List<Order> pendingOrders, TimeMarketDataSet current, Account account) {
-		for (Order order : pendingOrders) {
-			if (order.direction() == EXIT) {
-				TimeMarketData marketData = current.get(order.market());
-				if (marketData != null) {
-					double price = tradePrice.getPrice(marketData);
-					double possibleCount = getPossibleCount(getRequestedCount(order, account, price), marketData);
-					PositionExit exit = new PositionExit(possibleCount, tradePrice.getPrice(marketData));
-					account.reducePosition(order.market(), exit);
-				}
-			}
-		}
-	}
-
-	private double getPossibleCount(double count, TimeMarketData marketData) {
+	private int getPossibleCount(int count, TimeMarketData marketData) {
 		if (!limitOrderSize.isNaN()) {
 			double traded = marketData.getData(TURNOVER, 0) / marketData.getAveragePrice(0);
-			return Math.min(traded * limitOrderSize, count);
+			return (int) Math.min(traded * limitOrderSize, count);
 		} else {
 			return count;
 		}
 	}
-
 }

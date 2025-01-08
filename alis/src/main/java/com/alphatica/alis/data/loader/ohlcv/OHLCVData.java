@@ -34,11 +34,6 @@ public class OHLCVData {
 	List<OHLCVRow> rows;
 	HashMap<Time, Integer> indexes;
 
-	public OHLCVData(MarketName name, List<OHLCVRow> rows) {
-		this.name = name;
-		this.rows = rows;
-	}
-
 	private OHLCVData() {
 	}
 
@@ -57,36 +52,10 @@ public class OHLCVData {
 
 			OHLCVRow quote = OHLCVRow.fromParts(parts[date], parts[open], parts[high], parts[low], parts[close], parts[vol]);
 			if (!stock.rows.isEmpty() && quote.getTime().isBefore(stock.rows.getLast().getTime())) {
-				throw new IllegalArgumentException(format("Wrong date order: %s, %d", file.getAbsolutePath(), quote.getTime()
-																												   .time()));
+				throw new IllegalArgumentException(format("Wrong date order: %s, %d", file.getAbsolutePath(), quote.getTime().time()));
 			}
 			stock.indexes.put(quote.getTime(), stock.rows.size());
 			stock.rows.add(quote);
-		}
-		return stock;
-	}
-
-	public static OHLCVData load(File file, int date, int open, int high, int low, int close) throws IOException {
-		List<String> lines = FileUtils.readLines(file, Charset.defaultCharset());
-		OHLCVData stock = new OHLCVData();
-		stock.indexes = HashMap.newHashMap(4096);
-		stock.name = new MarketName(file.getName().split("\\.")[0]);
-		stock.rows = new ArrayList<>();
-		if (lines.isEmpty()) {
-			return stock;
-		}
-		lines.removeFirst();
-		for (String line : lines) {
-			String[] parts = line.split(",");
-			if (parts.length > close) {
-				OHLCVRow quote = OHLCVRow.fromParts(parts[date], parts[open], parts[high], parts[low], parts[close]);
-				if (!stock.rows.isEmpty() && quote.getTime().isBefore(stock.rows.getLast().getTime())) {
-					throw new IllegalArgumentException(format("Wrong date order: %s, %d", file.getAbsolutePath(), quote.getTime()
-																													   .time()));
-				}
-				stock.indexes.put(quote.getTime(), stock.rows.size());
-				stock.rows.add(quote);
-			}
 		}
 		return stock;
 	}

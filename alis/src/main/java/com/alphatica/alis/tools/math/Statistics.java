@@ -62,7 +62,6 @@ public class Statistics {
 	}
 
 	public static double median(List<Double> nums) {
-
 		int n = nums.size();
 		if (n % 2 == 1) {
 			return quickSelect(nums, 0, n - 1, n / 2);
@@ -72,20 +71,19 @@ public class Statistics {
 	}
 
 	private static double quickSelect(List<Double> nums, int left, int right, int k) {
-		if (left == right) {
-			return nums.get(left);
-		}
+		while (left <= right) {
+			int pivotIndex = left + ThreadLocalRandom.current().nextInt(right - left + 1);
+			pivotIndex = partition(nums, left, right, pivotIndex);
 
-		int pivotIndex = left + ThreadLocalRandom.current().nextInt(right - left + 1);
-		pivotIndex = partition(nums, left, right, pivotIndex);
-
-		if (k == pivotIndex) {
-			return nums.get(k);
-		} else if (k < pivotIndex) {
-			return quickSelect(nums, left, pivotIndex - 1, k);
-		} else {
-			return quickSelect(nums, pivotIndex + 1, right, k);
+			if (k == pivotIndex) {
+				return nums.get(k);
+			} else if (k < pivotIndex) {
+				right = pivotIndex - 1;
+			} else {
+				left = pivotIndex + 1;
+			}
 		}
+		throw new IllegalArgumentException("k is out of bounds");
 	}
 
 	private static int partition(List<Double> nums, int left, int right, int pivotIndex) {

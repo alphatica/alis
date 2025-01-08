@@ -35,7 +35,8 @@ public class ChangeCheckExecutor {
 
 	}
 
-	private static TreeMap<Time, List<SingleMatchResult>> collectResults(TaskExecutor<List<SingleMatchResult>> executor) throws ExecutionException, InterruptedException {
+	private static TreeMap<Time, List<SingleMatchResult>> collectResults(TaskExecutor<List<SingleMatchResult>> executor) throws ExecutionException,
+			InterruptedException {
 		TreeMap<Time, List<SingleMatchResult>> results = new TreeMap<>();
 		for (List<SingleMatchResult> timeResults : executor.getResults()) {
 			if (!timeResults.isEmpty()) {
@@ -46,7 +47,8 @@ public class ChangeCheckExecutor {
 	}
 
 	@SuppressWarnings("java:S135") // Allow multiple breaks
-	private static void submitChecks(ChangeCheck changeCheck, MarketData marketData, int benchmarkStartTimeIndex, List<Time> times, List<Market> markets, TaskExecutor<List<SingleMatchResult>> executor) {
+	private static void submitChecks(ChangeCheck changeCheck, MarketData marketData, int benchmarkStartTimeIndex, List<Time> times,
+									 List<Market> markets, TaskExecutor<List<SingleMatchResult>> executor) {
 		for (int i = benchmarkStartTimeIndex; i < times.size(); i++) {
 			Time conditionTime = times.get(i);
 			if (conditionTime.isAfter(changeCheck.getTo())) {
@@ -93,7 +95,8 @@ public class ChangeCheckExecutor {
 			double change = ((endPrice / startPrice) - 1.0) * 100;
 			if (Double.isFinite(change)) {
 				List<LevelReachedStat> higherThanLevelsReached = getLevelsReached(task.changeCheck()
-																					  .getMovesLevels(), startPrice, market, task.startTime(), task.endTime());
+																					  .getMovesLevels(), startPrice, market, task.startTime(),
+						task.endTime());
 				results.add(new SingleMatchResult(task.conditionTime(), market, timeRangeMarketData.start()
 																								   .getTime(), startPrice, timeRangeMarketData.end()
 																																			  .getTime(), endPrice, change, higherThanLevelsReached));
