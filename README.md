@@ -1,8 +1,8 @@
 # Alis - Algorithmic Investing Software
 
-Alis consists of two main components:
+Alis consists of two main parts:
 
-- **Library**: A collection of primitives designed to assist with portfolio management, testing, and market analysis.
+- **Library**: A collection of primitives designed to help with portfolio management, testing, and market analysis.
 - **Studio**: A standalone desktop application for managing daily trading and research activities.
 
 ## Main Features
@@ -16,7 +16,7 @@ Alis consists of two main components:
 
 ## Current Version
 
-The current version is a Minimum Viable Product (MVP). If you find it useful, please give it a star!
+The current version is a Minimum Viable Product (MVP). GitHub star is much appreciated!
 
 ## Bug Reporting and Feature Requests
 
