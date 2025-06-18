@@ -33,17 +33,16 @@ public class StooqLoader {
 
 	public static StandardMarketData loadUS(String workDir) {
 		List<File> files = getStockFiles(workDir);
-		StandardMarketData marketData = loadUSFiles(files);
-		return marketData;
+		return loadFiles(files);
 	}
 
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
 	public static StandardMarketData loadPL(String workDir) throws ExecutionException, InterruptedException {
 		String dataDir = workDir + separator + STOOQ_DATA_DIR + separator + "data" + separator + "daily" + separator + "pl" + separator;
 		StandardMarketData standardMarketData = new StandardMarketData();
-		Map<MarketName, Market> stocks = loadUSFiles(dataDir, "wse stocks", "wse stocks indicators", STOCK);
+		Map<MarketName, Market> stocks = loadFiles(dataDir, "wse stocks", "wse stocks indicators", STOCK);
 		standardMarketData.addMarkets(stocks);
-		Map<MarketName, Market> indices = loadUSFiles(dataDir, "wse indices", "wse indices indicators", MarketType.INDICE);
+		Map<MarketName, Market> indices = loadFiles(dataDir, "wse indices", "wse indices indicators", MarketType.INDICE);
 		standardMarketData.addMarkets(indices);
 		return standardMarketData;
 	}
@@ -89,7 +88,7 @@ public class StooqLoader {
 	}
 
 	@SuppressWarnings("java:S106")
-	private static StandardMarketData loadUSFiles(List<File> files) {
+	private static StandardMarketData loadFiles(List<File> files) {
 		Map<MarketName, Market> map = new ConcurrentHashMap<>();
 
 		try(ExecutorService executor = Executors.newWorkStealingPool(Runtime.getRuntime().availableProcessors())) {
@@ -109,7 +108,7 @@ public class StooqLoader {
 		return marketData;
 	}
 
-	private static Map<MarketName, Market> loadUSFiles(String dataDir, String filesPath, String indicatorsPath, MarketType marketType) throws ExecutionException, InterruptedException {
+	private static Map<MarketName, Market> loadFiles(String dataDir, String filesPath, String indicatorsPath, MarketType marketType) throws ExecutionException, InterruptedException {
 		File ohlcvDir = new File(dataDir + separator + filesPath);
 		File[] files = ohlcvDir.listFiles();
 
