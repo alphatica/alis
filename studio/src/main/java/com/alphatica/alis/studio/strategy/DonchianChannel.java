@@ -5,7 +5,7 @@ import com.alphatica.alis.condition.LowestClose;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;
@@ -71,7 +71,7 @@ public class DonchianChannel extends Strategy {
 		}
 	}
 
-	private double orderPriority(DoubleArraySlice closes) {
+	private double orderPriority(FloatArraySlice closes) {
 		double priority;
 		if (closes.size() > 250) {
 			priority = closes.get(0) / closes.get(250);

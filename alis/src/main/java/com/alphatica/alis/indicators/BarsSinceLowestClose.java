@@ -1,7 +1,7 @@
 package com.alphatica.alis.indicators;
 
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 import static com.alphatica.alis.data.layer.Layer.CLOSE;
 
@@ -14,13 +14,13 @@ public class BarsSinceLowestClose extends Indicator {
 	}
 
 	@Override
-	public double calculate(TimeMarketData marketData) {
-		DoubleArraySlice closes = marketData.getLayer(CLOSE);
+	public float calculate(TimeMarketData marketData) {
+		FloatArraySlice closes = marketData.getLayer(CLOSE);
 		if (closes.size() < length + offset) {
-			return Double.NaN;
+			return Float.NaN;
 		}
 		int found = 0;
-		double value = closes.get(offset);
+		float value = closes.get(offset);
 		for (int i = 1 + offset; i < length + offset; i++) {
 			if (closes.get(i) < value) {
 				found = i;

@@ -5,7 +5,7 @@ import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
 import com.alphatica.alis.data.time.Time;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -63,15 +63,15 @@ public class OHLCVData {
 	public Market toMarket(MarketType marketType) {
 		List<OHLCVRow> reversed = getRows().reversed();
 		int size = reversed.size();
-		double[] open = new double[size];
-		double[] high = new double[size];
-		double[] low = new double[size];
-		double[] close = new double[size];
-		double[] turnover = new double[size];
-		double[] pe = new double[size];
-		double[] pb = new double[size];
-		double[] mv = new double[size];
-		TreeMap<Time, List<DoubleArraySlice>> ranges = new TreeMap<>();
+		float[] open = new float[size];
+		float[] high = new float[size];
+		float[] low = new float[size];
+		float[] close = new float[size];
+		float[] turnover = new float[size];
+		float[] pe = new float[size];
+		float[] pb = new float[size];
+		float[] mv = new float[size];
+		TreeMap<Time, List<FloatArraySlice>> ranges = new TreeMap<>();
 		int index = 0;
 		for (OHLCVRow row : reversed) {
 			open[index] = row.get(OPEN);
@@ -82,15 +82,15 @@ public class OHLCVData {
 			pe[index] = row.get(PE);
 			pb[index] = row.get(PB);
 			mv[index] = row.get(MV);
-			List<DoubleArraySlice> sub = new ArrayList<>(8);
-			sub.add(new DoubleArraySlice(open, index));
-			sub.add(new DoubleArraySlice(high, index));
-			sub.add(new DoubleArraySlice(low, index));
-			sub.add(new DoubleArraySlice(close, index));
-			sub.add(new DoubleArraySlice(turnover, index));
-			sub.add(new DoubleArraySlice(pe, index));
-			sub.add(new DoubleArraySlice(pb, index));
-			sub.add(new DoubleArraySlice(mv, index));
+			List<FloatArraySlice> sub = new ArrayList<>(8);
+			sub.add(new FloatArraySlice(open, index));
+			sub.add(new FloatArraySlice(high, index));
+			sub.add(new FloatArraySlice(low, index));
+			sub.add(new FloatArraySlice(close, index));
+			sub.add(new FloatArraySlice(turnover, index));
+			sub.add(new FloatArraySlice(pe, index));
+			sub.add(new FloatArraySlice(pb, index));
+			sub.add(new FloatArraySlice(mv, index));
 			ranges.put(row.getTime(), sub);
 			index++;
 		}

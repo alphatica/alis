@@ -7,7 +7,7 @@ import com.alphatica.alis.condition.Condition;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;
@@ -57,7 +57,7 @@ public class AthPlusTimePyramidStrategy extends Strategy {
 		return orders;
 	}
 
-	private double orderPriority(DoubleArraySlice closes) {
+	private double orderPriority(FloatArraySlice closes) {
 		double priority;
 		if (closes.size() > SESSIONS) {
 			priority = closes.get(0) / closes.get(SESSIONS);
@@ -74,7 +74,7 @@ public class AthPlusTimePyramidStrategy extends Strategy {
 		}
 	}
 
-	private void checkBuy(MarketName marketName, double currentValue, List<Order> orders, double nav, DoubleArraySlice closes) {
+	private void checkBuy(MarketName marketName, double currentValue, List<Order> orders, double nav, FloatArraySlice closes) {
 		if (currentValue < 0.1 * nav) {
 			double priority = orderPriority(closes);
 			orders.add(new Order(marketName, BUY, PERCENTAGE, RATIO, priority));

@@ -8,7 +8,7 @@ import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -50,7 +50,7 @@ class StooqLoaderTests {
 	void shouldLoadPLPartOfHistory() throws ExecutionException, InterruptedException {
 		Market market = loadPLStooqMarket(new MarketName("ind"));
 		TimeMarketData marketData = market.getAtOrNext(new Time(20100111));
-		DoubleArraySlice closes = marketData.getLayer(Layer.CLOSE);
+		FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);
 		assertEquals(6.2, closes.get(0), 0.001);
 		assertEquals(5.2, closes.get(1), 0.001);
 		assertEquals(4.2, closes.get(2), 0.001);

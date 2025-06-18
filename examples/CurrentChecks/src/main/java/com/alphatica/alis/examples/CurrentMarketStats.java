@@ -59,9 +59,9 @@ public class CurrentMarketStats {
 	private static Indicator getQuadraticRegressionSlopeIndicator(int len) {
 		return new Indicator() {
 			@Override
-			public double calculate(TimeMarketData timeMarketData) {
-				double v0 = Regressions.calculateQuadraticRegression(timeMarketData, len, 0, 0);
-				double v1 = Regressions.calculateQuadraticRegression(timeMarketData, len, 0, 1);
+			public float calculate(TimeMarketData timeMarketData) {
+				float v0 = Regressions.calculateQuadraticRegression(timeMarketData, len, 0, 0);
+				float v1 = Regressions.calculateQuadraticRegression(timeMarketData, len, 0, 1);
 				return v0 - v1;
 			}
 		};

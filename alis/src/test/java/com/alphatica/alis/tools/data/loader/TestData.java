@@ -6,7 +6,7 @@ import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,12 +26,12 @@ public class TestData implements MarketData {
 	public TestData() {
 		TreeMap<Time, TimeMarketData> data = new TreeMap<>();
 		final int COUNT = 1024;
-		double[] allPrices = new double[COUNT];
+		float[] allPrices = new float[COUNT];
 		for (int i = 0; i < COUNT; i++) {
 			allPrices[i] = COUNT - i;
 		}
 		for (int i = 0; i < COUNT; i++) {
-			putData(data, new Time(i + 1), new DoubleArraySlice(allPrices, allPrices.length - i - 1));
+			putData(data, new Time(i + 1), new FloatArraySlice(allPrices, allPrices.length - i - 1));
 		}
 		Market market = new TestMarket(marketName, data);
 		markets.put(market.getName(), market);
@@ -53,9 +53,9 @@ public class TestData implements MarketData {
 		return markets.values().stream().filter(filter).toList();
 	}
 
-	private void putData(TreeMap<Time, TimeMarketData> data, Time time, DoubleArraySlice doubleArraySlice) {
-		TimeMarketData timeMarketData = new TimeMarketData(marketName, marketType, time, List.of(doubleArraySlice, doubleArraySlice,
-				doubleArraySlice, doubleArraySlice));
+	private void putData(TreeMap<Time, TimeMarketData> data, Time time, FloatArraySlice floatArraySlice) {
+		TimeMarketData timeMarketData = new TimeMarketData(marketName, marketType, time, List.of(floatArraySlice, floatArraySlice,
+				floatArraySlice, floatArraySlice));
 		data.put(time, timeMarketData);
 	}
 }

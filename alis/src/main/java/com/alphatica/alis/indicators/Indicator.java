@@ -5,7 +5,7 @@ import com.alphatica.alis.data.time.TimeMarketData;
 public abstract class Indicator {
 	protected int offset;
 
-	public abstract double calculate(TimeMarketData marketData);
+	public abstract float calculate(TimeMarketData marketData);
 
 	public Indicator withOffset(int offset) {
 		this.offset = offset;

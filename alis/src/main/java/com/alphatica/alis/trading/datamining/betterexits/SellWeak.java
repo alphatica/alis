@@ -3,7 +3,7 @@ package com.alphatica.alis.trading.datamining.betterexits;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.datamining.MarketStateSet;
 
@@ -30,7 +30,7 @@ public class SellWeak implements BetterExitFinder {
 
 	@Override
 	public boolean shouldExit(Account account, TimeMarketData marketData, TimeMarketDataSet allData, MarketStateSet marketStateSet) {
-		DoubleArraySlice closes = marketData.getLayer(Layer.CLOSE);
+		FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);
 		if (closes.size() <= bars) {
 			return false;
 		} else {

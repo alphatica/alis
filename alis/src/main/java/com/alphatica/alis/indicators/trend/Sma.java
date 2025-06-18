@@ -3,7 +3,7 @@ package com.alphatica.alis.indicators.trend;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.indicators.Indicator;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 public class Sma extends Indicator {
 	private final int length;
@@ -13,12 +13,12 @@ public class Sma extends Indicator {
 	}
 
 	@Override
-	public double calculate(TimeMarketData marketData) {
-		DoubleArraySlice closes = marketData.getLayer(Layer.CLOSE);
+	public float calculate(TimeMarketData marketData) {
+		FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);
 		if (closes.size() < length + offset) {
-			return Double.NaN;
+			return Float.NaN;
 		} else {
-			double sum = 0.0;
+			float sum = 0.0f;
 			for (int i = offset; i < length + offset; i++) {
 				sum += closes.get(i);
 			}

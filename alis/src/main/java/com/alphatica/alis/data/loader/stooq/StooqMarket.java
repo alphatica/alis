@@ -5,7 +5,7 @@ import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 import java.util.List;
 import java.util.Map;
@@ -13,12 +13,12 @@ import java.util.Objects;
 import java.util.TreeMap;
 
 public class StooqMarket implements Market {
-	private final TreeMap<Time, List<DoubleArraySlice>> ranges;
+	private final TreeMap<Time, List<FloatArraySlice>> ranges;
 	private final MarketName name;
 	private final MarketType marketType;
 
 	@SuppressWarnings("java:S1319")
-	public StooqMarket(TreeMap<Time, List<DoubleArraySlice>> ranges, MarketName name, MarketType marketType) {
+	public StooqMarket(TreeMap<Time, List<FloatArraySlice>> ranges, MarketName name, MarketType marketType) {
 		this.ranges = ranges;
 		this.name = name;
 		this.marketType = marketType;
@@ -41,7 +41,7 @@ public class StooqMarket implements Market {
 
 	@Override
 	public TimeMarketData getAtOrPrevious(Time time) {
-		Map.Entry<Time, List<DoubleArraySlice>> entry = ranges.floorEntry(time);
+		Map.Entry<Time, List<FloatArraySlice>> entry = ranges.floorEntry(time);
 		if (entry != null) {
 			return new TimeMarketData(name, marketType, entry.getKey(), entry.getValue());
 		} else {
@@ -51,7 +51,7 @@ public class StooqMarket implements Market {
 
 	@Override
 	public TimeMarketData getAtOrNext(Time time) {
-		Map.Entry<Time, List<DoubleArraySlice>> entry = ranges.ceilingEntry(time);
+		Map.Entry<Time, List<FloatArraySlice>> entry = ranges.ceilingEntry(time);
 		if (entry != null) {
 			return new TimeMarketData(name, marketType, entry.getKey(), entry.getValue());
 		} else {
@@ -61,7 +61,7 @@ public class StooqMarket implements Market {
 
 	@Override
 	public TimeMarketData getAt(Time time) {
-		List<DoubleArraySlice> data = ranges.get(time);
+		List<FloatArraySlice> data = ranges.get(time);
 		if (data == null) {
 			return null;
 		} else {

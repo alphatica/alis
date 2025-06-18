@@ -3,7 +3,7 @@ package com.alphatica.alis.trading.datamining.betterexits;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.datamining.MarketStateSet;
 
@@ -33,7 +33,7 @@ public class ExitIfSmallProfitAfter implements BetterExitFinder {
 		DoubleValueState state = (DoubleValueState) marketStateSet.get(marketData.getMarketName(), DoubleValueState::new);
 		state.value++;
 		if (state.value > this.bars) {
-			DoubleArraySlice closes = marketData.getLayer(Layer.CLOSE);
+			FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);
 			double changeNow = percentChange(closes.get((int)Math.round(state.value)), closes.get(0));
 			return changeNow < change;
 		} else {

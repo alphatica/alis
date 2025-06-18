@@ -5,7 +5,7 @@ import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.indicators.trend.MinMax;
 import com.alphatica.alis.indicators.trend.Sma;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;
@@ -32,7 +32,7 @@ public class SmaWithMinMax extends Strategy {
 	public List<Order> afterClose(TimeMarketDataSet data, Account account) {
 		List<Order> orders = new ArrayList<>();
 		for (TimeMarketData market : data.listMarkets(STOCKS)) {
-			DoubleArraySlice closes = market.getLayer(CLOSE);
+			FloatArraySlice closes = market.getLayer(CLOSE);
 			if (closes.size() <= 250) {
 				continue;
 			}

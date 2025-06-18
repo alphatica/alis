@@ -3,7 +3,7 @@ package com.alphatica.alis.indicators.range;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.indicators.Indicator;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 public class Highest extends Indicator {
 
@@ -16,12 +16,12 @@ public class Highest extends Indicator {
 	}
 
 	@Override
-	public double calculate(TimeMarketData marketData) {
-		DoubleArraySlice values = marketData.getLayer(layer);
+	public float calculate(TimeMarketData marketData) {
+		FloatArraySlice values = marketData.getLayer(layer);
 		if (values.size() < len + offset) {
-			return Double.NaN;
+			return Float.NaN;
 		}
-		double m = values.get(offset);
+		float m = values.get(offset);
 		for (int i = 1; i < len; i++) {
 			if (values.get(i + offset) > m) {
 				m = values.get(i + offset);

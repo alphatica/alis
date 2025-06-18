@@ -2,7 +2,7 @@ package com.alphatica.alis.condition;
 
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 import static com.alphatica.alis.data.layer.Layer.HIGH;
 
@@ -16,7 +16,7 @@ public class HighestHigh implements Condition {
 
 	@Override
 	public boolean matches(TimeMarketData marketData, TimeMarketDataSet allData) {
-		DoubleArraySlice closes = marketData.getLayer(HIGH);
+		FloatArraySlice closes = marketData.getLayer(HIGH);
 		if (closes.size() < length) {
 			return false;
 		}

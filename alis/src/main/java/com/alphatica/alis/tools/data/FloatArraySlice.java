@@ -1,10 +1,10 @@
 package com.alphatica.alis.tools.data;
 
-public class DoubleArraySlice {
-	private final double[] array;
+public class FloatArraySlice {
+	private final float[] array;
 	private final int start;
 
-	public DoubleArraySlice(double[] array, int start) {
+	public FloatArraySlice(float[] array, int start) {
 		this.array = array;
 		this.start = start;
 	}
@@ -13,7 +13,7 @@ public class DoubleArraySlice {
 		return array.length - start;
 	}
 
-	public double get(int i) {
+	public float get(int i) {
 		if (i < 0 || i >= size()) {
 			throw new IndexOutOfBoundsException("Index: " + i + ", Size: " + size());
 		}

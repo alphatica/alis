@@ -5,7 +5,7 @@ import com.alphatica.alis.condition.Condition;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;
@@ -45,7 +45,7 @@ public class BuyATH extends Strategy {
 		return orders;
 	}
 
-	private double orderPriority(DoubleArraySlice closes) {
+	private double orderPriority(FloatArraySlice closes) {
 		if (closes.size() > sessions) {
 			return closes.get(0) / closes.get(sessions);
 		} else {
@@ -61,7 +61,7 @@ public class BuyATH extends Strategy {
 		counters.put(marketName, counterNow);
 	}
 
-	private void checkBuy(MarketName marketName, DoubleArraySlice closes, boolean havePosition, List<Order> orders) {
+	private void checkBuy(MarketName marketName, FloatArraySlice closes, boolean havePosition, List<Order> orders) {
 		counters.put(marketName, 0);
 		if (!havePosition) {
 			double priority = orderPriority(closes);

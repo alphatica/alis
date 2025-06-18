@@ -6,7 +6,7 @@ import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 import java.io.File;
 import java.util.concurrent.ExecutionException;
@@ -161,7 +161,7 @@ public class TenBagger {
 	private static double calcRange(TimeMarketData startData) {
 		double sum = 0;
 		double count = 0;
-		DoubleArraySlice closes = startData.getLayer(Layer.CLOSE);
+		FloatArraySlice closes = startData.getLayer(Layer.CLOSE);
 		int sessions = Math.min(20, closes.size() - 1);
 		for (int i = 0; i < sessions; i++) {
 			double change = (closes.get(i) / closes.get(i + 1) - 1.0) * 100;

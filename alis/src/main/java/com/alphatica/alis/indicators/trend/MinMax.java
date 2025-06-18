@@ -3,7 +3,7 @@ package com.alphatica.alis.indicators.trend;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.indicators.Indicator;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 
 public class MinMax extends Indicator {
@@ -14,17 +14,17 @@ public class MinMax extends Indicator {
 	}
 
 	@Override
-	public double calculate(TimeMarketData marketData) {
-		DoubleArraySlice closes = marketData.getLayer(Layer.CLOSE);
+	public float calculate(TimeMarketData marketData) {
+		FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);
 		if (closes.size() < length + offset) {
-			return Double.NaN;
+			return Float.NaN;
 		} else {
-			double max = closes.get(offset);
+			float max = closes.get(offset);
 			int indexMax = 0;
-			double min = closes.get(offset);
+			float min = closes.get(offset);
 			int indexMin = 0;
 			for (int i = 1 + offset; i < length + offset; i++) {
-				double now = closes.get(i);
+				float now = closes.get(i);
 				if (now < min) {
 					min = now;
 					indexMin = i;
@@ -34,7 +34,7 @@ public class MinMax extends Indicator {
 					indexMax = i;
 				}
 			}
-			return ((double) indexMin - indexMax) / length;
+			return ((float) indexMin - indexMax) / length;
 		}
 	}
 }

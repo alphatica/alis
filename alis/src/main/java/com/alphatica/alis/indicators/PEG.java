@@ -2,7 +2,7 @@ package com.alphatica.alis.indicators;
 
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,17 +23,17 @@ public class PEG extends Indicator {
 	}
 
 	@Override
-	public double calculate(TimeMarketData data) {
-		DoubleArraySlice pe = data.getLayer(Layer.PE);
-		DoubleArraySlice mv = data.getLayer(Layer.MV);
+	public float calculate(TimeMarketData data) {
+		FloatArraySlice pe = data.getLayer(Layer.PE);
+		FloatArraySlice mv = data.getLayer(Layer.MV);
 		if (pe.size() < offset + windows[windows.length - 1] || mv.size() < offset + windows[windows.length - 1]) {
-			return Double.NaN;
+			return Float.NaN;
 		}
 		List<Double> profits = new ArrayList<>(windows.length);
 		for (int window : windows) {
 			double profit = mv.get(window + offset) / pe.get(window + offset);
 			if (profit < 0) {
-				return Double.NaN;
+				return Float.NaN;
 			}
 			profits.add(profit);
 		}
@@ -41,16 +41,16 @@ public class PEG extends Indicator {
 		int changesCount = 0;
 		double lastProfit = profits.removeFirst();
 		while (!profits.isEmpty()) {
-			double change = 100 * (lastProfit / profits.getFirst() - 1);
+			float change = (float)(100 * (lastProfit / profits.getFirst() - 1));
 			changes += change;
 			changesCount++;
 			lastProfit = profits.removeFirst();
 		}
 		if (changesCount > 0) {
-			double average = changes / changesCount;
+			float average = (float)changes / changesCount;
 			return pe.get(offset) / average;
 		} else {
-			return Double.NaN;
+			return Float.NaN;
 		}
 	}
 }

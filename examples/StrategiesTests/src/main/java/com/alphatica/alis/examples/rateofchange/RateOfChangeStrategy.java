@@ -4,7 +4,7 @@ import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Direction;
 import com.alphatica.alis.trading.order.Order;
@@ -43,7 +43,7 @@ public class RateOfChangeStrategy extends Strategy {
 			if (!allowedMarkets.contains(marketData.getMarketName())) {
 				continue;
 			}
-			DoubleArraySlice closes = marketData.getLayer(Layer.CLOSE);
+			FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);
 			if (closes.size() <= requiredLength) {
 				continue;
 			}

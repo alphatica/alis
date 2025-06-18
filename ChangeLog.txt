@@ -1,0 +1,1 @@
+18 June 2025: Change data and indicator type from `double` to `float`

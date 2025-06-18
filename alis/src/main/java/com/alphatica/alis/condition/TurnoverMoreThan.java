@@ -2,7 +2,7 @@ package com.alphatica.alis.condition;
 
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.DoubleArraySlice;
+import com.alphatica.alis.tools.data.FloatArraySlice;
 
 import static com.alphatica.alis.data.layer.Layer.TURNOVER;
 
@@ -10,7 +10,7 @@ public record TurnoverMoreThan(double minTurnover, int bars) implements Conditio
 	@Override
 	public boolean matches(TimeMarketData marketData, TimeMarketDataSet all) {
 		double turnoverSoFar = 0.0;
-		DoubleArraySlice turnoverData = marketData.getLayer(TURNOVER);
+		FloatArraySlice turnoverData = marketData.getLayer(TURNOVER);
 		for (int i = 0; i < bars && i < turnoverData.size(); i++) {
 			turnoverSoFar += turnoverData.get(i);
 			if (turnoverSoFar >= minTurnover) {
