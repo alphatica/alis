@@ -25,9 +25,9 @@ public class OHLCVRow {
 		quote.data.add(Float.parseFloat(low));
 		quote.data.add(Float.parseFloat(close));
 		quote.data.add(Float.parseFloat(volume) * (quote.get(OPEN) + quote.get(HIGH) + quote.get(LOW) + quote.get(CLOSE)) / 4.0f);
-		quote.data.add(-1.0f);
-		quote.data.add(-1.0f);
-		quote.data.add(-1.0f);
+		quote.data.add(Float.NaN);
+		quote.data.add(Float.NaN);
+		quote.data.add(Float.NaN);
 		return quote;
 	}
 

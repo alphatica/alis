@@ -1,1 +1,2 @@
+18 June 2025: Change default value for PE, MV, PB from -1.0 to Float.NaN
 18 June 2025: Change data and indicator type from `double` to `float`
