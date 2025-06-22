@@ -6,6 +6,7 @@ import com.alphatica.alis.data.loader.ohlcv.OHLCVData;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
+import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.tools.java.TaskExecutor;
 import com.alphatica.alis.tools.java.Zipper;
 
@@ -33,16 +34,21 @@ public class StooqLoader {
 
 	public static StandardMarketData loadUS(String workDir) {
 		List<File> files = getStockFiles(workDir);
-		return loadFiles(files);
+		return loadFiles(files, new Time(0));
+	}
+
+	public static StandardMarketData loadUS(String workDir, Time startTime) {
+		List<File> files = getStockFiles(workDir);
+		return loadFiles(files, startTime);
 	}
 
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
 	public static StandardMarketData loadPL(String workDir) throws ExecutionException, InterruptedException {
 		String dataDir = workDir + separator + STOOQ_DATA_DIR + separator + "data" + separator + "daily" + separator + "pl" + separator;
 		StandardMarketData standardMarketData = new StandardMarketData();
-		Map<MarketName, Market> stocks = loadFiles(dataDir, "wse stocks", "wse stocks indicators", STOCK);
+		Map<MarketName, Market> stocks = loadFiles(dataDir, "wse stocks", "wse stocks indicators", STOCK, new Time(0));
 		standardMarketData.addMarkets(stocks);
-		Map<MarketName, Market> indices = loadFiles(dataDir, "wse indices", "wse indices indicators", MarketType.INDICE);
+		Map<MarketName, Market> indices = loadFiles(dataDir, "wse indices", "wse indices indicators", MarketType.INDICE, new Time(0));
 		standardMarketData.addMarkets(indices);
 		return standardMarketData;
 	}
@@ -88,14 +94,14 @@ public class StooqLoader {
 	}
 
 	@SuppressWarnings("java:S106")
-	private static StandardMarketData loadFiles(List<File> files) {
+	private static StandardMarketData loadFiles(List<File> files, Time startTime) {
 		Map<MarketName, Market> map = new ConcurrentHashMap<>();
 
 		try(ExecutorService executor = Executors.newWorkStealingPool(Runtime.getRuntime().availableProcessors())) {
 			for(File file: files) {
 				executor.submit(() -> {
 					try {
-						Market market = OHLCVData.load(file, 2, 4, 5, 6, 7, 8).toMarket(STOCK);
+						Market market = OHLCVData.load(file, 2, 4, 5, 6, 7, 8, startTime).toMarket(STOCK);
 						map.put(market.getName(), market);
 					} catch (IOException e) {
 						System.err.println("Exception: " + e);
@@ -108,7 +114,8 @@ public class StooqLoader {
 		return marketData;
 	}
 
-	private static Map<MarketName, Market> loadFiles(String dataDir, String filesPath, String indicatorsPath, MarketType marketType) throws ExecutionException, InterruptedException {
+	private static Map<MarketName, Market> loadFiles(String dataDir, String filesPath, String indicatorsPath, MarketType marketType, Time startTime)
+			throws ExecutionException, InterruptedException {
 		File ohlcvDir = new File(dataDir + separator + filesPath);
 		File[] files = ohlcvDir.listFiles();
 
@@ -118,15 +125,15 @@ public class StooqLoader {
 		}
 		TaskExecutor<Market> executor = new TaskExecutor<>();
 		for (File file : files) {
-			executor.submit(() -> processFile(dataDir, file, indicatorsPath, marketType));
+			executor.submit(() -> processFile(dataDir, file, indicatorsPath, marketType, startTime));
 		}
 		executor.getResults().forEach(stock -> stocks.put(stock.getName(), stock));
 		return stocks;
 	}
 
-	private static Market processFile(String dataDir, File file, String indicatorsPath, MarketType marketType) {
+	private static Market processFile(String dataDir, File file, String indicatorsPath, MarketType marketType, Time startTime) {
 		try {
-			OHLCVData ohlcv = OHLCVData.load(file, 2, 4, 5, 6, 7, 8);
+			OHLCVData ohlcv = OHLCVData.load(file, 2, 4, 5, 6, 7, 8, startTime);
 			ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_pe.txt", 2, 7, (q, s) -> q.parseAndSet(s,
 					PE));
 			ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_pb.txt", 2, 7, (q, s) -> q.parseAndSet(s,

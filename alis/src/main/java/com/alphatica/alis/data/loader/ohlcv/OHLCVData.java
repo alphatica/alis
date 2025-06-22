@@ -37,7 +37,7 @@ public class OHLCVData {
 	private OHLCVData() {
 	}
 
-	public static OHLCVData load(File file, int date, int open, int high, int low, int close, int vol) throws IOException {
+	public static OHLCVData load(File file, int date, int open, int high, int low, int close, int vol, Time startTime) throws IOException {
 		List<String> lines = FileUtils.readLines(file, Charset.defaultCharset());
 		OHLCVData stock = new OHLCVData();
 		stock.indexes = HashMap.newHashMap(4096);
@@ -49,8 +49,10 @@ public class OHLCVData {
 		lines.removeFirst();
 		for (String line : lines) {
 			String[] parts = line.split(",");
-
 			OHLCVRow quote = OHLCVRow.fromParts(parts[date], parts[open], parts[high], parts[low], parts[close], parts[vol]);
+			if (quote.getTime().isBefore(startTime)) {
+				continue;
+			}
 			if (!stock.rows.isEmpty() && quote.getTime().isBefore(stock.rows.getLast().getTime())) {
 				throw new IllegalArgumentException(format("Wrong date order: %s, %d", file.getAbsolutePath(), quote.getTime().time()));
 			}
