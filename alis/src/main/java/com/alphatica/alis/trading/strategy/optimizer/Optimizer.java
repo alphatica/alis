@@ -30,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -48,9 +49,11 @@ public class Optimizer {
 	private final ResultVerifier resultVerifier;
 	private final ParamsSelector paramsSelector;
 	private final RandomParamsSelector randomParamsSelector;
+	private final AtomicInteger iterationsStarted = new AtomicInteger(0);
+	private final AtomicLong sumMillisElapsed = new AtomicLong(0);
+
 	private BiConsumer<OptimizerScore, Account> scoreCallback;
 	private Consumer<Exception> exceptionCallback;
-	private final AtomicInteger iterationsStarted = new AtomicInteger(0);
 
 	public Optimizer(Supplier<Strategy> strategyFactory, MarketData marketData, Supplier<StrategyExecutor> executorFactory, Supplier<AccountScorer> scorerFactory, ResultVerifier resultVerifier, ParametersSelection parametersSelection, long maxCounter) throws OptimizerException {
 		this.strategyFactory = strategyFactory;
@@ -91,12 +94,15 @@ public class Optimizer {
 		Runnable task = () -> {
 			while(iterationsStarted.incrementAndGet() <= maxCounter && !isStopped.get()) {
 				try {
+					long startTime = System.nanoTime();
 					switch (resultVerifier) {
 						case NONE -> optimizeWithAllTradesAndMarkets();
 						case REMOVE_MARKETS -> optimizeWithReducedMarkets();
 						case REMOVE_ORDERS -> optimizeWithReducedOrders();
 					}
+					long endTime = System.nanoTime();
 					counter.incrementAndGet();
+					updateAverageTime(startTime, endTime);
 				} catch (IllegalAccessException e) {
 					passException(e);
 				}
@@ -105,6 +111,13 @@ public class Optimizer {
 		Thread thread = new Thread(task);
 		thread.start();
 		return thread;
+	}
+
+	private void updateAverageTime(long startTime, long endTime) {
+		long millis = (endTime - startTime) / 1_000_000;
+		var millisElapsed = sumMillisElapsed.addAndGet(millis);
+		double average = (double)millisElapsed / counter.get();
+		System.out.printf("Average time per optimization loop: %.1f ms%n", average);
 	}
 
 	private void passException(Exception e) {
