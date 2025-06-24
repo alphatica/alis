@@ -1,20 +1,29 @@
 package com.alphatica.alis.condition;
 
+import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.indicators.BarsSinceHighestClose;
 
 public class HighestClose implements Condition {
-
-	private final BarsSinceHighestClose barsSinceHighestClose;
+	private final int length;
 
 	public HighestClose(int length) {
-		this.barsSinceHighestClose = new BarsSinceHighestClose(length);
+		this.length = length;
 	}
 
 	@Override
 	public boolean matches(TimeMarketData marketData, TimeMarketDataSet allData) {
-		return barsSinceHighestClose.calculate(marketData) == 0.0;
+		var closes = marketData.getLayer(Layer.CLOSE);
+		if (closes.size() <= length) {
+			return false;
+		}
+		var last = closes.get(0);
+		for(int i = 1; i < length; i++) {
+			if (closes.get(i) >= last) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 }

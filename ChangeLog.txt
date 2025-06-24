@@ -1,3 +1,4 @@
+24 June 2025: Make HighestClose and LowestClose more efficient
 22 June 2025: Add `Time` parameter to load only newer data
 18 June 2025: Change default value for PE, MV, PB from -1.0 to Float.NaN
 18 June 2025: Change data and indicator type from `double` to `float`
