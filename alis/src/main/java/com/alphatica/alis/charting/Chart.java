@@ -24,7 +24,6 @@ public class Chart<X extends Comparable<X>> {
 	private static final int MARGIN_TOP = 200;
 	private static final int MARGIN_BOTTOM = 150;
 	private static final int MARGIN_LEFT = 250;
-	private static final int MARGIN_RIGHT = 300;
 	private static final int WIDTH = 3840;
 	private static final int HEIGHT = 2160;
 	private static final int POINT_SIZE = 4;
@@ -38,35 +37,7 @@ public class Chart<X extends Comparable<X>> {
 	private String xName = null;
 	private String yName = null;
 	private boolean isLogarithmic = false;
-
-	private static int drawLineLabel(String line, Graphics2D graphics, int offset) {
-		if (line != null) {
-			graphics.drawString(line, WIDTH - MARGIN_RIGHT + 20, offset);
-			offset += 50;
-		}
-		return offset;
-	}
-
-	private static <X> void drawVerticalGrid(Graphics2D graphics, List<X> xValues, int gridLines) {
-		double xStep = (double) (xValues.size() - 1) / gridLines;
-		int xSpace = (WIDTH - MARGIN_RIGHT - MARGIN_LEFT) / gridLines;
-		for (int i = 0; i <= gridLines; i++) {
-			X x = xValues.get((int) Math.round(i * xStep));
-			int xPix = i * xSpace + MARGIN_LEFT;
-			graphics.drawLine(xPix, MARGIN_TOP, xPix, HEIGHT - MARGIN_BOTTOM);
-			graphics.drawString(x.toString(), xPix, HEIGHT - MARGIN_BOTTOM + 35);
-		}
-	}
-
-	private static String getYAxisLabel(double y) {
-		return String.format("%6.0f", y);
-	}
-
-	private static void drawPointConnection(Graphics2D graphics, int lastX, int lastY, int x, int y) {
-		for (int i = 0; i < POINT_SIZE; i++) {
-			graphics.drawLine(lastX + i, lastY + i, x + i, y + 1);
-		}
-	}
+	private int marginRight = 300;
 
 	public void setLogarithmic(boolean logarithmic) {
 		isLogarithmic = logarithmic;
@@ -96,6 +67,10 @@ public class Chart<X extends Comparable<X>> {
 		this.horizontalLines.add(horizontalLine);
 	}
 
+	public void setMarginRight(int marginRight) {
+		this.marginRight = marginRight;
+	}
+
 	public void createImage(File file) throws IOException {
 		BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D graphics = image.createGraphics();
@@ -110,6 +85,40 @@ public class Chart<X extends Comparable<X>> {
 
 		ImageIO.write(image, "PNG", file);
 		graphics.dispose();
+	}
+
+	List<X> xValues() {
+		Set<X> set = dataLines.stream().map(line -> line.getData().keySet()).flatMap(Set::stream).collect(Collectors.toSet());
+		return set.stream().sorted().toList();
+	}
+
+	private void drawVerticalGrid(Graphics2D graphics, List<X> xValues, int gridLines) {
+		double xStep = (double) (xValues.size() - 1) / gridLines;
+		int xSpace = (WIDTH - marginRight - MARGIN_LEFT) / gridLines;
+		for (int i = 0; i <= gridLines; i++) {
+			X x = xValues.get((int) Math.round(i * xStep));
+			int xPix = i * xSpace + MARGIN_LEFT;
+			graphics.drawLine(xPix, MARGIN_TOP, xPix, HEIGHT - MARGIN_BOTTOM);
+			graphics.drawString(x.toString(), xPix, HEIGHT - MARGIN_BOTTOM + 35);
+		}
+	}
+
+	private static String getYAxisLabel(double y) {
+		return String.format("%6.0f", y);
+	}
+
+	private static void drawPointConnection(Graphics2D graphics, int lastX, int lastY, int x, int y) {
+		for (int i = 0; i < POINT_SIZE; i++) {
+			graphics.drawLine(lastX + i, lastY + i, x + i, y + 1);
+		}
+	}
+
+	private int drawLineLabel(String line, Graphics2D graphics, int offset) {
+		if (line != null) {
+			graphics.drawString(line, WIDTH - marginRight + 20, offset);
+			offset += 50;
+		}
+		return offset;
 	}
 
 	private void drawLines(Graphics2D graphics, List<X> xValues, MinMaxValue yMinMax) {
@@ -153,7 +162,7 @@ public class Chart<X extends Comparable<X>> {
 			setNextColor(graphics, colors);
 			offset = drawLineLabel(line.name(), graphics, offset);
 			int y = yToPix(line.value(), yMinMax);
-			graphics.drawLine(MARGIN_LEFT, y, WIDTH - MARGIN_RIGHT, y);
+			graphics.drawLine(MARGIN_LEFT, y, WIDTH - marginRight, y);
 			String label = getYAxisLabel(line.value());
 			graphics.drawString(label, MARGIN_LEFT - HORIZONTAL_GRID_LABEL_OFFSET, y + Y_AXIS_LABEL_OFFSET);
 		}
@@ -202,10 +211,10 @@ public class Chart<X extends Comparable<X>> {
 			xAxisY = yToPix(yMinMax.getMin(), yMinMax);
 			graphics.drawString(getYAxisLabel(yMinMax.getMin()), MARGIN_LEFT - HORIZONTAL_GRID_LABEL_OFFSET, xAxisY + Y_AXIS_LABEL_OFFSET);
 		}
-		graphics.fillRect(MARGIN_LEFT, xAxisY, WIDTH - MARGIN_RIGHT - MARGIN_LEFT, 2);
+		graphics.fillRect(MARGIN_LEFT, xAxisY, WIDTH - marginRight - MARGIN_LEFT, 2);
 		graphics.fillRect(MARGIN_LEFT, MARGIN_TOP, 2, HEIGHT - MARGIN_BOTTOM - MARGIN_TOP);
 		if (xName != null) {
-			graphics.drawString(xName, WIDTH - MARGIN_RIGHT + 10, xAxisY);
+			graphics.drawString(xName, WIDTH - marginRight + 10, xAxisY);
 		}
 		if (yName != null) {
 			graphics.drawString(yName, MARGIN_LEFT, MARGIN_TOP - 10);
@@ -220,14 +229,14 @@ public class Chart<X extends Comparable<X>> {
 		for (int i = 0; i < gridLines; i++) {
 			double y = i * yGridStep + yMinMax.getMin();
 			int yPix = yToPix(y, yMinMax);
-			graphics.drawLine(MARGIN_LEFT, yPix, WIDTH - MARGIN_RIGHT, yPix);
+			graphics.drawLine(MARGIN_LEFT, yPix, WIDTH - marginRight, yPix);
 			String label = getYAxisLabel(y);
 			graphics.drawString(label, MARGIN_LEFT - HORIZONTAL_GRID_LABEL_OFFSET, yPix + Y_AXIS_LABEL_OFFSET);
 		}
 	}
 
 	private int xToPix(X key, List<X> xValues) {
-		int canvas = WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
+		int canvas = WIDTH - MARGIN_LEFT - marginRight;
 		double pixPerX = (double) canvas / (double) xValues.size();
 		int xIndex = Collections.binarySearch(xValues, key);
 		return (int) Math.round(MARGIN_LEFT + xIndex * pixPerX);
@@ -262,10 +271,5 @@ public class Chart<X extends Comparable<X>> {
 		double yLn = Math.log(adjustedY - adjustedMin);
 		int canvas = HEIGHT - MARGIN_TOP - MARGIN_BOTTOM;
 		return (int) Math.round(canvas * yLn / yRangeLn);
-	}
-
-	List<X> xValues() {
-		Set<X> set = dataLines.stream().map(line -> line.getData().keySet()).flatMap(Set::stream).collect(Collectors.toSet());
-		return set.stream().sorted().toList();
 	}
 }
