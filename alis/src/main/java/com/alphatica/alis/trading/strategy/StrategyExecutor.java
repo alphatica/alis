@@ -16,6 +16,7 @@ import com.alphatica.alis.trading.order.TradePrice;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -32,6 +33,7 @@ public class StrategyExecutor {
 	private Double limitOrderSize = Double.NaN;
 	private TradePrice tradePrice = TradePrice.OPEN;
 	private double skipTradesProbability = 0.0;
+	private int missedTrades = 0;
 	private BarExecutedConsumer barExecutedConsumer = (time, account, pendingOrders) -> {};
 
 	public StrategyExecutor withInitialCash(double initialCash) {
@@ -78,6 +80,7 @@ public class StrategyExecutor {
 			TimeMarketDataSet current = TimeMarketDataSet.build(time, marketData);
 			executeSells(pendingOrders, current, account);
 			executeBuys(pendingOrders, current, account);
+			updateMissedTradesCounter(pendingOrders);
 			account.updateLastKnown(current);
 			pendingOrders = strategy.afterClose(current, account);
 			if (skipTradesProbability > 0.0) {
@@ -92,8 +95,20 @@ public class StrategyExecutor {
 		return account;
 	}
 
+	private void updateMissedTradesCounter(List<Order> pendingOrders) {
+		for(Order order: pendingOrders) {
+			if (order.direction() == BUY) {
+				missedTrades++;
+			}
+		}
+	}
+
 	public void skipTrades(double skipTradesProbability) {
 		this.skipTradesProbability = skipTradesProbability;
+	}
+
+	public int getMissedTrades() {
+		return missedTrades;
 	}
 
 	@SuppressWarnings("java:S1301")
@@ -117,7 +132,9 @@ public class StrategyExecutor {
 	}
 
 	private void executeBuys(List<Order> pendingOrders, TimeMarketDataSet current, Account account) throws AccountActionException {
-		for (Order order : pendingOrders) {
+		Iterator<Order> orderIterator = pendingOrders.iterator();
+		while(orderIterator.hasNext()) {
+			Order order = orderIterator.next();
 			if (order.direction() == BUY) {
 				TimeMarketData marketData = current.get(order.market());
 				if (marketData != null) {
@@ -131,6 +148,7 @@ public class StrategyExecutor {
 					if (value > account.getCash()) {
 						return;
 					}
+					orderIterator.remove();
 					account.addPosition(order.market(), new PositionEntry(current.getTime(), quantity, tradePrice.getPrice(marketData)),
 							commissionValue);
 					account.getAccountHistory()
@@ -142,7 +160,9 @@ public class StrategyExecutor {
 	}
 
 	private void executeSells(List<Order> pendingOrders, TimeMarketDataSet current, Account account) throws AccountActionException {
-		for (Order order : pendingOrders) {
+		Iterator<Order> orderIterator = pendingOrders.iterator();
+		while(orderIterator.hasNext()) {
+			Order order = orderIterator.next();
 			if (order.direction() == SELL) {
 				TimeMarketData marketData = current.get(order.market());
 				if (marketData != null) {
@@ -155,6 +175,7 @@ public class StrategyExecutor {
 						account.getAccountHistory()
 							   .addAction(new AccountAction(current.getTime(), new Trade(marketData.getMarketName(), SELL, price, quantity,
 									   commissionValue)));
+						orderIterator.remove();
 					}
 				}
 			}

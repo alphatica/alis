@@ -284,27 +284,29 @@ public class BacktestPane extends JPanel {
 		backtestNavHistory.clear();
 		Account account = executor.execute(marketData, strategy);
 		barExecutedCallback(timeEnd, account, List.of());
-		finishBacktest(account);
+		finishBacktest(account, executor);
 		publish(BACKTEST_FINISHED);
 		setButtonsState(true);
 	}
 
-	private void finishBacktest(Account account) {
-		runUiThread(() -> fillStatsTable(account));
+	private void finishBacktest(Account account, StrategyExecutor executor) {
+		runUiThread(() -> fillStatsTable(account, executor));
 		lastBacktestAccount = account;
 	}
 
-	private void fillStatsTable(Account account) {
+	private void fillStatsTable(Account account, StrategyExecutor executor) {
 		statsTableModel.addRow(new Object[]{"Final account value", format("%.0f", account.getNAV())});
 		statsTableModel.addRow(new Object[]{"Current drawdown", format("%.0f %%", account.getCurrentDD())});
 		statsTableModel.addRow(new Object[]{"Max drawdown", format("%.0f %%", account.getMaxDD())});
 		AccountHistory history = account.getAccountHistory();
 		TradeStats stats = history.getStats();
 		statsTableModel.addRow(new Object[]{"Total trades", format("%d", stats.trades())});
+		statsTableModel.addRow(new Object[]{"Missed trades", format("%d", executor.getMissedTrades())});
 		statsTableModel.addRow(new Object[]{"Profit factor", format("%.2f", stats.profitFactor())});
 		statsTableModel.addRow(new Object[]{"Expectancy", format("%.2f", stats.expectancy())});
 		statsTableModel.addRow(new Object[]{"Average win", format("%.0f %%", stats.averageWinPercent())});
 		statsTableModel.addRow(new Object[]{"Average loss", format("%.0f %%", stats.averageLossPercent())});
+		statsTableModel.addRow(new Object[]{"Average profit per trade", format("%.0f %%", stats.profitPerTrade())});
 		statsTableModel.addRow(new Object[]{"Accuracy", format("%.1f %%", stats.accuracy())});
 		statsTableModel.addRow(new Object[]{"Paid commissions", format("%.0f", history.getPaidCommissions())});
 		statsTableModel.addRow(new Object[]{"Profitable markets", format("%d", history.countProfitableMarkets())});

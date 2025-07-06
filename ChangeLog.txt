@@ -1,4 +1,5 @@
 3 July 2025: Add option to set right margin in Charts
+6 July 2025: Show more backtest stats: average profit per trade and missed trades count
 24 June 2025: Show average time per optimization loop
 24 June 2025: Make HighestClose and LowestClose more efficient
 22 June 2025: Add `Time` parameter to load only newer data
