@@ -2,7 +2,7 @@
 
 Alis consists of two main parts:
 
-- **Library**: A collection of primitives designed to help with portfolio management, testing, and market analysis.
+- **Library**: A collection of basic building blocks designed to help with portfolio management, testing, and market analysis.
 - **Studio**: A standalone desktop application for managing daily trading and research activities.
 
 ## Main Features
