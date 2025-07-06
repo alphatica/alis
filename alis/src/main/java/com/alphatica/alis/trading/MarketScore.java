@@ -2,6 +2,8 @@ package com.alphatica.alis.trading;
 
 import com.alphatica.alis.data.market.MarketName;
 
+import java.util.Locale;
+
 
 public record MarketScore(MarketName market, double value) implements Comparable<MarketScore> {
 	@Override
@@ -11,6 +13,6 @@ public record MarketScore(MarketName market, double value) implements Comparable
 
 	@Override
 	public String toString() {
-		return String.format("%s: %.2f", market.name(), value);
+		return String.format(Locale.US, "%s: %.2f", market.name(), value);
 	}
 }

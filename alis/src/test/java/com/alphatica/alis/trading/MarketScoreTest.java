@@ -16,9 +16,9 @@ class MarketScoreTest {
 		assertEquals(0, ms2.compareTo(ms2));
 	}
 
-//	@Test
-//	void shouldFormatScore() {
-//		var ms = new MarketScore(new MarketName("a"), 4.0);
-//		assertEquals("a: 4.00", ms.toString());
-//	}
+	@Test
+	void shouldFormatScore() {
+		var ms = new MarketScore(new MarketName("a"), 4.0);
+		assertEquals("a: 4.00", ms.toString());
+	}
 }
