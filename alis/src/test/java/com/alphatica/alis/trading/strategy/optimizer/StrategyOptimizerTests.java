@@ -2,21 +2,23 @@ package com.alphatica.alis.trading.strategy.optimizer;
 
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.Account;
+import com.alphatica.alis.trading.optimizer.OptimizerException;
+import com.alphatica.alis.trading.optimizer.StrategyOptimizer;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;
-import com.alphatica.alis.trading.strategy.params.BoolParam;
-import com.alphatica.alis.trading.strategy.params.DoubleParam;
-import com.alphatica.alis.trading.strategy.params.IntParam;
+import com.alphatica.alis.trading.optimizer.params.BoolParam;
+import com.alphatica.alis.trading.optimizer.params.DoubleParam;
+import com.alphatica.alis.trading.optimizer.params.IntParam;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.function.Supplier;
 
-import static com.alphatica.alis.trading.strategy.optimizer.ParametersSelection.GENETIC;
-import static com.alphatica.alis.trading.strategy.optimizer.ResultVerifier.NONE;
+import static com.alphatica.alis.trading.optimizer.ParametersSelection.GENETIC;
+import static com.alphatica.alis.trading.optimizer.ResultVerifier.NONE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class OptimizerTests {
+class StrategyOptimizerTests {
 
 	@Test
 	void shouldGetAllRequiredStrategies() throws OptimizerException {
@@ -36,7 +38,7 @@ class OptimizerTests {
 			}
 		};
 
-		Optimizer optimizer = new Optimizer(supplier, null, null, null, NONE, GENETIC, 0);
+		StrategyOptimizer strategyOptimizer = new StrategyOptimizer(supplier, null, null, null, NONE, GENETIC, 0);
 //		assertEquals(48, optimizer.getPermutationCount()); // TODO fix
 	}
 }

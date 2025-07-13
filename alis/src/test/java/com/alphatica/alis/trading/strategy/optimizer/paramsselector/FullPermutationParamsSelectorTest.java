@@ -1,7 +1,8 @@
 package com.alphatica.alis.trading.strategy.optimizer.paramsselector;
 
-import com.alphatica.alis.trading.strategy.optimizer.ParamSteps;
-import com.alphatica.alis.trading.strategy.optimizer.ParamsStepsSet;
+import com.alphatica.alis.trading.optimizer.ParamSteps;
+import com.alphatica.alis.trading.optimizer.ParamsStepsSet;
+import com.alphatica.alis.trading.optimizer.paramsselector.FullPermutationParamsSelector;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;

@@ -14,11 +14,11 @@ import com.alphatica.alis.studio.view.window.trading.strategies.optimize.resultt
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.strategy.Strategy;
 import com.alphatica.alis.trading.strategy.StrategyExecutor;
-import com.alphatica.alis.trading.strategy.optimizer.Optimizer;
-import com.alphatica.alis.trading.strategy.optimizer.OptimizerException;
-import com.alphatica.alis.trading.strategy.optimizer.OptimizerScore;
-import com.alphatica.alis.trading.strategy.optimizer.ParametersSelection;
-import com.alphatica.alis.trading.strategy.optimizer.ResultVerifier;
+import com.alphatica.alis.trading.optimizer.StrategyOptimizer;
+import com.alphatica.alis.trading.optimizer.OptimizerException;
+import com.alphatica.alis.trading.optimizer.OptimizerScore;
+import com.alphatica.alis.trading.optimizer.ParametersSelection;
+import com.alphatica.alis.trading.optimizer.ResultVerifier;
 import com.alphatica.alis.trading.account.scorer.AccountScorer;
 import com.alphatica.alis.trading.account.scorer.Expectancy;
 import com.alphatica.alis.trading.account.scorer.NavAdjustedForMaxDD;
@@ -35,7 +35,7 @@ import java.util.function.Supplier;
 import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
 import static com.alphatica.alis.studio.state.StateChange.DATA_LOADED;
 import static com.alphatica.alis.studio.tools.GlobalThreadExecutor.GLOBAL_EXECUTOR;
-import static com.alphatica.alis.trading.strategy.optimizer.ParametersSelection.FULL_PERMUTATION;
+import static com.alphatica.alis.trading.optimizer.ParametersSelection.FULL_PERMUTATION;
 
 public class OptimizationPane extends JPanel {
 	private static final String ITERATIONS_LABEL_PREFIX = "Iterations: ";
@@ -54,7 +54,7 @@ public class OptimizationPane extends JPanel {
 	private final JLabel iterationCounterLabel = new JLabel(ITERATIONS_LABEL_PREFIX);
 	private final JPanel settingsPanel = new JPanel(new GridBagLayout());
 	private final ResultTable resultTable = new ResultTable();
-	private Optimizer optimizer = null;
+	private StrategyOptimizer strategyOptimizer = null;
 
 	public OptimizationPane() {
 		setLayout(new BorderLayout());
@@ -223,7 +223,7 @@ public class OptimizationPane extends JPanel {
 
 	private long getPermutationsCount() {
 		return switch (parametersSelectionComboBox.getValue()) {
-			case FULL_PERMUTATION -> Optimizer.computeAllPermutations(strategySelector.getValue());
+			case FULL_PERMUTATION -> StrategyOptimizer.computeAllPermutations(strategySelector.getValue());
 			case GENETIC, RANDOM -> 10_000L;
 		};
 	}
@@ -242,8 +242,8 @@ public class OptimizationPane extends JPanel {
 	}
 
 	private void stopOptimization() {
-		if (optimizer != null) {
-			optimizer.stop();
+		if (strategyOptimizer != null) {
+			strategyOptimizer.stop();
 		}
 		setSettingsInputs(true);
 	}
@@ -277,10 +277,10 @@ public class OptimizationPane extends JPanel {
 	private void tryOptimize(Supplier<Strategy> strategyFactory, MarketData marketData, Supplier<StrategyExecutor> executorFactory,
 							 Supplier<AccountScorer> scorerFactory, ResultVerifier resultVerifier, ParametersSelection parametersSelection, long maxCounter) {
 		try {
-			optimizer = new Optimizer(strategyFactory, marketData, executorFactory, scorerFactory, resultVerifier, parametersSelection, maxCounter);
-			optimizer.registerScoreCallback(this::scoreCallback);
-			optimizer.setExceptionCallback(this::exceptionCallback);
-			optimizer.startOptimizations();
+			strategyOptimizer = new StrategyOptimizer(strategyFactory, marketData, executorFactory, scorerFactory, resultVerifier, parametersSelection, maxCounter);
+			strategyOptimizer.registerScoreCallback(this::scoreCallback);
+			strategyOptimizer.setExceptionCallback(this::exceptionCallback);
+			strategyOptimizer.startOptimizations();
 			stopOptimization();
 		} catch (OptimizerException e) {
 			ErrorDialog.showError("Error during optimization", e.getMessage(), e);
@@ -288,13 +288,13 @@ public class OptimizationPane extends JPanel {
 	}
 
 	private void exceptionCallback(Exception ex) {
-		optimizer.stop();
+		strategyOptimizer.stop();
 		ErrorDialog.showError("Optimization error", ex.toString(), ex);
 	}
 
 	private void scoreCallback(OptimizerScore newScore, Account account) {
 		GLOBAL_EXECUTOR.execute(() -> {
-			int count = optimizer.getLoopCount();
+			int count = strategyOptimizer.getLoopCount();
 			SwingHelper.runUiThread(() -> iterationCounterLabel.setText(ITERATIONS_LABEL_PREFIX + " " + count));
 			synchronized (OptimizationPane.class) {
 				resultTable.scoreCallback(newScore, account);

@@ -1,13 +1,14 @@
-package com.alphatica.alis.trading.strategy.optimizer.paramsselector;
+package com.alphatica.alis.trading.optimizer.paramsselector;
 
-import com.alphatica.alis.trading.strategy.optimizer.OptimizerScore;
-import com.alphatica.alis.trading.strategy.optimizer.ParamsStepsSet;
+import com.alphatica.alis.trading.optimizer.OptimizerScore;
+import com.alphatica.alis.trading.optimizer.ParamsStepsSet;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -17,10 +18,13 @@ public class GeneticParamsSelector extends ParamsSelector {
 
 	private final AtomicInteger noImprovementCounter = new AtomicInteger(0);
 	private final List<OptimizerScore> scores = new ArrayList<>();
-	private double totalScore = 0;
+	private final RandomParamsSelector randomParamsSelector;
+
+	private volatile double totalScore = 0;
 
 	public GeneticParamsSelector(ParamsStepsSet paramsStepsSet) {
 		super(paramsStepsSet);
+		randomParamsSelector = new RandomParamsSelector(paramsStepsSet);
 	}
 
 	@Override
@@ -28,13 +32,13 @@ public class GeneticParamsSelector extends ParamsSelector {
 		synchronized (scores) {
 			if (noImprovementCounter.get() == MAX_SCORES_WITHOUT_IMPROVEMENT) {
 				noImprovementCounter.set(0);
-				return Collections.emptyMap();
+				return randomParamsSelector.next();
 			}
 			if (scores.isEmpty()) {
-				return Collections.emptyMap();
+				return randomParamsSelector.next();
 			}
 			if (totalScore < 1) {
-				return Collections.emptyMap();
+				return randomParamsSelector.next();
 			}
 			Map<String, Object> parent1 = selectParent();
 			Map<String, Object> parent2 = selectParent();
@@ -48,7 +52,7 @@ public class GeneticParamsSelector extends ParamsSelector {
 				}
 			}
 			if (alreadyPresent(next)) {
-				return Collections.emptyMap();
+				return randomParamsSelector.next();
 			} else {
 				return next;
 			}

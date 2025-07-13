@@ -1,7 +1,6 @@
-package com.alphatica.alis.trading.strategy.params;
+package com.alphatica.alis.trading.optimizer.params;
 
-import com.alphatica.alis.trading.strategy.Strategy;
-import com.alphatica.alis.trading.strategy.optimizer.OptimizerException;
+import com.alphatica.alis.trading.optimizer.OptimizerException;
 
 import java.lang.reflect.Field;
 
@@ -12,8 +11,7 @@ public class Validator {
 	private Validator() {
 	}
 
-	public static void validate(Strategy strategy) throws OptimizerException {
-		Field[] fields = strategy.getClass().getDeclaredFields();
+	public static void validate(Field[] fields) throws OptimizerException {
 		for (Field field : fields) {
 			if (field.isAnnotationPresent(BoolParam.class)) {
 				validateBool(field);
@@ -43,9 +41,8 @@ public class Validator {
 
 	private static void checkValidClass(Field field, Class<?> classA, Class<?> classB) throws OptimizerException {
 		if (!field.getType().equals(classA) && !field.getType().equals(classB)) {
-			throw new OptimizerException(format("Field `%s` has a type `%s` but optimized as `%s`", field.getName(), field.getType()
-																														  .getName(),
-					classA.getName()));
+			throw new OptimizerException(
+					format("Field `%s` has a type `%s` but optimized as `%s`", field.getName(), field.getType().getName(), classA.getName()));
 		}
 	}
 

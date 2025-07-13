@@ -9,7 +9,7 @@ import com.alphatica.alis.tools.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;
-import com.alphatica.alis.trading.strategy.params.IntParam;
+import com.alphatica.alis.trading.optimizer.params.IntParam;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,11 +24,12 @@ import static com.alphatica.alis.trading.order.OrderSize.PERCENTAGE;
 
 public class BuyATH extends Strategy {
 
+	@IntParam(start = 5, step = 1, end = 250)
+	int sessions = 59;
+
 	private static final int POSITIONS = 20;
 	private final Map<MarketName, Integer> counters = new HashMap<>();
 	private final Condition allTimeHigh = new AllTimeHigh();
-	@IntParam(start = 5, step = 1, end = 250)
-	private final int sessions = 59;
 
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet allData, Account account) {

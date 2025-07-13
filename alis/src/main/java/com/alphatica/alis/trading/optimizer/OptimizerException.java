@@ -1,4 +1,4 @@
-package com.alphatica.alis.trading.strategy.optimizer;
+package com.alphatica.alis.trading.optimizer;
 
 public class OptimizerException extends Exception {
 

@@ -16,5 +16,5 @@ module com.alphatica.alis {
 	exports com.alphatica.alis.trading.order;
 	exports com.alphatica.alis.indicators;
 	exports com.alphatica.alis.tools.math;
-	exports com.alphatica.alis.trading.strategy.params;
+	exports com.alphatica.alis.trading.optimizer.params;
 }

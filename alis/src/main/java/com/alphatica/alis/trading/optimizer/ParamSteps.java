@@ -1,4 +1,4 @@
-package com.alphatica.alis.trading.strategy.optimizer;
+package com.alphatica.alis.trading.optimizer;
 
 
 import java.util.concurrent.ThreadLocalRandom;

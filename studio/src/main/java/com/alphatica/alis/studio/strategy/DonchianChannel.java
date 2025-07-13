@@ -9,8 +9,8 @@ import com.alphatica.alis.tools.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;
-import com.alphatica.alis.trading.strategy.params.BoolParam;
-import com.alphatica.alis.trading.strategy.params.IntParam;
+import com.alphatica.alis.trading.optimizer.params.BoolParam;
+import com.alphatica.alis.trading.optimizer.params.IntParam;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,14 +22,14 @@ import static com.alphatica.alis.trading.order.OrderSize.PERCENTAGE;
 
 public class DonchianChannel extends Strategy {
 
-	@IntParam(start = 5, step = 1, end = 500)
-	private final int sellLength;
+//	@IntParam(start = 5, step = 1, end = 500)
+	int sellLength;
 
-	@BoolParam
-	private final boolean highestGrowthFirst;
+//	@BoolParam
+	boolean highestGrowthFirst;
 
-	@IntParam(start = 5, step = 1, end = 500)
-	private final int buyLength;
+//	@IntParam(start = 5, step = 1, end = 500)
+	int buyLength;
 
 	private HighestClose highestClose;
 	private LowestClose lowestClose;

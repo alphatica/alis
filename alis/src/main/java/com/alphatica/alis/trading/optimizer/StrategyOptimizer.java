@@ -1,4 +1,4 @@
-package com.alphatica.alis.trading.strategy.optimizer;
+package com.alphatica.alis.trading.optimizer;
 
 import com.alphatica.alis.data.StandardMarketData;
 import com.alphatica.alis.data.market.Market;
@@ -11,16 +11,11 @@ import com.alphatica.alis.trading.account.TradeStats;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
 import com.alphatica.alis.trading.strategy.Strategy;
 import com.alphatica.alis.trading.strategy.StrategyExecutor;
-import com.alphatica.alis.trading.strategy.optimizer.paramsselector.ParamsSelector;
-import com.alphatica.alis.trading.strategy.optimizer.paramsselector.RandomParamsSelector;
+import com.alphatica.alis.trading.optimizer.paramsselector.ParamsSelector;
 import com.alphatica.alis.trading.account.scorer.AccountScorer;
 import com.alphatica.alis.trading.account.scorer.ScoredAccount;
-import com.alphatica.alis.trading.strategy.params.BoolParam;
-import com.alphatica.alis.trading.strategy.params.DoubleParam;
-import com.alphatica.alis.trading.strategy.params.IntParam;
-import com.alphatica.alis.trading.strategy.params.Validator;
+import com.alphatica.alis.trading.optimizer.params.Validator;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,7 +32,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class Optimizer {
+public class StrategyOptimizer extends Optimizer {
 
 	private final Supplier<Strategy> strategyFactory;
 	private final MarketData marketData;
@@ -48,32 +43,26 @@ public class Optimizer {
 	private final long maxCounter;
 	private final ResultVerifier resultVerifier;
 	private final ParamsSelector paramsSelector;
-	private final RandomParamsSelector randomParamsSelector;
 	private final AtomicInteger iterationsStarted = new AtomicInteger(0);
 	private final AtomicLong sumMillisElapsed = new AtomicLong(0);
 
 	private BiConsumer<OptimizerScore, Account> scoreCallback;
 	private Consumer<Exception> exceptionCallback;
 
-	public Optimizer(Supplier<Strategy> strategyFactory, MarketData marketData, Supplier<StrategyExecutor> executorFactory, Supplier<AccountScorer> scorerFactory, ResultVerifier resultVerifier, ParametersSelection parametersSelection, long maxCounter) throws OptimizerException {
+	public StrategyOptimizer(Supplier<Strategy> strategyFactory, MarketData marketData, Supplier<StrategyExecutor> executorFactory, Supplier<AccountScorer> scorerFactory, ResultVerifier resultVerifier, ParametersSelection parametersSelection, long maxCounter) throws OptimizerException {
 		this.strategyFactory = strategyFactory;
 		this.marketData = marketData;
 		this.executorFactory = executorFactory;
 		this.scorerFactory = scorerFactory;
 		this.maxCounter = maxCounter;
 		this.resultVerifier = resultVerifier;
-		Strategy s = strategyFactory.get();
-		Validator.validate(s);
-		ParamsStepsSet paramsStepsSet = buildParamsStepsSet(s);
-		this.randomParamsSelector = new RandomParamsSelector(paramsStepsSet);
+		var fields = strategyFactory.get().getClass().getDeclaredFields();
+		Validator.validate(fields);
+		ParamsStepsSet paramsStepsSet = buildParamsStepsSet(fields);
 		this.paramsSelector = ParamsSelector.get(parametersSelection, paramsStepsSet);
 	}
 
-	public static long computeAllPermutations(Strategy strategy) {
-		return buildParamsStepsSet(strategy).computePermutations();
-	}
-
-	public Optimizer setExceptionCallback(Consumer<Exception> callback) {
+	public StrategyOptimizer setExceptionCallback(Consumer<Exception> callback) {
 		this.exceptionCallback = callback;
 		return this;
 	}
@@ -142,7 +131,7 @@ public class Optimizer {
 	}
 
 	private void optimizeWithAllTradesAndMarkets() throws IllegalAccessException {
-		Map<String, Object> nextParams = getNextParams();
+		Map<String, Object> nextParams = paramsSelector.next();
 		Strategy strategy = strategyFactory.get();
 		copyParameters(nextParams, strategy);
 		AccountScorer scorer = scorerFactory.get();
@@ -158,7 +147,7 @@ public class Optimizer {
 
 	private void optimizeWithReducedMarkets() throws IllegalAccessException {
 		final int maxOptimizations = 49;
-		Map<String, Object> params = getNextParams();
+		Map<String, Object> params = paramsSelector.next();
 		List<ScoredAccount> scoredAccounts = new ArrayList<>();
 		while (scoredAccounts.size() < maxOptimizations) {
 			AccountScorer scorer = scorerFactory.get();
@@ -181,21 +170,17 @@ public class Optimizer {
 		registerScore(medianScore.score(), medianScore.account(), params);
 	}
 
-	private Map<String, Object> getNextParams() {
-		Map<String, Object> params = paramsSelector.next();
-		if (params.isEmpty()) {
-			params = randomParamsSelector.next();
-		}
-		return params;
-	}
-
 	private static Predicate<Market> acceptMarket() {
 		return m -> m.getType() != MarketType.STOCK || ThreadLocalRandom.current().nextDouble() > 0.5;
 	}
 
 	private void optimizeWithReducedOrders() throws IllegalAccessException {
 		final int maxOptimizations = 49;
-		Map<String, Object> params = getNextParams();
+		Map<String, Object> params = paramsSelector.next();
+		if (params.isEmpty()) {
+			isStopped.set(true);
+			return;
+		}
 		List<ScoredAccount> scoredAccounts = new ArrayList<>();
 		while (scoredAccounts.size() < maxOptimizations) {
 			AccountScorer scorer = scorerFactory.get();
@@ -258,38 +243,4 @@ public class Optimizer {
 		return counter.get();
 	}
 
-	@SuppressWarnings("java:S3011")
-	private void copyParameters(Map<String, Object> params, Strategy strategy) throws IllegalAccessException {
-		Field[] fields = strategy.getClass().getDeclaredFields();
-		for (Field field : fields) {
-			if (isParameterField(field)) {
-				field.setAccessible(true);
-				field.set(strategy, params.get(field.getName()));
-			}
-		}
-		strategy.paramsChanged();
-	}
-
-	private static ParamsStepsSet buildParamsStepsSet(Strategy s) {
-		ParamsStepsSet paramsStepsSet = new ParamsStepsSet();
-		Field[] fields = s.getClass().getDeclaredFields();
-		for (Field field : fields) {
-			if (field.isAnnotationPresent(BoolParam.class)) {
-				paramsStepsSet.addParamSteps(field.getName(), new ParamSteps());
-			}
-			if (field.isAnnotationPresent(IntParam.class)) {
-				IntParam p = field.getAnnotation(IntParam.class);
-				paramsStepsSet.addParamSteps(field.getName(), new ParamSteps(p.start(), p.step(), p.end()));
-			}
-			if (field.isAnnotationPresent(DoubleParam.class)) {
-				DoubleParam p = field.getAnnotation(DoubleParam.class);
-				paramsStepsSet.addParamSteps(field.getName(), new ParamSteps(p.start(), p.step(), p.end()));
-			}
-		}
-		return paramsStepsSet;
-	}
-
-	public static boolean isParameterField(Field field) {
-		return field.isAnnotationPresent(BoolParam.class) || field.isAnnotationPresent(IntParam.class) || field.isAnnotationPresent(DoubleParam.class);
-	}
 }

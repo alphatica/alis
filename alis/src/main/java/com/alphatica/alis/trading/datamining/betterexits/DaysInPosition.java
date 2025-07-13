@@ -28,7 +28,7 @@ public class DaysInPosition implements BetterExitFinder {
 
 	@Override
 	public String description() {
-		return "Exit when position held for longer than " + days + " bars";
+		return "Exit when size held for longer than " + days + " bars";
 	}
 
 	private DaysInPosition(int days) {

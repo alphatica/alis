@@ -50,7 +50,7 @@ public class TimingCheck {
 
 		System.out.printf("transactions: %d%n", transactions);
 		System.out.printf("spent: %.0f%n", spent);
-		System.out.printf("position: %.1f%n", position);
+		System.out.printf("size: %.1f%n", position);
 		System.out.printf("budget: %.0f%n", budget);
 		System.out.printf("Value: %.0f%n", budget + position * lastClose);
 		System.out.printf("Profit: %.1f%n", (position * lastClose) / spent);

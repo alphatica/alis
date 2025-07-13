@@ -1,4 +1,4 @@
-package com.alphatica.alis.trading.strategy.params;
+package com.alphatica.alis.trading.optimizer.params;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

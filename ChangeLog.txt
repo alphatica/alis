@@ -1,3 +1,6 @@
+15 July 2025: Add TradeSignal optimization
+15 July 2025: Change Optimizer name to StrategyOptimizer
+12 July 2025: Add feature to check single signal effectiveness.
 3 July 2025: Add option to set right margin in Charts
 6 July 2025: Show more backtest stats: average profit per trade and missed trades count
 24 June 2025: Show average time per optimization loop

@@ -7,11 +7,10 @@ import com.alphatica.alis.indicators.trend.Sma;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;
-import com.alphatica.alis.trading.strategy.params.IntParam;
+import com.alphatica.alis.trading.optimizer.params.IntParam;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import static com.alphatica.alis.data.layer.Layer.CLOSE;
 import static com.alphatica.alis.data.time.TimeMarketDataFilters.STOCKS;

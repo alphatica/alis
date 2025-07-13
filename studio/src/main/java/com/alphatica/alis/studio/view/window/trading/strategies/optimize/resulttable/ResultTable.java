@@ -4,7 +4,7 @@ import com.alphatica.alis.studio.view.tools.SwingHelper;
 import com.alphatica.alis.studio.view.tools.models.ReadOnlyTableModel;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.account.TradeStats;
-import com.alphatica.alis.trading.strategy.optimizer.OptimizerScore;
+import com.alphatica.alis.trading.optimizer.OptimizerScore;
 
 import javax.swing.*;
 import java.awt.*;

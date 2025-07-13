@@ -1,7 +1,7 @@
-package com.alphatica.alis.trading.strategy.optimizer.paramsselector;
+package com.alphatica.alis.trading.optimizer.paramsselector;
 
-import com.alphatica.alis.trading.strategy.optimizer.ParamSteps;
-import com.alphatica.alis.trading.strategy.optimizer.ParamsStepsSet;
+import com.alphatica.alis.trading.optimizer.ParamSteps;
+import com.alphatica.alis.trading.optimizer.ParamsStepsSet;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,7 +15,7 @@ public class FullPermutationParamsSelector extends ParamsSelector {
 	private final SortedMap<String, Integer> nextIndices = new TreeMap<>();
 	private boolean finished = false;
 
-	protected FullPermutationParamsSelector(ParamsStepsSet paramsStepsSet) {
+	public FullPermutationParamsSelector(ParamsStepsSet paramsStepsSet) {
 		super(paramsStepsSet);
 		for(String name: paramsStepsSet.getParamStepsMap().keySet()) {
 			nextIndices.put(name, 0);
@@ -34,6 +34,10 @@ public class FullPermutationParamsSelector extends ParamsSelector {
 	}
 
 	private void iterateOverNext() {
+		if (nextIndices.isEmpty()) {
+			finished = true;
+			return;
+		}
 		String lastName = nextIndices.lastKey();
 		if (nextIndices.lastEntry().getValue() == paramsStepsSet.getParamStepsMap().get(lastName).size() -1) {
 			finished = true;
@@ -54,7 +58,6 @@ public class FullPermutationParamsSelector extends ParamsSelector {
 		}
 		return next;
 	}
-
 
 }
 

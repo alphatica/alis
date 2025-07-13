@@ -2,12 +2,13 @@ package com.alphatica.alis.trading.strategy.optimizer;
 
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.Account;
+import com.alphatica.alis.trading.optimizer.OptimizerException;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;
-import com.alphatica.alis.trading.strategy.params.BoolParam;
-import com.alphatica.alis.trading.strategy.params.DoubleParam;
-import com.alphatica.alis.trading.strategy.params.IntParam;
-import com.alphatica.alis.trading.strategy.params.Validator;
+import com.alphatica.alis.trading.optimizer.params.BoolParam;
+import com.alphatica.alis.trading.optimizer.params.DoubleParam;
+import com.alphatica.alis.trading.optimizer.params.IntParam;
+import com.alphatica.alis.trading.optimizer.params.Validator;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -42,7 +43,7 @@ class ValidatorTests {
 				return List.of();
 			}
 		};
-		Validator.validate(s);
+		Validator.validate(s.getClass().getDeclaredFields());
 	}
 
 	@Test
@@ -58,7 +59,7 @@ class ValidatorTests {
 			}
 		};
 
-		assertThrows(OptimizerException.class, () -> Validator.validate(s));
+		assertThrows(OptimizerException.class, () -> Validator.validate(s.getClass().getDeclaredFields()));
 	}
 
 	@Test
@@ -74,7 +75,7 @@ class ValidatorTests {
 			}
 		};
 
-		assertThrows(OptimizerException.class, () -> Validator.validate(s));
+		assertThrows(OptimizerException.class, () -> Validator.validate(s.getClass().getDeclaredFields()));
 	}
 
 	@Test
@@ -89,7 +90,7 @@ class ValidatorTests {
 				return List.of();
 			}
 		};
-		assertThrows(OptimizerException.class, () -> Validator.validate(s));
+		assertThrows(OptimizerException.class, () -> Validator.validate(s.getClass().getDeclaredFields()));
 	}
 
 	@Test
@@ -104,7 +105,7 @@ class ValidatorTests {
 				return List.of();
 			}
 		};
-		assertThrows(OptimizerException.class, () -> Validator.validate(s));
+		assertThrows(OptimizerException.class, () -> Validator.validate(s.getClass().getDeclaredFields()));
 	}
 
 	@Test
@@ -119,6 +120,6 @@ class ValidatorTests {
 				return List.of();
 			}
 		};
-		assertThrows(OptimizerException.class, () -> Validator.validate(s));
+		assertThrows(OptimizerException.class, () -> Validator.validate(s.getClass().getDeclaredFields()));
 	}
 }

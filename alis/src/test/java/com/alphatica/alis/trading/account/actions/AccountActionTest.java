@@ -21,7 +21,7 @@ class AccountActionTest {
 		List<AccountAction> actions = new ArrayList<>(List.of(
 					new AccountAction(new Time(1), new Deposit(10000)),
 					new AccountAction(new Time(2), new Trade(new MarketName("1"), BUY, 10, 100, 1)),
-					// Spent 2000 cash on position
+					// Spent 2000 cash on size
 					new AccountAction(new Time(4), new Trade(new MarketName("2"), BUY, 10, 200, 2)),
 					new AccountAction(new Time(4), new Trade(new MarketName("3"), BUY, 10, 200, 2)),
 					// Position 1 closed with profit 100%, 1000 cash
@@ -31,7 +31,7 @@ class AccountActionTest {
 					// Position 2 partially closed with 2000 cash back
 					new AccountAction(new Time(5), new Trade(new MarketName("2"), SELL, 20, 100, 4)),
 					// Position 2 closed completely with 1000 cash back
-					// Total cash back from position 2 = 3000, 50% profit
+					// Total cash back from size 2 = 3000, 50% profit
 					new AccountAction(new Time(6), new Trade(new MarketName("2"), SELL, 10, 100, 4))
 				));
 		Account account = new Account(0);

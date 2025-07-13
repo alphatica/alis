@@ -1,8 +1,8 @@
-package com.alphatica.alis.trading.strategy.optimizer.paramsselector;
+package com.alphatica.alis.trading.optimizer.paramsselector;
 
-import com.alphatica.alis.trading.strategy.optimizer.OptimizerScore;
-import com.alphatica.alis.trading.strategy.optimizer.ParametersSelection;
-import com.alphatica.alis.trading.strategy.optimizer.ParamsStepsSet;
+import com.alphatica.alis.trading.optimizer.OptimizerScore;
+import com.alphatica.alis.trading.optimizer.ParametersSelection;
+import com.alphatica.alis.trading.optimizer.ParamsStepsSet;
 
 import java.util.Map;
 

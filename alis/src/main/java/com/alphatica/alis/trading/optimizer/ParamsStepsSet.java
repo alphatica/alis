@@ -1,4 +1,4 @@
-package com.alphatica.alis.trading.strategy.optimizer;
+package com.alphatica.alis.trading.optimizer;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -25,11 +25,7 @@ public class ParamsStepsSet {
 	}
 
 	public Map<String, Object> getRandomValues() {
-		return paramStepsMap.entrySet().stream()
-							.collect(Collectors.toMap(
-									Map.Entry::getKey,
-									entry -> entry.getValue().getRandom()
-							));
+		return paramStepsMap.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().getRandom()));
 	}
 
 }

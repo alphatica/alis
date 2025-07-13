@@ -6,7 +6,7 @@ import com.alphatica.alis.trading.order.Direction;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.order.OrderSize;
 import com.alphatica.alis.trading.strategy.Strategy;
-import com.alphatica.alis.trading.strategy.params.DoubleParam;
+import com.alphatica.alis.trading.optimizer.params.DoubleParam;
 
 import java.util.ArrayList;
 import java.util.List;
