@@ -132,6 +132,9 @@ public class StrategyOptimizer extends Optimizer {
 
 	private void optimizeWithAllTradesAndMarkets() throws IllegalAccessException {
 		Map<String, Object> nextParams = paramsSelector.next();
+		if (nextParams.isEmpty()) {
+			return;
+		}
 		Strategy strategy = strategyFactory.get();
 		copyParameters(nextParams, strategy);
 		AccountScorer scorer = scorerFactory.get();
@@ -148,6 +151,10 @@ public class StrategyOptimizer extends Optimizer {
 	private void optimizeWithReducedMarkets() throws IllegalAccessException {
 		final int maxOptimizations = 49;
 		Map<String, Object> params = paramsSelector.next();
+		Map<String, Object> nextParams = paramsSelector.next();
+		if (nextParams.isEmpty()) {
+			return;
+		}
 		List<ScoredAccount> scoredAccounts = new ArrayList<>();
 		while (scoredAccounts.size() < maxOptimizations) {
 			AccountScorer scorer = scorerFactory.get();
@@ -178,7 +185,6 @@ public class StrategyOptimizer extends Optimizer {
 		final int maxOptimizations = 49;
 		Map<String, Object> params = paramsSelector.next();
 		if (params.isEmpty()) {
-			isStopped.set(true);
 			return;
 		}
 		List<ScoredAccount> scoredAccounts = new ArrayList<>();

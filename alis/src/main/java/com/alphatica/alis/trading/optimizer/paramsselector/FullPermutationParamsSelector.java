@@ -13,11 +13,11 @@ import static java.util.Collections.emptyMap;
 public class FullPermutationParamsSelector extends ParamsSelector {
 
 	private final SortedMap<String, Integer> nextIndices = new TreeMap<>();
-	private boolean finished = false;
+	private volatile boolean finished = false;
 
 	public FullPermutationParamsSelector(ParamsStepsSet paramsStepsSet) {
 		super(paramsStepsSet);
-		for(String name: paramsStepsSet.getParamStepsMap().keySet()) {
+		for (String name : paramsStepsSet.getParamStepsMap().keySet()) {
 			nextIndices.put(name, 0);
 		}
 	}
@@ -34,30 +34,29 @@ public class FullPermutationParamsSelector extends ParamsSelector {
 	}
 
 	private void iterateOverNext() {
-		if (nextIndices.isEmpty()) {
-			finished = true;
-			return;
-		}
-		String lastName = nextIndices.lastKey();
-		if (nextIndices.lastEntry().getValue() == paramsStepsSet.getParamStepsMap().get(lastName).size() -1) {
-			finished = true;
-		}
-		for(Map.Entry<String, Integer> nextEntry: nextIndices.entrySet()) {
-			if (nextEntry.getValue() < paramsStepsSet.getParamStepsMap().get(nextEntry.getKey()).size() -1) {
-				nextEntry.setValue(nextEntry.getValue() + 1);
-				return;
+		boolean carry = true;
+		for (Map.Entry<String, Integer> entry: nextIndices.entrySet()) {
+			if (carry) {
+				int currentIndex = nextIndices.get(entry.getKey());
+				ParamSteps steps = paramsStepsSet.getParamStepsMap().get(entry.getKey());
+				if (currentIndex < steps.size() - 1) {
+					nextIndices.put(entry.getKey(), currentIndex + 1);
+					carry = false;
+				} else {
+					nextIndices.put(entry.getKey(), 0);
+				}
 			}
-			nextEntry.setValue(0);
+		}
+		if (carry) {
+			finished = true;
 		}
 	}
 
 	private Map<String, Object> getNext() {
 		Map<String, Object> next = new HashMap<>();
-		for(Map.Entry<String, ParamSteps> param: paramsStepsSet.getParamStepsMap().entrySet()) {
+		for (Map.Entry<String, ParamSteps> param : paramsStepsSet.getParamStepsMap().entrySet()) {
 			next.put(param.getKey(), param.getValue().values()[nextIndices.get(param.getKey())]);
 		}
 		return next;
 	}
-
 }
-

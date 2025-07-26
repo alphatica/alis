@@ -25,10 +25,10 @@ public class DonchianChannel extends Strategy {
 //	@IntParam(start = 5, step = 1, end = 500)
 	int sellLength;
 
-//	@BoolParam
+	@BoolParam
 	boolean highestGrowthFirst;
 
-//	@IntParam(start = 5, step = 1, end = 500)
+	@IntParam(start = 5, step = 5, end = 20)
 	int buyLength;
 
 	private HighestClose highestClose;
