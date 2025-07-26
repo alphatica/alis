@@ -108,7 +108,7 @@ public class MainFrame extends JFrame {
 
 		JLabel studioLabel = new JLabel(STUDIO_NAME);
 
-		JLabel webLabel = createHtmlLinkLabel("Web: alphatica.com", "https://alphatica.com/alis");
+		JLabel webLabel = createHtmlLinkLabel("Web: alphatica.com", "https://alphatica.com/en/software/alis/");
 
 		JLabel licenseLabel = new JLabel("Licenced under GNU AFFERO GENERAL PUBLIC LICENSE 3.0");
 
