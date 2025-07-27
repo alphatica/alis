@@ -3,7 +3,7 @@ package com.alphatica.alis.condition.changecheck;
 import com.alphatica.alis.condition.Condition;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.time.Time;
-import com.alphatica.alis.tools.data.loader.TestData;
+import com.alphatica.alis.tools.data.TestData;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

@@ -1,4 +1,4 @@
-package com.alphatica.alis.tools.data.loader;
+package com.alphatica.alis.tools.data;
 
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketName;

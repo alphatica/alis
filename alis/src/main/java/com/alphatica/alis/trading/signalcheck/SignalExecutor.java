@@ -30,7 +30,6 @@ public class SignalExecutor {
     private final Predicate<TimeMarketData> marketFilter;
     private final float commissionRate;
     private final boolean tradeSecondarySignals;
-    private final List<Double> tradesReturns = Collections.synchronizedList(new ArrayList<>());
     private final ScoreGenerator scoreGenerator;
 
     private final Map<MarketName, List<OpenTrade>> openTradeMap = new ConcurrentHashMap<>(1024);
@@ -120,7 +119,6 @@ public class SignalExecutor {
     }
 
     private void closeTrade(OpenTrade trade, float closePrice) {
-        tradesReturns.add((double)closePrice / trade.getOpenPrice() - 1);
         scoreGenerator.afterTrade(trade, closePrice);
     }
 
