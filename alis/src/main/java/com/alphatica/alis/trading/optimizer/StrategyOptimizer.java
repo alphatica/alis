@@ -151,8 +151,7 @@ public class StrategyOptimizer extends Optimizer {
 	private void optimizeWithReducedMarkets() throws IllegalAccessException {
 		final int maxOptimizations = 49;
 		Map<String, Object> params = paramsSelector.next();
-		Map<String, Object> nextParams = paramsSelector.next();
-		if (nextParams.isEmpty()) {
+		if (params.isEmpty()) {
 			return;
 		}
 		List<ScoredAccount> scoredAccounts = new ArrayList<>();
