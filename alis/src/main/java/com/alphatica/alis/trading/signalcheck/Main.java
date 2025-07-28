@@ -21,9 +21,10 @@ public class Main {
 
         var scoreGenerator = new ArithmeticAverageProfitPerBarScoreGenerator();
         var signalExecutor = new SignalExecutor(BuyAthSellSmaTradeSignal::new,
-                new Time(20150101), new Time(20260101), stooqData, STOCKS, 0.01f, false, scoreGenerator);
+                new Time(20150101), new Time(20260101), stooqData, STOCKS, 0.01f, true, scoreGenerator);
+        signalExecutor.withVerbose(true).withMaxOpenedPositions(100);
         var score = signalExecutor.execute();
-        System.out.printf("Final score: %.0f%n", score);
+        System.out.printf("Final score: %.3f%n", score);
         scoreGenerator.show();
     }
 }

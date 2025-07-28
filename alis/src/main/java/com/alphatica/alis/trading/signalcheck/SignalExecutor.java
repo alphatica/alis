@@ -13,14 +13,17 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static com.alphatica.alis.data.layer.Layer.CLOSE;
 import static com.alphatica.alis.data.layer.Layer.OPEN;
 import static com.alphatica.alis.data.market.MarketFilters.ALL;
+import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_CLOSE;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_OPEN;
+import static java.lang.String.format;
 
 public class SignalExecutor {
     private final Supplier<TradeSignal> signalSupplier;
@@ -31,8 +34,11 @@ public class SignalExecutor {
     private final float commissionRate;
     private final boolean tradeSecondarySignals;
     private final ScoreGenerator scoreGenerator;
-
     private final Map<MarketName, List<OpenTrade>> openTradeMap = new ConcurrentHashMap<>(1024);
+    private final AtomicInteger currentlyOpened = new AtomicInteger(0);
+
+    private int maxOpenedPositions = Integer.MAX_VALUE;
+    private boolean verbose = false;
 
     public SignalExecutor(Supplier<TradeSignal> signalSupplier, Time startTime, Time endTime, MarketData marketData,
                           Predicate<TimeMarketData> marketFilter, float commissionRate, boolean tradeSecondarySignals,
@@ -58,6 +64,16 @@ public class SignalExecutor {
         return scoreGenerator.score();
     }
 
+    public SignalExecutor withMaxOpenedPositions(int newMax) {
+        maxOpenedPositions = newMax;
+        return this;
+    }
+
+    public SignalExecutor withVerbose(boolean newVerbose) {
+        verbose = newVerbose;
+        return this;
+    }
+
     private void populateOpenTradesMap() {
         for(Market market: marketData.listMarkets(ALL)) {
             openTradeMap.put(market.getName(), new ArrayList<>(1024));
@@ -69,7 +85,7 @@ public class SignalExecutor {
             for (OpenTrade trade : entry.getValue()) {
                 if (trade.getTradeStatus() == TradeStatus.OPEN) {
                     var closePrice = trade.getLastKnowPrice() * (1 - commissionRate);
-                    closeTrade(trade, closePrice);
+                    closeTrade(entry.getKey(), trade, closePrice);
                 }
             }
         }
@@ -77,11 +93,13 @@ public class SignalExecutor {
 
     private void checkTime(Time time) {
         TimeMarketDataSet marketDataSet = TimeMarketDataSet.build(time, marketData);
+        log(() -> format("%s =================================================", time));
         try (ExecutorService es = Executors.newVirtualThreadPerTaskExecutor()) {
             for (TimeMarketData market : marketDataSet.listMarkets(marketFilter)) {
                 es.submit(() -> checkMarketOnTime(market, marketDataSet));
             }
         }
+        log(() -> format("Opened positions: %d", currentlyOpened.get()));
     }
 
     private void checkMarketOnTime(TimeMarketData market, TimeMarketDataSet marketDataSet) {
@@ -103,23 +121,29 @@ public class SignalExecutor {
             var trade = iterator.next();
             if (trade.getTradeStatus() == PENDING_CLOSE) {
                 iterator.remove();
-                closeTrade(trade, market.getData(OPEN, 0) * (1 - commissionRate));
+                closeTrade(market.getMarketName(), trade, market.getData(OPEN, 0) * (1 - commissionRate));
             }
         }
     }
 
     private void openPending(TimeMarketData market, List<OpenTrade> openedTrades) {
-
         var openPrice = market.getData(OPEN, 0) * (1 + commissionRate);
 		for (OpenTrade trade : openedTrades) {
 			if (trade.getTradeStatus() == PENDING_OPEN) {
+                if (currentlyOpened.incrementAndGet() > maxOpenedPositions) {
+                    currentlyOpened.decrementAndGet();
+                    return;
+                }
 				trade.setOpenPrice(openPrice);
+                log(() -> format("Opening %s at %2f size %.1f", market.getMarketName(), openPrice, trade.getPositionSize()));
 			}
 		}
     }
 
-    private void closeTrade(OpenTrade trade, float closePrice) {
+    private void closeTrade(MarketName market, OpenTrade trade, float closePrice) {
         scoreGenerator.afterTrade(trade, closePrice);
+        currentlyOpened.decrementAndGet();
+        log(() -> format("Closing %s at %.2f bought at %.2f profit %.2f",  market, closePrice, trade.getOpenPrice(), percentChange(trade.getOpenPrice(), closePrice)));
     }
 
     private void processOpenTrades(TimeMarketData market, TimeMarketDataSet marketDataSet, List<OpenTrade> openTrades) {
@@ -147,4 +171,9 @@ public class SignalExecutor {
         }
     }
 
+    private void log(Supplier<String> message) {
+        if (verbose) {
+            System.out.println(message.get());
+        }
+    }
 }

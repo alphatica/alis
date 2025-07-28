@@ -1,3 +1,4 @@
+28 July 2025: Add position number limits and logs to SignalExecutor
 27 July 2025: Fix 'Remove random markets' result verifier
 26 July 2025: Fix FullPermutationParamsSelector
 15 July 2025: Add TradeSignal optimization
