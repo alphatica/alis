@@ -10,7 +10,7 @@ public class ArithmeticAverageProfitPerBarScoreGenerator extends ScoreGenerator 
     private final AtomicInteger bars = new AtomicInteger(0);
     private final AtomicInteger trades = new AtomicInteger(0);
 
-    private volatile double profit = 0;
+    private volatile double profit;
 
     @Override
     public void afterTrade(OpenTrade trade, float effectiveClosePrice) {
