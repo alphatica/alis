@@ -118,12 +118,15 @@ public class SignalsPane extends JPanel {
 			return;
 		}
 		try {
+			showSignalsButton.setEnabled(false);
 			List<String[]> ordersTableData = getOrdersTableData(strategy, applySignalsToPortfolio.isSelected(), startTimeTextField.getTime());
 			Collections.reverse(ordersTableData);
 			updateSignalsTable(ordersTableData);
 			updateCustomInfoTable(strategy.getSummaryTable());
 		} catch (Exception ex) {
 			ErrorDialog.showError("Unable to get orders table data", ex.toString(), ex);
+		} finally {
+			showSignalsButton.setEnabled(true);
 		}
 	}
 
