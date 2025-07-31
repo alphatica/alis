@@ -99,6 +99,7 @@ public class SignalExecutor {
                 es.submit(() -> checkMarketOnTime(market, marketDataSet));
             }
         }
+        scoreGenerator.afterTime(marketDataSet);
         log(() -> format("Opened positions: %d", currentlyOpened.get()));
     }
 
