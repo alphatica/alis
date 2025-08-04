@@ -99,7 +99,7 @@ public class SignalExecutor {
                 es.submit(() -> checkMarketOnTime(market, marketDataSet));
             }
         }
-        scoreGenerator.afterTime(marketDataSet);
+        scoreGenerator.afterTime(marketDataSet, openTradeMap);
         log(() -> format("Opened positions: %d", currentlyOpened.get()));
     }
 
