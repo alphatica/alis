@@ -13,6 +13,7 @@ public abstract class ScoreGenerator {
 
     public abstract void afterTrade(OpenTrade trade, float effectiveClosePrice);
 
+    public void beforeTime(TimeMarketDataSet marketDataSet, Map<MarketName, List<OpenTrade>> openTradeMap) {}
     public void afterTime(TimeMarketDataSet marketDataSet, Map<MarketName, List<OpenTrade>> openTradeMap) {}
 
     public abstract double score();

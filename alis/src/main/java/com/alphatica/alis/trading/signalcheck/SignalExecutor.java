@@ -94,6 +94,7 @@ public class SignalExecutor {
     private void checkTime(Time time) {
         TimeMarketDataSet marketDataSet = TimeMarketDataSet.build(time, marketData);
         log(() -> format("%s =================================================", time));
+		scoreGenerator.beforeTime(marketDataSet, openTradeMap);
         try (ExecutorService es = Executors.newVirtualThreadPerTaskExecutor()) {
             for (TimeMarketData market : marketDataSet.listMarkets(marketFilter)) {
                 es.submit(() -> checkMarketOnTime(market, marketDataSet));
