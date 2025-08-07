@@ -19,21 +19,24 @@ import java.util.stream.Collectors;
 public class TestData implements MarketData {
 
 	private final Map<MarketName, Market> markets = new HashMap<>();
-	private final MarketName marketName = new MarketName("test_market");
 	private final MarketType marketType = MarketType.STOCK;
 
-	public TestData() {
-		TreeMap<Time, TimeMarketData> data = new TreeMap<>();
-		final int COUNT = 1024;
-		float[] allPrices = new float[COUNT];
-		for (int i = 0; i < COUNT; i++) {
-			allPrices[i] = COUNT - i;
+
+	public TestData(String... names) {
+		for(String name: names) {
+			var marketName = new MarketName(name);
+			TreeMap<Time, TimeMarketData> data = new TreeMap<>();
+			final int COUNT = 1024;
+			float[] allPrices = new float[COUNT];
+			for (int i = 0; i < COUNT; i++) {
+				allPrices[i] = COUNT - i;
+			}
+			for (int i = 0; i < COUNT; i++) {
+				putData(data, marketName, new Time(i + 1), new FloatArraySlice(allPrices, allPrices.length - i - 1));
+			}
+			Market market = new TestMarket(marketName, data);
+			markets.put(market.getName(), market);
 		}
-		for (int i = 0; i < COUNT; i++) {
-			putData(data, new Time(i + 1), new FloatArraySlice(allPrices, allPrices.length - i - 1));
-		}
-		Market market = new TestMarket(marketName, data);
-		markets.put(market.getName(), market);
 	}
 
 	@Override
@@ -52,7 +55,7 @@ public class TestData implements MarketData {
 		return markets.values().stream().filter(filter).toList();
 	}
 
-	private void putData(TreeMap<Time, TimeMarketData> data, Time time, FloatArraySlice floatArraySlice) {
+	private void putData(TreeMap<Time, TimeMarketData> data, MarketName marketName, Time time, FloatArraySlice floatArraySlice) {
 		TimeMarketData timeMarketData = new TimeMarketData(marketName, marketType, time, List.of(floatArraySlice, floatArraySlice,
 				floatArraySlice, floatArraySlice));
 		data.put(time, timeMarketData);

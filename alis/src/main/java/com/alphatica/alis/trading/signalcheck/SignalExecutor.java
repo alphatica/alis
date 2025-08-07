@@ -6,6 +6,8 @@ import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
+import com.alphatica.alis.trading.ranking.PositionReport;
+import com.alphatica.alis.trading.ranking.PositionReporter;
 import com.alphatica.alis.trading.signalcheck.scoregenerator.ScoreGenerator;
 import com.alphatica.alis.trading.signalcheck.tradesignal.TradeSignal;
 
@@ -37,8 +39,11 @@ public class SignalExecutor {
     private final Map<MarketName, List<OpenTrade>> openTradeMap = new ConcurrentHashMap<>(1024);
     private final AtomicInteger currentlyOpened = new AtomicInteger(0);
 
-    private int maxOpenedPositions = Integer.MAX_VALUE;
-    private boolean verbose = false;
+
+	private int maxOpenedPositions = Integer.MAX_VALUE;
+	private boolean verbose = false;
+	private PositionReporter positionReporter;
+	private String sourceId;
 
     public SignalExecutor(Supplier<TradeSignal> signalSupplier, Time startTime, Time endTime, MarketData marketData,
                           Predicate<TimeMarketData> marketFilter, float commissionRate, boolean tradeSecondarySignals,
@@ -63,6 +68,12 @@ public class SignalExecutor {
         scoreGenerator.onDone();
         return scoreGenerator.score();
     }
+
+	public SignalExecutor withPositionReporter(PositionReporter positionReporter, String sourceId) {
+		this.positionReporter = positionReporter;
+		this.sourceId = sourceId;
+		return this;
+	}
 
     public SignalExecutor withMaxOpenedPositions(int newMax) {
         maxOpenedPositions = newMax;
@@ -94,6 +105,7 @@ public class SignalExecutor {
     private void checkTime(Time time) {
         TimeMarketDataSet marketDataSet = TimeMarketDataSet.build(time, marketData);
         log(() -> format("%s =================================================", time));
+		reportPositions(time);
 		scoreGenerator.beforeTime(marketDataSet, openTradeMap);
         try (ExecutorService es = Executors.newVirtualThreadPerTaskExecutor()) {
             for (TimeMarketData market : marketDataSet.listMarkets(marketFilter)) {
@@ -104,7 +116,20 @@ public class SignalExecutor {
         log(() -> format("Opened positions: %d", currentlyOpened.get()));
     }
 
-    private void checkMarketOnTime(TimeMarketData market, TimeMarketDataSet marketDataSet) {
+	private void reportPositions(Time time) {
+		if (positionReporter == null) {
+			return;
+		}
+		for(Map.Entry<MarketName, List<OpenTrade>> trades: openTradeMap.entrySet()) {
+			for(OpenTrade trade: trades.getValue()) {
+				if (trade.getTradeStatus().countProfit()) {
+					positionReporter.report(new PositionReport(sourceId, time, trades.getKey(), trade.getPositionSize()));
+				}
+			}
+		}
+	}
+
+	private void checkMarketOnTime(TimeMarketData market, TimeMarketDataSet marketDataSet) {
         var openedTrades = openTradeMap.get(market.getMarketName());
         closePending(market, openedTrades);
         openPending(market, openedTrades);

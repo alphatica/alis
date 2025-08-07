@@ -13,4 +13,5 @@ public abstract class TradeSignal implements Optimizable {
     public void afterClose(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {}
 
     public void paramsChanged() {}
+
 }

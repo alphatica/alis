@@ -16,7 +16,7 @@ class ChangeCheckTest {
 
 	@Test
 	void shouldCheckChange() throws ExecutionException, InterruptedException {
-		MarketData data = new TestData();
+		MarketData data = new TestData("test_market");
 		Condition condition = (market, allData) -> market.getTime().equals(new Time(99)) || market.getTime().equals(new Time(100));
 		ChangeCheck check = ChangeCheck.condition(Condition.all(condition)).windowLength(10);
 		ChangeCheckResult results = ChangeCheckExecutor.execute(check, data);

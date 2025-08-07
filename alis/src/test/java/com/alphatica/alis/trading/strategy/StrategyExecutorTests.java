@@ -20,7 +20,7 @@ class StrategyExecutorTests {
 		double commissionRate = 0.1;
 		double initialCash = 100_000;
 		StrategyExecutor executor = new StrategyExecutor().withCommissionRate(commissionRate).withInitialCash(initialCash);
-		Account account = executor.execute(new TestData(), new TestStrategy());
+		Account account = executor.execute(new TestData("test_market"), new TestStrategy());
 		assertEquals(0, account.getPositions().size());
 		double nav = 135_000;
 		assertEquals(nav, account.getNAV());
@@ -35,7 +35,7 @@ class StrategyExecutorTests {
 		 */
 		StrategyExecutor executor = new StrategyExecutor();
 		executor.skipTrades(1.00);
-		Account account = executor.execute(new TestData(), new TestStrategy());
+		Account account = executor.execute(new TestData("test_market"), new TestStrategy());
 		assertEquals(0, account.getPositions().size());
 		double nav = 100_000;
 		assertEquals(nav, account.getNAV());
