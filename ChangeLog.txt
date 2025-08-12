@@ -1,3 +1,4 @@
+12 August 2025: Add logs to StrategyExecutor
 7 August 2025: Add beforeTime callback to ScoreGenerator
 31 July 2025: Add afterTime callback to ScoreGenerator
 28 July 2025: Add position number limits and logs to SignalExecutor

@@ -19,10 +19,13 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 
 import static com.alphatica.alis.data.layer.Layer.TURNOVER;
+import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static com.alphatica.alis.trading.order.Direction.BUY;
 import static com.alphatica.alis.trading.order.Direction.SELL;
+import static java.lang.String.format;
 
 public class StrategyExecutor {
 
@@ -34,7 +37,9 @@ public class StrategyExecutor {
 	private TradePrice tradePrice = TradePrice.OPEN;
 	private double skipTradesProbability = 0.0;
 	private int missedTrades = 0;
-	private BarExecutedConsumer barExecutedConsumer = (time, account, pendingOrders) -> {};
+	private BarExecutedConsumer barExecutedConsumer = (time, account, pendingOrders) -> {
+	};
+	private boolean verbose = false;
 
 	public StrategyExecutor withInitialCash(double initialCash) {
 		this.initialCash = initialCash;
@@ -67,36 +72,86 @@ public class StrategyExecutor {
 		return this;
 	}
 
+	public StrategyExecutor withVerbose(boolean value) {
+		this.verbose = value;
+		return this;
+	}
+
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
 	public Account execute(MarketData marketData, Strategy strategy) throws AccountActionException {
 		List<Time> times = marketData.getTimes().stream().filter(time -> !time.isBefore(timeFrom) && !time.isAfter(timeTo)).toList();
 		Account account = new Account(initialCash);
 		if (times.isEmpty()) {
+			log(() -> "No quotes in requested time range. Quitting.");
 			return account;
 		}
 		List<Order> pendingOrders = new ArrayList<>();
 		account.getAccountHistory().addAction(new AccountAction(times.getFirst(), new Deposit(initialCash)));
 		for (Time time : times) {
+			log(() -> "____________________________________________________________________________");
+			log(() -> format("Starting time: %s", time));
 			TimeMarketDataSet current = TimeMarketDataSet.build(time, marketData);
-			executeSells(pendingOrders, current, account);
-			executeBuys(pendingOrders, current, account);
+			sellPending(pendingOrders, current, account);
+			buyPending(pendingOrders, account, current);
 			updateMissedTradesCounter(pendingOrders);
 			account.updateLastKnown(current);
-			pendingOrders = strategy.afterClose(current, account);
-			if (skipTradesProbability > 0.0) {
-				pendingOrders.removeIf(o -> ThreadLocalRandom.current().nextDouble() < skipTradesProbability);
-			}
-			Collections.sort(pendingOrders);
-			Collections.reverse(pendingOrders);
+			pendingOrders = getNewPendingOrders(strategy, current, account);
 			barExecutedConsumer.execute(time, account, pendingOrders);
+			showPositionStats(account);
+			log(() -> format("Finished time %s: Net asset value: %.2f Cash: %.2f Drawdown: %.2f",
+					time, account.getNAV(), account.getCash(), account.getCurrentDD()
+			));
 		}
 		account.close(commissionRate);
+		log(() -> format("Account closed with NAV: %.2f", account.getNAV()));
 		strategy.finished(account);
 		return account;
 	}
 
+	private void showPositionStats(Account account) {
+		if (!verbose) {
+			return;
+		}
+		for (var entry : account.getPositions().entrySet()) {
+			var position = entry.getValue();
+			log(() -> format("Have position: %s x %d bought at %.2f profit: %.1f%% / %.1f",
+					entry.getKey(), position.getQuantity(), position.getEntryPrice(),
+					percentChange(position.getEntryPrice(), position.getLastClose()),
+					position.getQuantity() * (position.getLastClose() - position.getEntryPrice())
+			));
+		}
+
+	}
+
+	private List<Order> getNewPendingOrders(Strategy strategy, TimeMarketDataSet current, Account account) {
+		List<Order> pendingOrders;
+		pendingOrders = strategy.afterClose(current, account);
+		if (skipTradesProbability > 0.0) {
+			pendingOrders.removeIf(o -> ThreadLocalRandom.current().nextDouble() < skipTradesProbability);
+		}
+		Collections.sort(pendingOrders);
+		Collections.reverse(pendingOrders);
+		for(var order: pendingOrders) {
+			log(() -> format("New pending order: %s %s. Size: %d%s. Priority: %.2f",
+					order.direction(), order.market(), order.sizeValue(), order.size().shortSign(), order.priority()));
+		}
+		return pendingOrders;
+	}
+
+	private void buyPending(List<Order> pendingOrders, Account account, TimeMarketDataSet current) throws AccountActionException {
+		executeBuys(pendingOrders, current, account);
+		log(() -> format("Finished buying. Cash left: %.2f", account.getCash()));
+	}
+
+	private void sellPending(List<Order> pendingOrders, TimeMarketDataSet current, Account account) throws AccountActionException {
+		var beforeSellingSize = pendingOrders.size();
+		log(() -> format("Pending orders: %d", beforeSellingSize));
+		executeSells(pendingOrders, current, account);
+		log(() -> format("Finished selling. Cash available: %.2f", account.getCash()));
+	}
+
 	private void updateMissedTradesCounter(List<Order> pendingOrders) {
-		for(Order order: pendingOrders) {
+		for (Order order : pendingOrders) {
 			if (order.direction() == BUY) {
 				missedTrades++;
 			}
@@ -133,7 +188,7 @@ public class StrategyExecutor {
 
 	private void executeBuys(List<Order> pendingOrders, TimeMarketDataSet current, Account account) throws AccountActionException {
 		Iterator<Order> orderIterator = pendingOrders.iterator();
-		while(orderIterator.hasNext()) {
+		while (orderIterator.hasNext()) {
 			Order order = orderIterator.next();
 			if (order.direction() == BUY) {
 				TimeMarketData marketData = current.get(order.market());
@@ -141,11 +196,14 @@ public class StrategyExecutor {
 					double price = tradePrice.getPrice(marketData);
 					int quantity = getPossibleCount(getRequestedCount(order, account, price), marketData);
 					if (quantity == 0) {
+						log(() -> format("Ignoring buy order for %s. Quantity = 0", order.market()));
 						continue;
 					}
 					double commissionValue = quantity * price * commissionRate;
 					double value = quantity * price + commissionValue;
+					log(() -> format("Trying to buy %s x %d at %.2f", marketData.getMarketName(), quantity, price));
 					if (value > account.getCash()) {
+						log(() -> format("Unable to buy. Not enough cash. Required: %.2f available: %.2f", value, account.getCash()));
 						return;
 					}
 					orderIterator.remove();
@@ -154,6 +212,7 @@ public class StrategyExecutor {
 					account.getAccountHistory()
 						   .addAction(new AccountAction(current.getTime(), new Trade(marketData.getMarketName(), BUY, price, quantity,
 								   commissionValue)));
+					log(() -> format("Bought %s x %d", order.market(), quantity));
 				}
 			}
 		}
@@ -161,7 +220,7 @@ public class StrategyExecutor {
 
 	private void executeSells(List<Order> pendingOrders, TimeMarketDataSet current, Account account) throws AccountActionException {
 		Iterator<Order> orderIterator = pendingOrders.iterator();
-		while(orderIterator.hasNext()) {
+		while (orderIterator.hasNext()) {
 			Order order = orderIterator.next();
 			if (order.direction() == SELL) {
 				TimeMarketData marketData = current.get(order.market());
@@ -169,7 +228,13 @@ public class StrategyExecutor {
 					double price = tradePrice.getPrice(marketData);
 					int quantity = getPossibleCount(getRequestedCount(order, account, price), marketData);
 					if (quantity > 0) {
+						var position = account.getPosition(order.market());
 						double commissionValue = quantity * price * commissionRate;
+						log(() -> format("Selling %s x %d at %.2f, bought at %.2f, profit: %.1f%% / %.1f",
+								order.market(), quantity, price, position.getEntryPrice(),
+								percentChange(position.getEntryPrice(), price),
+								quantity * (price - position.getEntryPrice()) - commissionValue
+						));
 						PositionExit exit = new PositionExit(current.getTime(), quantity, price);
 						account.reducePosition(order.market(), exit, commissionValue);
 						account.getAccountHistory()
@@ -188,6 +253,12 @@ public class StrategyExecutor {
 			return (int) Math.min(traded * limitOrderSize, count);
 		} else {
 			return count;
+		}
+	}
+
+	private void log(Supplier<String> messageSupplier) {
+		if (verbose) {
+			System.out.println(messageSupplier.get());
 		}
 	}
 }

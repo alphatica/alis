@@ -17,7 +17,7 @@ public class AthPlusTime {
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
 	public static void main(String[] args) throws ExecutionException, InterruptedException, AccountActionException {
 		MarketData stooqData = StooqLoader.loadPL(WORK_DIR);
-		StrategyExecutor executor = new StrategyExecutor().withInitialCash(100_000).withTimeRange(new Time(2004_01_01), new Time(2025_01_01));
+		StrategyExecutor executor = new StrategyExecutor().withInitialCash(100_000).withTimeRange(new Time(2004_01_01), new Time(2025_01_01)).withVerbose(true);
 		Account account = executor.execute(stooqData, new AthPlusTimeStrategy());
 		System.out.printf("Account value: %.0f%n", account.getNAV());
 		System.out.println(account.getAccountHistory().getStats());

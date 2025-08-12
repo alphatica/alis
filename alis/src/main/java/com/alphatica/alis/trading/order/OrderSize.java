@@ -11,4 +11,11 @@ public enum OrderSize {
 			case COUNT -> "Count";
 		};
 	}
+
+	public String shortSign() {
+		return switch (this) {
+			case PERCENTAGE -> "%";
+			case COUNT -> "x";
+		};
+	}
 }
