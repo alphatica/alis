@@ -25,7 +25,7 @@ public class TimeMarketDataSet {
 		List<Market> markets = marketData.listMarkets(ALL);
 		Map<MarketName, TimeMarketData> result = HashMap.newHashMap(markets.size());
 		for (Market market : markets) {
-			TimeMarketData timeData = market.getAt(time);
+			TimeMarketData timeData = market.getAtOrPrevious(time);
 			if (timeData != null) {
 				result.put(market.getName(), timeData);
 			}
@@ -41,7 +41,11 @@ public class TimeMarketDataSet {
 		return time;
 	}
 
-	public List<TimeMarketData> listMarkets(Predicate<TimeMarketData> filter) {
+	public List<TimeMarketData> listUpToDateMarkets(Predicate<TimeMarketData> filter) {
+		return set.values().stream().filter(filter).filter(m -> m.getTime().equals(time)).toList();
+	}
+
+	public List<TimeMarketData> listAllKnownMarkets(Predicate<TimeMarketData> filter) {
 		return set.values().stream().filter(filter).toList();
 	}
 }

@@ -31,7 +31,7 @@ public class SmaWithMinMax extends Strategy {
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet data, Account account) {
 		List<Order> orders = new ArrayList<>();
-		for (TimeMarketData market : data.listMarkets(STOCKS)) {
+		for (TimeMarketData market : data.listUpToDateMarkets(STOCKS)) {
 			FloatArraySlice closes = market.getLayer(CLOSE);
 			if (closes.size() <= 250) {
 				continue;

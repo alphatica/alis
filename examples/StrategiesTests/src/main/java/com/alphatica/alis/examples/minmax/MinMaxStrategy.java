@@ -25,7 +25,7 @@ public class MinMaxStrategy extends Strategy {
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet data, Account account) {
 		List<Order> orders = new ArrayList<>();
-		for (TimeMarketData market : data.listMarkets(STOCKS)) {
+		for (TimeMarketData market : data.listUpToDateMarkets(STOCKS)) {
 			double minMaxNow = minMax.calculate(market);
 			boolean positionOpened = account.getPosition(market.getMarketName()) != null;
 			if (!positionOpened && minMaxNow > 0) {

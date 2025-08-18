@@ -37,7 +37,7 @@ public class SmaStrategy extends Strategy {
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet data, Account account) {
 		List<Order> orders = new ArrayList<>();
-		for (TimeMarketData market : data.listMarkets(STOCKS)) {
+		for (TimeMarketData market : data.listUpToDateMarkets(STOCKS)) {
 			double currentSma = sma.calculate(market);
 			MarketName marketName = market.getMarketName();
 			boolean positionOpened = account.getPosition(marketName) != null;

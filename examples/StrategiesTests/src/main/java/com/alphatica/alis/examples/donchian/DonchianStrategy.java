@@ -51,7 +51,7 @@ public class DonchianStrategy extends Strategy {
 			wigLine.addPoint(time, wig.getData(Layer.CLOSE, 0));
 		}
 		List<Order> orders = new ArrayList<>();
-		for (TimeMarketData marketData : allData.listMarkets(STOCKS)) {
+		for (TimeMarketData marketData : allData.listUpToDateMarkets(STOCKS)) {
 			checkStock(account, marketData, allData, orders);
 		}
 		return orders;

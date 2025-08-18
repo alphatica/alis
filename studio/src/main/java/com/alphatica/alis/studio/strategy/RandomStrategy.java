@@ -25,7 +25,7 @@ public class RandomStrategy extends Strategy {
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet timeMarketDataSet, Account account) {
 		List<Order> orders = new ArrayList<>();
-		timeMarketDataSet.listMarkets(STOCKS).forEach(market -> {
+		timeMarketDataSet.listUpToDateMarkets(STOCKS).forEach(market -> {
 			boolean shouldTrade = ThreadLocalRandom.current().nextDouble() < tradeProbability;
 			if (shouldTrade) {
 				if (account.getPosition(market.getMarketName()) != null) {

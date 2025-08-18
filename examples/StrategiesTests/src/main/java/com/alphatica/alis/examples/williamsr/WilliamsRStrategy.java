@@ -51,7 +51,7 @@ public class WilliamsRStrategy extends Strategy {
 	}
 
 	private void addChartLinePoints(TimeMarketDataSet data, Account account) {
-		List<TimeMarketData> timeMarketData = data.listMarkets(STOCKS);
+		List<TimeMarketData> timeMarketData = data.listUpToDateMarkets(STOCKS);
 		if (!timeMarketData.isEmpty()) {
 			String time = data.getTime().toString();
 			equityLine.addPoint(time, account.getNAV());
@@ -64,7 +64,7 @@ public class WilliamsRStrategy extends Strategy {
 
 	private void checkBuys(TimeMarketDataSet data, Account account, List<Order> orders) {
 		if (account.getCash() >= account.getNAV() * position || !orders.isEmpty()) {
-			for (TimeMarketData market : data.listMarkets(STOCKS)) {
+			for (TimeMarketData market : data.listUpToDateMarkets(STOCKS)) {
 				if (account.getPosition(market.getMarketName()) == null) {
 					double wr = williamsRNow.calculate(market);
 					if (wr >= level) {
@@ -76,7 +76,7 @@ public class WilliamsRStrategy extends Strategy {
 	}
 
 	private void checkSells(TimeMarketDataSet data, Account account, List<Order> orders) {
-		for (TimeMarketData market : data.listMarkets(STOCKS)) {
+		for (TimeMarketData market : data.listUpToDateMarkets(STOCKS)) {
 			if (account.getPosition(market.getMarketName()) != null) {
 				double wr = williamsRNow.calculate(market);
 				if (wr < level) {

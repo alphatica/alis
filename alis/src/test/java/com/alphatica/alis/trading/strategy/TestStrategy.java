@@ -21,7 +21,7 @@ class TestStrategy extends Strategy {
 	 */
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet data, Account account) {
-		for (TimeMarketData marketData : data.listMarkets(STOCKS)) {
+		for (TimeMarketData marketData : data.listUpToDateMarkets(STOCKS)) {
 			if (data.getTime().equals(new Time(99))) {
 				return arrayList(new Order(marketData.getMarketName(), Direction.BUY, OrderSize.PERCENTAGE, 50, 1.0));
 			}

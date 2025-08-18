@@ -35,7 +35,7 @@ public class AthPlusTimePyramidStrategy extends Strategy {
 
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet allData, Account account) {
-		List<TimeMarketData> stocks = allData.listMarkets(STOCKS);
+		List<TimeMarketData> stocks = allData.listUpToDateMarkets(STOCKS);
 		if (stocks.isEmpty()) {
 			return Collections.emptyList();
 		}

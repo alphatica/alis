@@ -22,7 +22,7 @@ public class SmaCrossStrategy extends Strategy {
 
 	public List<Order> afterClose(TimeMarketDataSet data, Account account) {
 		List<Order> orders = new ArrayList<>();
-		for (TimeMarketData market : data.listMarkets(STOCKS)) {
+		for (TimeMarketData market : data.listUpToDateMarkets(STOCKS)) {
 			double longSmaV = longSma.calculate(market);
 			double shortSmaV = shortSma.calculate(market);
 			MarketName marketName = market.getMarketName();

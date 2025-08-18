@@ -54,7 +54,7 @@ public class DonchianChannel extends Strategy {
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet allData, Account account) {
 		List<Order> orders = new ArrayList<>();
-		for (TimeMarketData marketData : allData.listMarkets(STOCKS)) {
+		for (TimeMarketData marketData : allData.listUpToDateMarkets(STOCKS)) {
 			checkStock(account, marketData, allData, orders);
 		}
 		return orders;

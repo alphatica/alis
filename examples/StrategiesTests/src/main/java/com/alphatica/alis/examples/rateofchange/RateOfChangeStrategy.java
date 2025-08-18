@@ -39,7 +39,7 @@ public class RateOfChangeStrategy extends Strategy {
 	public List<Order> afterClose(TimeMarketDataSet data, Account account) {
 
 		List<Order> orders = new ArrayList<>(1024);
-		for (TimeMarketData marketData : data.listMarkets(STOCKS)) {
+		for (TimeMarketData marketData : data.listUpToDateMarkets(STOCKS)) {
 			if (!allowedMarkets.contains(marketData.getMarketName())) {
 				continue;
 			}

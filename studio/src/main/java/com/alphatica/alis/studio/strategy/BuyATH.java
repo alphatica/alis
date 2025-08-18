@@ -34,7 +34,7 @@ public class BuyATH extends Strategy {
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet allData, Account account) {
 		List<Order> orders = new ArrayList<>();
-		for (TimeMarketData marketData : allData.listMarkets(STOCKS)) {
+		for (TimeMarketData marketData : allData.listUpToDateMarkets(STOCKS)) {
 			counters.putIfAbsent(marketData.getMarketName(), 0);
 			boolean havePosition = account.getPosition(marketData.getMarketName()) != null;
 			if (allTimeHigh.matches(marketData, allData)) {

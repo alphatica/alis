@@ -36,7 +36,7 @@ public class AthPlusTimeStrategy extends Strategy {
 	public List<Order> afterClose(TimeMarketDataSet allData, Account account) {
 		equityLine.addPoint(allData.getTime().toString(), account.getNAV());
 		List<Order> orders = new ArrayList<>();
-		for (TimeMarketData marketData : allData.listMarkets(STOCKS)) {
+		for (TimeMarketData marketData : allData.listUpToDateMarkets(STOCKS)) {
 			counters.putIfAbsent(marketData.getMarketName(), 0);
 			boolean havePosition = account.getPosition(marketData.getMarketName()) != null;
 			if (allTimeHigh.matches(marketData, allData)) {

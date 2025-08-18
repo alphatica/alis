@@ -73,7 +73,7 @@ public class MinMaxRatioStrategy extends Strategy {
 		double ups = 0;
 		double downs = 0;
 
-		for (TimeMarketData marketData : data.listMarkets(STOCKS)) {
+		for (TimeMarketData marketData : data.listUpToDateMarkets(STOCKS)) {
 			double minMaxNow = minMax.calculate(marketData);
 			if (minMaxNow > 0) {
 				ups++;

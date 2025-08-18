@@ -108,7 +108,7 @@ public class SignalExecutor {
 		reportPositions(time);
 		scoreGenerator.beforeTime(marketDataSet, openTradeMap);
         try (ExecutorService es = Executors.newVirtualThreadPerTaskExecutor()) {
-            for (TimeMarketData market : marketDataSet.listMarkets(marketFilter)) {
+            for (TimeMarketData market : marketDataSet.listUpToDateMarkets(marketFilter)) {
                 es.submit(() -> checkMarketOnTime(market, marketDataSet));
             }
         }
