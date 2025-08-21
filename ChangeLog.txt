@@ -1,3 +1,4 @@
+21 August 2025: Add stock-ranking mechanism + RankingTrader
 18 August 2025: Add not-up-to-date markets to TimeMarketDataSet
 12 August 2025: Add logs to StrategyExecutor
 7 August 2025: Add beforeTime callback to ScoreGenerator
