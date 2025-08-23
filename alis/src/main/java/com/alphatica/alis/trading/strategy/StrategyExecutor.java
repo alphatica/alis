@@ -92,14 +92,15 @@ public class StrategyExecutor {
 			log(() -> format("Starting time: %s", time));
 			TimeMarketDataSet current = TimeMarketDataSet.build(time, marketData);
 			sellPending(pendingOrders, current, account);
+			account.afterSells();
 			buyPending(pendingOrders, account, current);
 			updateMissedTradesCounter(pendingOrders);
 			account.updateLastKnown(current);
 			pendingOrders = getNewPendingOrders(strategy, current, account);
 			barExecutedConsumer.execute(time, account, pendingOrders);
 			showPositionStats(account);
-			log(() -> format("Finished time %s: Net asset value: %.2f Cash: %.2f Drawdown: %.2f",
-					time, account.getNAV(), account.getCash(), account.getCurrentDD()
+			log(() -> format("Finished time %s: Net asset value: %.2f Cash: %.2f Drawdown: %.2f Downside drawdown: %.2f",
+					time, account.getNAV(), account.getCash(), account.getCurrentDD(), account.getCurrentDownsideDD()
 			));
 		}
 		account.close(commissionRate);

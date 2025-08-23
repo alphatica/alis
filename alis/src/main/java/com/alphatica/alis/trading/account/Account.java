@@ -19,10 +19,12 @@ import static java.lang.String.format;
 public class Account {
 	private final Map<MarketName, Position> positions = new HashMap<>();
 	private final DrawDownCalc ddCalc;
+	private final DownsideDrawdownCalculator downsideDrawdownCalculator;
 	private final AccountHistory accountHistory;
 	private double cash;
 
 	public Account(double cash) {
+		this.downsideDrawdownCalculator = new DownsideDrawdownCalculator(cash);
 		this.cash = cash;
 		this.ddCalc = new DrawDownCalc();
 		accountHistory = new AccountHistory(cash);
@@ -34,6 +36,14 @@ public class Account {
 
 	public double getCurrentDD() {
 		return ddCalc.getCurrentDD();
+	}
+
+	public double getMaxDownsideDD() {
+		return downsideDrawdownCalculator.getMaxDownsideDrawdown();
+	}
+
+	public double getCurrentDownsideDD() {
+		return downsideDrawdownCalculator.getCurrentDownsideDrawdown();
 	}
 
 	public Position getPosition(MarketName market) {
@@ -120,13 +130,16 @@ public class Account {
 	}
 
 	public void updateLastKnown(TimeMarketDataSet data) {
+
 		positions.forEach((market, position) -> {
 			TimeMarketData marketData = data.get(market);
 			if (marketData != null) {
 				position.updatePrices(marketData.getData(Layer.CLOSE, 0), marketData.getData(Layer.HIGH, 0), marketData.getData(Layer.LOW, 0));
 			}
 		});
-		ddCalc.updateNav(getNAV());
+		var nav = getNAV();
+		ddCalc.updateNav(nav);
+		downsideDrawdownCalculator.updateState(cash, nav - cash);
 	}
 
 	public AccountHistory getAccountHistory() {
@@ -151,6 +164,11 @@ public class Account {
 			double commissionValue = quantity * price * commissionRate;
 			reducePosition(next.getKey(), exit, commissionValue);
 		}
+		downsideDrawdownCalculator.updateState(cash, 0);
+	}
+
+	public void afterSells() {
+		downsideDrawdownCalculator.updateState(cash, getNAV() - cash);
 	}
 
 	private void addToHistory(MarketName marketName, Position removed) {
@@ -158,5 +176,4 @@ public class Account {
 		PositionResult positionResult = new PositionResult(stats.profitValue(), stats.profitPercent());
 		accountHistory.add(marketName, positionResult);
 	}
-
 }
