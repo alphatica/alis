@@ -38,6 +38,7 @@ public class PortfolioPane extends JPanel {
 	private static final String NAV_LABEL = "Net Asset Value: ";
 	private static final String CURRENT_DD_LABEL = "Current Drawdown: ";
 	private static final String MAX_DD_LABEL = "Maximum Drawdown: ";
+	private static final String MAX_DOWNSIDE_DD_LABEL = "Maximum Downside Drawdown: ";
 	private static final String CASH_LABEL = "Cash: ";
 	private static final String TOTAL_COMMISSIONS_PAID = "Total commissions: ";
 	private final String[] historyColumns = {"Market", "Buy time", "Buy price", "Sell time", "Sell price", "Quantity", "Value", "Profit (cash)",
@@ -52,6 +53,7 @@ public class PortfolioPane extends JPanel {
 	private final JLabel navLabel = new JLabel(NAV_LABEL);
 	private final JLabel currentDDLabel = new JLabel(CURRENT_DD_LABEL);
 	private final JLabel maxDDLabel = new JLabel(MAX_DD_LABEL);
+	private final JLabel maxDownsizeDDLabel = new JLabel(MAX_DOWNSIDE_DD_LABEL);
 	private final JLabel cashLabel = new JLabel(CASH_LABEL);
 	private final JLabel totalCommissionsPaidLabel = new JLabel(TOTAL_COMMISSIONS_PAID);
 	private transient Account account;
@@ -180,6 +182,7 @@ public class PortfolioPane extends JPanel {
 		labelPanel.add(overallCashProfitLabel);
 		labelPanel.add(totalCommissionsPaidLabel);
 		labelPanel.add(profitFactorLabel);
+		labelPanel.add(maxDownsizeDDLabel);
 		return labelPanel;
 	}
 
@@ -259,6 +262,9 @@ public class PortfolioPane extends JPanel {
 
 			String maxDD = format("%.0f %%", account.getMaxDD());
 			maxDDLabel.setText(MAX_DD_LABEL + maxDD);
+
+			String maxDownsideDD = format(oneDecimalPercentDigitFormat, account.getMaxDownsideDD());
+			maxDownsizeDDLabel.setText(MAX_DOWNSIDE_DD_LABEL + maxDownsideDD);
 		}
 	}
 
