@@ -298,6 +298,7 @@ public class BacktestPane extends JPanel {
 		statsTableModel.addRow(new Object[]{"Final account value", format("%.0f", account.getNAV())});
 		statsTableModel.addRow(new Object[]{"Current drawdown", format("%.0f %%", account.getCurrentDD())});
 		statsTableModel.addRow(new Object[]{"Max drawdown", format("%.0f %%", account.getMaxDD())});
+		statsTableModel.addRow(new Object[]{"Max downside drawdown", format("%.0f %%", account.getMaxDownsideDD())});
 		AccountHistory history = account.getAccountHistory();
 		TradeStats stats = history.getStats();
 		statsTableModel.addRow(new Object[]{"Total trades", format("%d", stats.trades())});
