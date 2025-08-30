@@ -82,14 +82,14 @@ public class StrategyExecutor {
 		List<Time> times = marketData.getTimes().stream().filter(time -> !time.isBefore(timeFrom) && !time.isAfter(timeTo)).toList();
 		Account account = new Account(initialCash);
 		if (times.isEmpty()) {
-			log(() -> "No quotes in requested time range. Quitting.");
+			log("No quotes in requested time range. Quitting.");
 			return account;
 		}
 		List<Order> pendingOrders = new ArrayList<>();
 		account.getAccountHistory().addAction(new AccountAction(times.getFirst(), new Deposit(initialCash)));
 		for (Time time : times) {
-			log(() -> "____________________________________________________________________________");
-			log(() -> format("Starting time: %s", time));
+			log("____________________________________________________________________________");
+			log("Starting time: %s", time);
 			TimeMarketDataSet current = TimeMarketDataSet.build(time, marketData);
 			sellPending(pendingOrders, current, account);
 			account.afterSells();
@@ -99,12 +99,12 @@ public class StrategyExecutor {
 			pendingOrders = getNewPendingOrders(strategy, current, account);
 			barExecutedConsumer.execute(time, account, pendingOrders);
 			showPositionStats(account);
-			log(() -> format("Finished time %s: Net asset value: %.2f Cash: %.2f Drawdown: %.2f Downside drawdown: %.2f",
+			log("Finished time %s: Net asset value: %.2f Cash: %.2f Drawdown: %.2f Downside drawdown: %.2f",
 					time, account.getNAV(), account.getCash(), account.getCurrentDD(), account.getCurrentDownsideDD()
-			));
+			);
 		}
 		account.close(commissionRate);
-		log(() -> format("Account closed with NAV: %.2f", account.getNAV()));
+		log("Account closed with NAV: %.2f", account.getNAV());
 		strategy.finished(account);
 		return account;
 	}
@@ -115,11 +115,11 @@ public class StrategyExecutor {
 		}
 		for (var entry : account.getPositions().entrySet()) {
 			var position = entry.getValue();
-			log(() -> format("Have position: %s x %d bought at %.2f profit: %.1f%% / %.1f",
+			log("Have position: %s x %d bought at %.2f profit: %.1f%% / %.1f",
 					entry.getKey(), position.getQuantity(), position.getEntryPrice(),
 					percentChange(position.getEntryPrice(), position.getLastClose()),
 					position.getQuantity() * (position.getLastClose() - position.getEntryPrice())
-			));
+			);
 		}
 
 	}
@@ -133,22 +133,22 @@ public class StrategyExecutor {
 		Collections.sort(pendingOrders);
 		Collections.reverse(pendingOrders);
 		for(var order: pendingOrders) {
-			log(() -> format("New pending order: %s %s. Size: %d%s. Priority: %.2f",
-					order.direction(), order.market(), order.sizeValue(), order.size().shortSign(), order.priority()));
+			log("New pending order: %s %s. Size: %d%s. Priority: %.2f",
+					order.direction(), order.market(), order.sizeValue(), order.size().shortSign(), order.priority());
 		}
 		return pendingOrders;
 	}
 
 	private void buyPending(List<Order> pendingOrders, Account account, TimeMarketDataSet current) throws AccountActionException {
 		executeBuys(pendingOrders, current, account);
-		log(() -> format("Finished buying. Cash left: %.2f", account.getCash()));
+		log("Finished buying. Cash left: %.2f", account.getCash());
 	}
 
 	private void sellPending(List<Order> pendingOrders, TimeMarketDataSet current, Account account) throws AccountActionException {
 		var beforeSellingSize = pendingOrders.size();
-		log(() -> format("Pending orders: %d", beforeSellingSize));
+		log("Pending orders: %d", beforeSellingSize);
 		executeSells(pendingOrders, current, account);
-		log(() -> format("Finished selling. Cash available: %.2f", account.getCash()));
+		log("Finished selling. Cash available: %.2f", account.getCash());
 	}
 
 	private void updateMissedTradesCounter(List<Order> pendingOrders) {
@@ -197,14 +197,14 @@ public class StrategyExecutor {
 					double price = tradePrice.getPrice(marketData);
 					int quantity = getPossibleCount(getRequestedCount(order, account, price), marketData);
 					if (quantity == 0) {
-						log(() -> format("Ignoring buy order for %s. Quantity = 0", order.market()));
+						log("Ignoring buy order for %s. Quantity = 0", order.market());
 						continue;
 					}
 					double commissionValue = quantity * price * commissionRate;
 					double value = quantity * price + commissionValue;
-					log(() -> format("Trying to buy %s x %d at %.2f", marketData.getMarketName(), quantity, price));
+					log("Trying to buy %s x %d at %.2f", marketData.getMarketName(), quantity, price);
 					if (value > account.getCash()) {
-						log(() -> format("Unable to buy. Not enough cash. Required: %.2f available: %.2f", value, account.getCash()));
+						log("Unable to buy. Not enough cash. Required: %.2f available: %.2f", value, account.getCash());
 						return;
 					}
 					orderIterator.remove();
@@ -213,7 +213,7 @@ public class StrategyExecutor {
 					account.getAccountHistory()
 						   .addAction(new AccountAction(current.getTime(), new Trade(marketData.getMarketName(), BUY, price, quantity,
 								   commissionValue)));
-					log(() -> format("Bought %s x %d", order.market(), quantity));
+					log("Bought %s x %d", order.market(), quantity);
 				}
 			}
 		}
@@ -231,11 +231,11 @@ public class StrategyExecutor {
 					if (quantity > 0) {
 						var position = account.getPosition(order.market());
 						double commissionValue = quantity * price * commissionRate;
-						log(() -> format("Selling %s x %d at %.2f, bought at %.2f, profit: %.1f%% / %.1f",
+						log("Selling %s x %d at %.2f, bought at %.2f, profit: %.1f%% / %.1f",
 								order.market(), quantity, price, position.getEntryPrice(),
 								percentChange(position.getEntryPrice(), price),
 								quantity * (price - position.getEntryPrice()) - commissionValue
-						));
+						);
 						PositionExit exit = new PositionExit(current.getTime(), quantity, price);
 						account.reducePosition(order.market(), exit, commissionValue);
 						account.getAccountHistory()
@@ -257,9 +257,9 @@ public class StrategyExecutor {
 		}
 	}
 
-	private void log(Supplier<String> messageSupplier) {
+	private void log(String format, Object... args) {
 		if (verbose) {
-			System.out.println(messageSupplier.get());
+			System.out.printf((format) + "%n", args);
 		}
 	}
 }
