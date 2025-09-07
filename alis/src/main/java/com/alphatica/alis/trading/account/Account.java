@@ -19,12 +19,12 @@ import static java.lang.String.format;
 public class Account {
 	private final Map<MarketName, Position> positions = new HashMap<>();
 	private final DrawDownCalc ddCalc;
-	private final DownsideDrawdownCalculator downsideDrawdownCalculator;
+	private final DownsideDrawDownCalc downsideDrawDownCalc;
 	private final AccountHistory accountHistory;
 	private double cash;
 
 	public Account(double cash) {
-		this.downsideDrawdownCalculator = new DownsideDrawdownCalculator(cash);
+		this.downsideDrawDownCalc = new DownsideDrawDownCalc(cash);
 		this.cash = cash;
 		this.ddCalc = new DrawDownCalc();
 		accountHistory = new AccountHistory(cash);
@@ -39,11 +39,11 @@ public class Account {
 	}
 
 	public double getMaxDownsideDD() {
-		return downsideDrawdownCalculator.getMaxDownsideDrawdown();
+		return downsideDrawDownCalc.getMaxDownsideDrawdown();
 	}
 
 	public double getCurrentDownsideDD() {
-		return downsideDrawdownCalculator.getCurrentDownsideDrawdown();
+		return downsideDrawDownCalc.getCurrentDownsideDrawdown();
 	}
 
 	public Position getPosition(MarketName market) {
@@ -139,7 +139,7 @@ public class Account {
 		});
 		var nav = getNAV();
 		ddCalc.updateNav(nav);
-		downsideDrawdownCalculator.updateState(cash, nav - cash);
+		downsideDrawDownCalc.updateState(cash, nav - cash);
 	}
 
 	public AccountHistory getAccountHistory() {
@@ -164,11 +164,11 @@ public class Account {
 			double commissionValue = quantity * price * commissionRate;
 			reducePosition(next.getKey(), exit, commissionValue);
 		}
-		downsideDrawdownCalculator.updateState(cash, 0);
+		downsideDrawDownCalc.updateState(cash, 0);
 	}
 
 	public void afterSells() {
-		downsideDrawdownCalculator.updateState(cash, getNAV() - cash);
+		downsideDrawDownCalc.updateState(cash, getNAV() - cash);
 	}
 
 	private void addToHistory(MarketName marketName, Position removed) {

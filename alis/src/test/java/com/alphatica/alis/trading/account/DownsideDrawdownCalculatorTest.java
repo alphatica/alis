@@ -8,7 +8,7 @@ class DownsideDrawdownCalculatorTest {
 
 	@Test
 	void doesNotAddLosersWhenOpenProfitGrows() {
-		var c = new DownsideDrawdownCalculator(100);
+		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
 		c.updateState(90, 10);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
@@ -24,7 +24,7 @@ class DownsideDrawdownCalculatorTest {
 
 	@Test
 	void addLosersWhenNoOpenProfit() {
-		var c = new DownsideDrawdownCalculator(100);
+		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
 		c.updateState(90, 0);
 		assertEquals(-10, c.getCurrentDownsideDrawdown(), 0.01);
@@ -48,7 +48,7 @@ class DownsideDrawdownCalculatorTest {
 
 	@Test
 	void whenNoLosses() {
-		var c = new DownsideDrawdownCalculator(100);
+		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
 		c.updateState(110, 10);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
@@ -57,7 +57,7 @@ class DownsideDrawdownCalculatorTest {
 
 	@Test
 	void whenNoProfits() {
-		var c = new DownsideDrawdownCalculator(100);
+		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
 		c.updateState(90, 0);
 		assertEquals(-10, c.getCurrentDownsideDrawdown(), 0.01);
@@ -68,7 +68,7 @@ class DownsideDrawdownCalculatorTest {
 
 	@Test
 	void whenOpenProfitGreaterThanClosedLoss() {
-		var c = new DownsideDrawdownCalculator(100);
+		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
 		c.updateState(90, 15);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
@@ -77,7 +77,7 @@ class DownsideDrawdownCalculatorTest {
 
 	@Test
 	void whenOpenProfitLessThanClosedLoss() {
-		var c = new DownsideDrawdownCalculator(100);
+		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
 		c.updateState(90, 5);
 		assertEquals(-5, c.getCurrentDownsideDrawdown(), 0.01);
@@ -86,7 +86,7 @@ class DownsideDrawdownCalculatorTest {
 
 	@Test
 	void whenClosedProfitGreaterThanOpenLoss() {
-		var c = new DownsideDrawdownCalculator(100);
+		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
 		c.updateState(110, -5);
 		assertEquals(-4.54, c.getCurrentDownsideDrawdown(), 0.01);
@@ -95,7 +95,7 @@ class DownsideDrawdownCalculatorTest {
 
 	@Test
 	void whenClosedProfitLessThanOpenLoss() {
-		var c = new DownsideDrawdownCalculator(100);
+		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
 		c.updateState(105, -10);
 		assertEquals(-9.52, c.getCurrentDownsideDrawdown(), 0.01);
@@ -104,7 +104,7 @@ class DownsideDrawdownCalculatorTest {
 
 	@Test
 	void whenProfitAndLossUpAndDown() {
-		var c = new DownsideDrawdownCalculator(100);
+		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
 		c.updateState(100, 100); // Large profit
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
