@@ -6,6 +6,7 @@ import com.alphatica.alis.studio.state.AppState;
 import com.alphatica.alis.studio.tools.AccountActionCSVFacade;
 import com.alphatica.alis.studio.tools.GlobalThreadExecutor;
 import com.alphatica.alis.studio.view.tools.ErrorDialog;
+import com.alphatica.alis.studio.view.tools.components.ComponentValidationException;
 import com.alphatica.alis.studio.view.tools.components.DoubleTextField;
 import com.alphatica.alis.studio.view.tools.components.StrategySelector;
 import com.alphatica.alis.studio.view.tools.components.TimeTextField;
@@ -260,6 +261,8 @@ public class BacktestPane extends JPanel {
 	private void tryExecuteBacktest() {
 		try {
 			executeBacktest();
+		} catch (ComponentValidationException e) {
+			ErrorDialog.showError("Unable to execute strategy", e.getMessage(), null);
 		} catch (Exception e) {
 			ErrorDialog.showError("Unable to execute strategy", e.getMessage(), e);
 		}
