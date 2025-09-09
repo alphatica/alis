@@ -13,18 +13,15 @@ public class DownsideDrawDownCalc {
 		maxCash = cash;
 	}
 
-	public void updateState(double cash, double openProfit) {
+	public void updateState(double cash, double nav) {
 		this.cash = cash;
-		var total = cash + openProfit;
 		if (cash > maxCash) {
 			maxCash = cash;
 		}
-		currentDD = Math.min(0, percentChange(maxCash, total));
+		currentDD = Math.min(0, percentChange(maxCash, nav));
 		if (currentDD < maxDD) {
 			maxDD = currentDD;
 		}
-
-	//	lastTotal = total;
 	}
 
 	public double getCurrentDownsideDrawdown() {

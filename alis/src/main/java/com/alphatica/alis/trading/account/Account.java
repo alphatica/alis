@@ -139,7 +139,7 @@ public class Account {
 		});
 		var nav = getNAV();
 		ddCalc.updateNav(nav);
-		downsideDrawDownCalc.updateState(cash, nav - cash);
+		downsideDrawDownCalc.updateState(cash, nav);
 	}
 
 	public AccountHistory getAccountHistory() {
@@ -164,11 +164,11 @@ public class Account {
 			double commissionValue = quantity * price * commissionRate;
 			reducePosition(next.getKey(), exit, commissionValue);
 		}
-		downsideDrawDownCalc.updateState(cash, 0);
+		downsideDrawDownCalc.updateState(cash, getNAV());
 	}
 
 	public void afterSells() {
-		downsideDrawDownCalc.updateState(cash, getNAV() - cash);
+		downsideDrawDownCalc.updateState(cash, getNAV());
 	}
 
 	private void addToHistory(MarketName marketName, Position removed) {

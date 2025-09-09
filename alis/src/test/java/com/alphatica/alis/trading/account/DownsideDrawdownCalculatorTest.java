@@ -9,124 +9,90 @@ class DownsideDrawdownCalculatorTest {
 	@Test
 	void doesNotAddLosersWhenOpenProfitGrows() {
 		var c = new DownsideDrawDownCalc(100);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(90, 10);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(80, 20);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(70, 40);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(0, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(110, 0);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(0, c.getMaxDownsideDrawdown(), 0.01);
+		assertDrawDowns(c, 0, 0);
+
+		c.updateState(50, 110);
+		assertDrawDowns(c, 0, 0);
+
+		c.updateState(40, 120);
+		assertDrawDowns(c, 0, 0);
+
+		c.updateState(30, 130);
+		assertDrawDowns(c, 0, 0);
+
+		c.updateState(20, 140);
+		assertDrawDowns(c, 0, 0);
 	}
 
 	@Test
 	void addLosersWhenNoOpenProfit() {
 		var c = new DownsideDrawDownCalc(100);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(90, 0);
-		assertEquals(-10, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-10, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(80, 0);
-		assertEquals(-20, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-20, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(70, 0);
-		assertEquals(-30, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-30, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(70, 10);
-		assertEquals(-20, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-30, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(70, 40);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-30, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(110, 0);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-30, c.getMaxDownsideDrawdown(), 0.01);
+		c.updateState(90, 90);
+		assertDrawDowns(c, -10, -10);
+
+		c.updateState(80, 80);
+		assertDrawDowns(c, -20, -20);
+
+		c.updateState(70, 70);
+		assertDrawDowns(c, -30, -30);
 	}
 
 	@Test
 	void whenNoLosses() {
 		var c = new DownsideDrawDownCalc(100);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(110, 10);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(0, c.getMaxDownsideDrawdown(), 0.01);
-	}
-
-	@Test
-	void whenNoProfits() {
-		var c = new DownsideDrawDownCalc(100);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(90, 0);
-		assertEquals(-10, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(90, -10);
-		assertEquals(-20, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-20, c.getMaxDownsideDrawdown(), 0.01);
-	}
-
-	@Test
-	void whenOpenProfitGreaterThanClosedLoss() {
-		var c = new DownsideDrawDownCalc(100);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(90, 15);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(0, c.getMaxDownsideDrawdown(), 0.01);
+		c.updateState(0, 110);
+		assertDrawDowns(c, 0, 0);
 	}
 
 	@Test
 	void whenOpenProfitLessThanClosedLoss() {
 		var c = new DownsideDrawDownCalc(100);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(90, 5);
-		assertEquals(-5, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-5, c.getMaxDownsideDrawdown(), 0.01);
+		c.updateState(50, 95);
+		assertDrawDowns(c, -5, -5);
 	}
 
 	@Test
 	void whenClosedProfitGreaterThanOpenLoss() {
 		var c = new DownsideDrawDownCalc(100);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(110, -5);
-		assertEquals(-4.54, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-4.54, c.getMaxDownsideDrawdown(), 0.01);
+		c.updateState(110, 105);
+		assertDrawDowns(c, -4.54, -4.54);
 	}
 
 	@Test
 	void whenClosedProfitLessThanOpenLoss() {
 		var c = new DownsideDrawDownCalc(100);
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(105, -10);
-		assertEquals(-9.52, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-9.52, c.getMaxDownsideDrawdown(), 0.01);
+		c.updateState(105, 95);
+		assertDrawDowns(c, -9.52, -9.52);
 	}
 
 	@Test
 	void whenProfitAndLossUpAndDown() {
 		var c = new DownsideDrawDownCalc(100);
 		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(100, 100); // Large profit
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(0, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(100, 50); // Falling profit doesn't cause dd
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(0, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(100, -5); // Open position turned into small loss
-		assertEquals(-5, c.getMaxDownsideDrawdown(), 0.01);
-		assertEquals(-5, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(95, 0); // Closing this position
-		assertEquals(-5, c.getMaxDownsideDrawdown(), 0.01);
-		assertEquals(-5, c.getCurrentDownsideDrawdown(), 0.01);
-		c.updateState(95, 5); // New position brought account back to 100
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-5, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(200,0); // Large win closed
-		assertEquals(0, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-5, c.getMaxDownsideDrawdown(), 0.01);
-		c.updateState(200, -20); // Another loss opened
-		assertEquals(-10, c.getCurrentDownsideDrawdown(), 0.01);
-		assertEquals(-10, c.getMaxDownsideDrawdown(), 0.01);
+		c.updateState(0, 100); // Large profit
+		assertDrawDowns(c, 0, 0);
+
+		c.updateState(0, 150); // Falling profit doesn't cause dd
+		assertDrawDowns(c, 0, 0);
+
+		c.updateState(0, 95); // Open position turned into small loss
+		assertDrawDowns(c, -5, -5);
+
+		c.updateState(95, 95); // Closing this position
+		assertDrawDowns(c, -5, -5);
+
+		c.updateState(50, 100); // New position brought account back to 100
+		assertDrawDowns(c, 0, -5);
+
+		c.updateState(200,200); // Large win closed
+		assertDrawDowns(c, 0, -5);
+
+		c.updateState(0, 180); // Another loss opened
+		assertDrawDowns(c, -10, -10);
 	}
 
+	private void assertDrawDowns(DownsideDrawDownCalc drawDownCalc, double current, double max) {
+		assertEquals(current, drawDownCalc.getCurrentDownsideDrawdown(), 0.01);
+		assertEquals(max, drawDownCalc.getMaxDownsideDrawdown(), 0.01);
+	}
 }
