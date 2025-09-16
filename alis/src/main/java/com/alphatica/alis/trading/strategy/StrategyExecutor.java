@@ -193,7 +193,7 @@ public class StrategyExecutor {
 			Order order = orderIterator.next();
 			if (order.direction() == BUY) {
 				TimeMarketData marketData = current.get(order.market());
-				if (marketData != null) {
+				if (marketData != null && marketData.getTime().equals(current.getTime())) {
 					double price = tradePrice.getPrice(marketData);
 					int quantity = getPossibleCount(getRequestedCount(order, account, price), marketData);
 					if (quantity == 0) {
@@ -225,7 +225,7 @@ public class StrategyExecutor {
 			Order order = orderIterator.next();
 			if (order.direction() == SELL) {
 				TimeMarketData marketData = current.get(order.market());
-				if (marketData != null) {
+				if (marketData != null && marketData.getTime().equals(current.getTime())) {
 					double price = tradePrice.getPrice(marketData);
 					int quantity = getPossibleCount(getRequestedCount(order, account, price), marketData);
 					if (quantity > 0) {
