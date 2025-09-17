@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.DoubleAdder;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -37,8 +38,7 @@ public class SignalExecutor {
     private final boolean tradeSecondarySignals;
     private final ScoreGenerator scoreGenerator;
     private final Map<MarketName, List<OpenTrade>> openTradeMap = new ConcurrentHashMap<>(1024);
-    private final AtomicInteger currentlyOpened = new AtomicInteger(0);
-
+	private final DoubleAdder currentlyOpened = new DoubleAdder();
 
 	private int maxOpenedPositions = Integer.MAX_VALUE;
 	private boolean verbose = false;
@@ -113,7 +113,7 @@ public class SignalExecutor {
             }
         }
         scoreGenerator.afterTime(marketDataSet, openTradeMap);
-        log(() -> format("Opened positions: %d", currentlyOpened.get()));
+        log(() -> format("Opened positions: %.1f", currentlyOpened.doubleValue()));
     }
 
 	private void reportPositions(Time time) {
@@ -157,8 +157,9 @@ public class SignalExecutor {
         var openPrice = market.getData(OPEN, 0) * (1 + commissionRate);
 		for (OpenTrade trade : openedTrades) {
 			if (trade.getTradeStatus() == PENDING_OPEN) {
-                if (currentlyOpened.incrementAndGet() > maxOpenedPositions) {
-                    currentlyOpened.decrementAndGet();
+				currentlyOpened.add(trade.getPositionSize());
+                if (currentlyOpened.doubleValue() > maxOpenedPositions) {
+                    currentlyOpened.add(-trade.getPositionSize());
                     return;
                 }
 				trade.setOpenPrice(openPrice);
@@ -169,7 +170,7 @@ public class SignalExecutor {
 
     private void closeTrade(MarketName market, OpenTrade trade, float closePrice) {
         scoreGenerator.afterTrade(trade, closePrice);
-        currentlyOpened.decrementAndGet();
+        currentlyOpened.add(-trade.getPositionSize());
         log(() -> format("Closing %s at %.2f bought at %.2f profit %.2f",  market, closePrice, trade.getOpenPrice(), percentChange(trade.getOpenPrice(), closePrice)));
     }
 

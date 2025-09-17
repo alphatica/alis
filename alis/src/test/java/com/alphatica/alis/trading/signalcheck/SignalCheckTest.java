@@ -30,7 +30,6 @@ class SignalCheckTest {
 		var score = executor.execute();
 		assertEquals(50.80, score, 0.01);
 		assertEquals(1, scoreGenerator.trades.get());
-
 	}
 
 	@Test
