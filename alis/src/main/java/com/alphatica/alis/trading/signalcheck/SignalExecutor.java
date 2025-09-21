@@ -25,7 +25,6 @@ import static com.alphatica.alis.data.market.MarketFilters.ALL;
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_CLOSE;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_OPEN;
-import static java.lang.String.format;
 
 public class SignalExecutor {
     private final Supplier<TradeSignal> signalSupplier;
@@ -109,7 +108,7 @@ public class SignalExecutor {
 
     private void checkTime(Time time) {
         TimeMarketDataSet marketDataSet = getTimeMarketDataSet(marketData, time);
-        log(() -> format("%s =================================================", time));
+        log("%s =================================================", time);
 		reportPositions(time);
 		scoreGenerator.beforeTime(marketDataSet, openTradeMap);
         try (ExecutorService es = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -118,7 +117,7 @@ public class SignalExecutor {
             }
         }
         scoreGenerator.afterTime(marketDataSet, openTradeMap);
-        log(() -> format("Opened positions: %.1f", currentlyOpened.doubleValue()));
+        log("Opened positions: %.1f", currentlyOpened.doubleValue());
     }
 
 	private TimeMarketDataSet getTimeMarketDataSet(MarketData marketData, Time time) {
@@ -176,7 +175,7 @@ public class SignalExecutor {
                     return;
                 }
 				trade.setOpenPrice(openPrice);
-                log(() -> format("Opening %s at %2f size %.1f", market.getMarketName(), openPrice, trade.getPositionSize()));
+                log("Opening %s at %2f size %.1f", market.getMarketName(), openPrice, trade.getPositionSize());
 			}
 		}
     }
@@ -184,7 +183,7 @@ public class SignalExecutor {
     private void closeTrade(MarketName market, OpenTrade trade, float closePrice) {
         scoreGenerator.afterTrade(trade, closePrice);
         currentlyOpened.add(-trade.getPositionSize());
-        log(() -> format("Closing %s at %.2f bought at %.2f profit %.2f",  market, closePrice, trade.getOpenPrice(), percentChange(trade.getOpenPrice(), closePrice)));
+        log("Closing %s at %.2f bought at %.2f profit %.2f",  market, closePrice, trade.getOpenPrice(), percentChange(trade.getOpenPrice(), closePrice));
     }
 
     private void processOpenTrades(TimeMarketData market, TimeMarketDataSet marketDataSet, List<OpenTrade> openTrades) {
@@ -212,9 +211,10 @@ public class SignalExecutor {
         }
     }
 
-    private void log(Supplier<String> message) {
-        if (verbose) {
-            System.out.println(message.get());
-        }
-    }
+
+	private void log(String format, Object... args) {
+		if (verbose) {
+			System.out.printf((format) + "%n", args);
+		}
+	}
 }

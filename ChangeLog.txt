@@ -1,3 +1,4 @@
+21 September 2025: Remove lambda from SignalExecutor logging
 21 September 2025: Add option to TimeMarketDataSet for Strategy/Signal executor
 17 September 2025: Use double value to limit positions count in SignalExecutor
 16 September 2025: Fix StrategyExecutor to only trade markets available at given time
