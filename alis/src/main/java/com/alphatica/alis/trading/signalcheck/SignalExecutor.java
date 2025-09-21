@@ -15,7 +15,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -44,8 +43,9 @@ public class SignalExecutor {
 	private boolean verbose = false;
 	private PositionReporter positionReporter;
 	private String sourceId;
+	private boolean useCachedMarketData = false;
 
-    public SignalExecutor(Supplier<TradeSignal> signalSupplier, Time startTime, Time endTime, MarketData marketData,
+	public SignalExecutor(Supplier<TradeSignal> signalSupplier, Time startTime, Time endTime, MarketData marketData,
                           Predicate<TimeMarketData> marketFilter, float commissionRate, boolean tradeSecondarySignals,
                           ScoreGenerator scoreGenerator) {
         this.signalSupplier = signalSupplier;
@@ -85,6 +85,11 @@ public class SignalExecutor {
         return this;
     }
 
+	public SignalExecutor useCachedMarketData() {
+		this.useCachedMarketData = true;
+		return this;
+	}
+
     private void populateOpenTradesMap() {
         for(Market market: marketData.listMarkets(ALL)) {
             openTradeMap.put(market.getName(), new ArrayList<>(1024));
@@ -103,7 +108,7 @@ public class SignalExecutor {
     }
 
     private void checkTime(Time time) {
-        TimeMarketDataSet marketDataSet = TimeMarketDataSet.build(time, marketData);
+        TimeMarketDataSet marketDataSet = getTimeMarketDataSet(marketData, time);
         log(() -> format("%s =================================================", time));
 		reportPositions(time);
 		scoreGenerator.beforeTime(marketDataSet, openTradeMap);
@@ -115,6 +120,14 @@ public class SignalExecutor {
         scoreGenerator.afterTime(marketDataSet, openTradeMap);
         log(() -> format("Opened positions: %.1f", currentlyOpened.doubleValue()));
     }
+
+	private TimeMarketDataSet getTimeMarketDataSet(MarketData marketData, Time time) {
+		if (useCachedMarketData) {
+			return TimeMarketDataSet.getCached(time, marketData);
+		} else {
+			return TimeMarketDataSet.build(time, marketData);
+		}
+	}
 
 	private void reportPositions(Time time) {
 		if (positionReporter == null) {

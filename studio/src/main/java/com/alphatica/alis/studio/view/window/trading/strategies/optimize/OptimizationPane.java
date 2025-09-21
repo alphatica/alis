@@ -265,7 +265,8 @@ public class OptimizationPane extends JPanel {
 		Time endTime = timeEndField.getTime();
 		Supplier<StrategyExecutor> strategyExecutorFactory = () -> new StrategyExecutor().withInitialCash(initialCapitalField.getDoubleValue())
 																						 .withCommissionRate(commissionRateField.getDoubleValue())
-																						 .withTimeRange(startTime, endTime);
+																						 .withTimeRange(startTime, endTime)
+																						 .useCachedMarketData();
 		resultTable.clearResults();
 		iterationCounterLabel.setText(ITERATIONS_LABEL_PREFIX);
 		Supplier<AccountScorer> scorerFactory = backtestScorerComboBox::getValue;

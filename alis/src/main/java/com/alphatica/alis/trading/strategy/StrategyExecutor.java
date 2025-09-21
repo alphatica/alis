@@ -25,7 +25,6 @@ import static com.alphatica.alis.data.layer.Layer.TURNOVER;
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static com.alphatica.alis.trading.order.Direction.BUY;
 import static com.alphatica.alis.trading.order.Direction.SELL;
-import static java.lang.String.format;
 
 public class StrategyExecutor {
 
@@ -40,6 +39,7 @@ public class StrategyExecutor {
 	private BarExecutedConsumer barExecutedConsumer = (time, account, pendingOrders) -> {
 	};
 	private boolean verbose = false;
+	private boolean useCachedMarketData = false;
 
 	public StrategyExecutor withInitialCash(double initialCash) {
 		this.initialCash = initialCash;
@@ -77,6 +77,11 @@ public class StrategyExecutor {
 		return this;
 	}
 
+	public StrategyExecutor useCachedMarketData() {
+		this.useCachedMarketData = true;
+		return this;
+	}
+
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
 	public Account execute(MarketData marketData, Strategy strategy) throws AccountActionException {
 		List<Time> times = marketData.getTimes().stream().filter(time -> !time.isBefore(timeFrom) && !time.isAfter(timeTo)).toList();
@@ -90,7 +95,7 @@ public class StrategyExecutor {
 		for (Time time : times) {
 			log("____________________________________________________________________________");
 			log("Starting time: %s", time);
-			TimeMarketDataSet current = TimeMarketDataSet.build(time, marketData);
+			TimeMarketDataSet current = getTimeMarketDataSet(marketData, time);
 			sellPending(pendingOrders, current, account);
 			account.afterSells();
 			buyPending(pendingOrders, account, current);
@@ -107,6 +112,14 @@ public class StrategyExecutor {
 		log("Account closed with NAV: %.2f", account.getNAV());
 		strategy.finished(account);
 		return account;
+	}
+
+	private TimeMarketDataSet getTimeMarketDataSet(MarketData marketData, Time time) {
+		if (useCachedMarketData) {
+			return TimeMarketDataSet.getCached(time, marketData);
+		} else {
+			return TimeMarketDataSet.build(time, marketData);
+		}
 	}
 
 	private void showPositionStats(Account account) {
