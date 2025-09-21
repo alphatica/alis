@@ -34,4 +34,7 @@ public class LicenseJTextField {
 		}
 		throw new IOException("Unable to load license text");
 	}
+
+    private LicenseJTextField() {
+    }
 }

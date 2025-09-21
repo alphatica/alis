@@ -3,7 +3,6 @@ package com.alphatica.alis.condition;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.indicators.BarsSinceLowestClose;
 
 public class LowestClose implements Condition {
 	private final int length;

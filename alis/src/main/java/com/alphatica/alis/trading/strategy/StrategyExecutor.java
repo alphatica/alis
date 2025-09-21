@@ -19,7 +19,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Supplier;
 
 import static com.alphatica.alis.data.layer.Layer.TURNOVER;
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;

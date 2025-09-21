@@ -6,13 +6,12 @@ import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 public class SmaMinMaxOOS {
 	private static final String WORK_DIR = System.getProperty("user.home") + File.separator + "Alphatica" + File.separator + "stooq_gpw";
 
-	public static void main(String[] args) throws IOException, ExecutionException, InterruptedException, AccountActionException {
+	public static void main(String[] args) throws ExecutionException, InterruptedException, AccountActionException {
 		MarketData marketData = StooqLoader.loadPL(WORK_DIR);
 		SmaMinMaxCheck.check(marketData, 300, 70, new Time(2018_01_23), new Time(2025_01_23));
 	}

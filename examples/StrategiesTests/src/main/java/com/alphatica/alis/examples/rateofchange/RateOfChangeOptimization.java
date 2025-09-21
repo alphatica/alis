@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import static com.alphatica.alis.data.market.MarketFilters.STOCKS;
@@ -63,10 +64,9 @@ public class RateOfChangeOptimization {
 
 	private static double checkStrategyWithCrossValidation(MarketData marketData, int bp, int sp, double bc, double sc, Time startTime,
 														   Time endTime) throws AccountActionException {
-		Random r = new Random();
 		List<Double> navs = new ArrayList<>();
 		for (int attempt = 0; attempt < 50; attempt++) {
-			Set<MarketName> allowedMarkets = marketData.listMarkets(m -> m.getType() == MarketType.STOCK && r.nextBoolean())
+			Set<MarketName> allowedMarkets = marketData.listMarkets(m -> m.getType() == MarketType.STOCK && ThreadLocalRandom.current().nextBoolean())
 													   .stream()
 													   .map(Market::getName)
 													   .collect(Collectors.toSet());

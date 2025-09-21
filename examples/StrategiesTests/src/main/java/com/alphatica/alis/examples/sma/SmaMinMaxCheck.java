@@ -19,4 +19,7 @@ public class SmaMinMaxCheck {
 		System.out.printf("%.0f %d %d%n", account.getNAV(), smaLength, minMaxLength);
 		return strategyExecutor;
 	}
+
+    private SmaMinMaxCheck() {
+    }
 }

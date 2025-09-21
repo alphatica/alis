@@ -12,13 +12,9 @@ import com.alphatica.alis.studio.view.tools.components.StrategySelector;
 import com.alphatica.alis.studio.view.tools.components.TimeTextField;
 import com.alphatica.alis.studio.view.window.trading.strategies.optimize.resulttable.ResultTable;
 import com.alphatica.alis.trading.account.Account;
+import com.alphatica.alis.trading.optimizer.*;
 import com.alphatica.alis.trading.strategy.Strategy;
 import com.alphatica.alis.trading.strategy.StrategyExecutor;
-import com.alphatica.alis.trading.optimizer.StrategyOptimizer;
-import com.alphatica.alis.trading.optimizer.OptimizerException;
-import com.alphatica.alis.trading.optimizer.OptimizerScore;
-import com.alphatica.alis.trading.optimizer.ParametersSelection;
-import com.alphatica.alis.trading.optimizer.ResultVerifier;
 import com.alphatica.alis.trading.account.scorer.AccountScorer;
 import com.alphatica.alis.trading.account.scorer.Expectancy;
 import com.alphatica.alis.trading.account.scorer.NavAdjustedForMaxDD;
@@ -223,7 +219,7 @@ public class OptimizationPane extends JPanel {
 
 	private long getPermutationsCount() {
 		return switch (parametersSelectionComboBox.getValue()) {
-			case FULL_PERMUTATION -> StrategyOptimizer.computeAllPermutations(strategySelector.getValue());
+			case FULL_PERMUTATION -> Optimizer.computeAllPermutations(strategySelector.getValue());
 			case GENETIC, RANDOM -> 10_000L;
 		};
 	}

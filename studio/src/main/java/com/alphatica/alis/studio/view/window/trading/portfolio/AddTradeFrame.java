@@ -40,7 +40,7 @@ public class AddTradeFrame extends JFrame {
 
 	private void init() {
 		setTitle("Add Trade");
-		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		setLayout(new BorderLayout());
 		setLocationRelativeTo(null);
 		setMinimumSize(new Dimension(350, 300));

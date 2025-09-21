@@ -6,8 +6,11 @@ import java.util.List;
 
 public class StrategyList {
 
-	public static List<Class<? extends Strategy>> strategies = List.of(
+	public static final List<Class<? extends Strategy>> strategies = List.of(
 			DonchianChannel.class,
 			BuyATH.class,
 			RandomStrategy.class);
+
+    private StrategyList() {
+    }
 }

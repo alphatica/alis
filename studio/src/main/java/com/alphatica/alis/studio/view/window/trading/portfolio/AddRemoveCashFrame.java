@@ -35,7 +35,7 @@ public class AddRemoveCashFrame extends JFrame {
 
 	private void init() {
 		setTitle("Add / Remove Cash");
-		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		setLayout(new BorderLayout());
 		setLocationRelativeTo(null);
 		setMinimumSize(new Dimension(350, 250));

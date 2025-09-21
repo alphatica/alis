@@ -112,7 +112,7 @@ public class ResultTable extends JTable {
 
 		// Create frame
 		JFrame detailsFrame = new JFrame(format("%.0f", tr.score().score()));
-		detailsFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		detailsFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		detailsFrame.add(scrollPane, BorderLayout.CENTER);
 
 		// Set minimum and maximum sizes

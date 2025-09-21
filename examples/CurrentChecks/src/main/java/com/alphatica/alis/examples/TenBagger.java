@@ -147,13 +147,12 @@ public class TenBagger {
 				high = data.getData(Layer.CLOSE, 0);
 				inDD = false;
 			}
-			if (data.getData(Layer.CLOSE, 0) / high < level) {
-				if (!inDD) {
+			if (data.getData(Layer.CLOSE, 0) / high < level && !inDD) {
 					ddCounter++;
 					inDD = true;
 				}
-			}
-			data = market.getAtOrNext(data.getTime().next());
+
+            data = market.getAtOrNext(data.getTime().next());
 		}
 		return ddCounter;
 	}

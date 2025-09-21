@@ -10,9 +10,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.WindowConstants;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.FlowLayout;
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -38,7 +36,7 @@ public class UserAgreementAcceptance {
 
 	private static void startMainApp() {
 		MainFrame mainFrame = new MainFrame();
-		mainFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+		mainFrame.setExtendedState(Frame.MAXIMIZED_BOTH);
 		ErrorDialog.setMainFrame(mainFrame);
 		mainFrame.init();
 	}
