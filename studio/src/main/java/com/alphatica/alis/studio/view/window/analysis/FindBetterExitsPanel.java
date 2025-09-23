@@ -182,6 +182,8 @@ public class FindBetterExitsPanel extends JPanel {
 		isStarted.set(true);
 		setSettingsInputs(false);
 		resultsTable.clear();
+        iterationsCountLabel.setText("0");
+        iterationsDone.set(0);
 		GlobalThreadExecutor.GLOBAL_EXECUTOR.execute(() -> {
 			int processors = Runtime.getRuntime().availableProcessors();
 			MarketData marketData = AppState.getMarketData();
