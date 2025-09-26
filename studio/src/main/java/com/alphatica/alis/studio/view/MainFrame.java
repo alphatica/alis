@@ -92,7 +92,7 @@ public class MainFrame extends JFrame {
 
 	private void addHelpMenu(JMenuBar menuBar) {
 		JMenu helpMenu = new JMenu("Help");
-		helpMenu.add(browserOpeningMenu("Website", "https://alphatica.com/alis/help"));
+		helpMenu.add(browserOpeningMenu("Website", "https://alphatica.com/en/software/alis/"));
 		helpMenu.add(licensePopup());
 		helpMenu.add(browserOpeningMenu("Feature request", BACKEND_URL + "/feature-request/new"));
 		helpMenu.add(createAboutMenu());
