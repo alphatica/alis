@@ -1,6 +1,7 @@
 package com.alphatica.alis.data.time;
 
 
+import java.time.LocalDate;
 import java.util.Objects;
 
 public record Time(long time) implements Comparable<Time> {
@@ -39,4 +40,11 @@ public record Time(long time) implements Comparable<Time> {
 	public String toString() {
 		return String.format("%d", time);
 	}
+
+    public LocalDate toLocalDate() {
+        int day = (int)time % 1_00;
+        int month = (int)(time / 1_00) % 100;
+        int year = (int)(time / 1_00_00);
+        return LocalDate.of(year, month, day);
+    }
 }
