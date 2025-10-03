@@ -169,10 +169,12 @@ public class SignalExecutor {
         var openPrice = market.getData(OPEN, 0) * (1 + commissionRate);
 		for (OpenTrade trade : openedTrades) {
 			if (trade.getTradeStatus() == PENDING_OPEN) {
-				currentlyOpened.add(trade.getPositionSize());
-                if (currentlyOpened.doubleValue() > maxOpenedPositions) {
-                    currentlyOpened.add(-trade.getPositionSize());
-                    return;
+                synchronized (this) {
+                    currentlyOpened.add(trade.getPositionSize());
+                    if (currentlyOpened.doubleValue() > maxOpenedPositions) {
+                        currentlyOpened.add(-trade.getPositionSize());
+                        return;
+                    }
                 }
 				trade.setOpenPrice(openPrice);
                 log("Opening %s at %2f size %.1f", market.getMarketName(), openPrice, trade.getPositionSize());
