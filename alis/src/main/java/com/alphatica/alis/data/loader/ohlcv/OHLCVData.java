@@ -39,12 +39,12 @@ public class OHLCVData {
 
 	public static OHLCVData load(File file, int date, int open, int high, int low, int close, int vol, Time startTime) throws IOException {
 		List<String> lines = FileUtils.readLines(file, Charset.defaultCharset());
-		OHLCVData stock = new OHLCVData();
-		stock.indexes = HashMap.newHashMap(4096);
-		stock.name = new MarketName(file.getName().split("\\.")[0]);
-		stock.rows = new ArrayList<>();
+		OHLCVData market = new OHLCVData();
+		market.indexes = HashMap.newHashMap(4096);
+		market.name = new MarketName(file.getName().split("\\.")[0]);
+		market.rows = new ArrayList<>();
 		if (lines.isEmpty()) {
-			return stock;
+			return market;
 		}
 		lines.removeFirst();
 		for (String line : lines) {
@@ -53,13 +53,13 @@ public class OHLCVData {
 			if (quote.getTime().isBefore(startTime)) {
 				continue;
 			}
-			if (!stock.rows.isEmpty() && quote.getTime().isBefore(stock.rows.getLast().getTime())) {
+			if (!market.rows.isEmpty() && quote.getTime().isBefore(market.rows.getLast().getTime())) {
 				throw new IllegalArgumentException(format("Wrong date order: %s, %d", file.getAbsolutePath(), quote.getTime().time()));
 			}
-			stock.indexes.put(quote.getTime(), stock.rows.size());
-			stock.rows.add(quote);
+			market.indexes.put(quote.getTime(), market.rows.size());
+			market.rows.add(quote);
 		}
-		return stock;
+		return market;
 	}
 
 	public Market toMarket(MarketType marketType) {

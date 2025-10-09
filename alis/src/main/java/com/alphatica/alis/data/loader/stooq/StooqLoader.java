@@ -25,6 +25,8 @@ import java.util.concurrent.Executors;
 import static com.alphatica.alis.data.layer.Layer.MV;
 import static com.alphatica.alis.data.layer.Layer.PB;
 import static com.alphatica.alis.data.layer.Layer.PE;
+import static com.alphatica.alis.data.market.MarketType.FUTURE;
+import static com.alphatica.alis.data.market.MarketType.INDICE;
 import static com.alphatica.alis.data.market.MarketType.STOCK;
 import static java.io.File.separator;
 
@@ -46,10 +48,15 @@ public class StooqLoader {
 	public static StandardMarketData loadPL(String workDir) throws ExecutionException, InterruptedException {
 		String dataDir = workDir + separator + STOOQ_DATA_DIR + separator + "data" + separator + "daily" + separator + "pl" + separator;
 		StandardMarketData standardMarketData = new StandardMarketData();
-		Map<MarketName, Market> stocks = loadFiles(dataDir, "wse stocks", "wse stocks indicators", STOCK, new Time(0));
-		standardMarketData.addMarkets(stocks);
-		Map<MarketName, Market> indices = loadFiles(dataDir, "wse indices", "wse indices indicators", MarketType.INDICE, new Time(0));
+
+		Map<MarketName, Market> markets = loadFiles(dataDir, "wse stocks", "wse stocks indicators", STOCK, new Time(0));
+		standardMarketData.addMarkets(markets);
+
+		Map<MarketName, Market> indices = loadFiles(dataDir, "wse indices", "wse indices indicators", INDICE, new Time(0));
 		standardMarketData.addMarkets(indices);
+
+		Map<MarketName, Market> futures = loadFiles(dataDir, "wse futures", null, FUTURE, new Time(0));
+		standardMarketData.addMarkets(futures);
 		return standardMarketData;
 	}
 
@@ -73,7 +80,7 @@ public class StooqLoader {
 			for(File file: files) {
 				if (file.isDirectory()) {
 					directories.add(file);
-				} else if (file.getAbsolutePath().contains("stocks")){
+				} else if (file.getAbsolutePath().contains("stocks")) {
 					stocks.add(file);
 				}
 			}
@@ -119,27 +126,29 @@ public class StooqLoader {
 		File ohlcvDir = new File(dataDir + separator + filesPath);
 		File[] files = ohlcvDir.listFiles();
 
-		TreeMap<MarketName, Market> stocks = new TreeMap<>();
+		TreeMap<MarketName, Market> markets = new TreeMap<>();
 		if (files == null) {
-			return stocks;
+			return markets;
 		}
 		TaskExecutor<Market> executor = new TaskExecutor<>();
 		for (File file : files) {
 			executor.submit(() -> processFile(dataDir, file, indicatorsPath, marketType, startTime));
 		}
-		executor.getResults().forEach(stock -> stocks.put(stock.getName(), stock));
-		return stocks;
+		executor.getResults().forEach(market -> markets.put(market.getName(), market));
+		return markets;
 	}
 
 	private static Market processFile(String dataDir, File file, String indicatorsPath, MarketType marketType, Time startTime) {
 		try {
 			OHLCVData ohlcv = OHLCVData.load(file, 2, 4, 5, 6, 7, 8, startTime);
-			ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_pe.txt", 2, 7, (q, s) -> q.parseAndSet(s,
-					PE));
-			ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_pb.txt", 2, 7, (q, s) -> q.parseAndSet(s,
-					PB));
-			ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_mv.txt", 2, 7, (q, s) -> q.parseAndSet(s,
-					MV));
+			if (indicatorsPath != null) {
+				ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_pe.txt", 2, 7, (q, s) -> q.parseAndSet(s,
+						PE));
+				ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_pb.txt", 2, 7, (q, s) -> q.parseAndSet(s,
+						PB));
+				ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_mv.txt", 2, 7, (q, s) -> q.parseAndSet(s,
+						MV));
+			}
 			return ohlcv.toMarket(marketType);
 		} catch (IOException e) {
 			throw new DataProcessingException(e);
@@ -149,4 +158,3 @@ public class StooqLoader {
 	private StooqLoader() {
 	}
 }
-

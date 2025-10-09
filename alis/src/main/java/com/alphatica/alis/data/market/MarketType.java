@@ -1,7 +1,7 @@
 package com.alphatica.alis.data.market;
 
 public enum MarketType {
-	STOCK, INDICE, FOREX,
+	STOCK, INDICE, FOREX, FUTURE
 	;
 
 
@@ -11,6 +11,7 @@ public enum MarketType {
 			case STOCK -> "Stock";
 			case INDICE -> "Indice";
 			case FOREX -> "Forex";
+			case FUTURE -> "Future";
 		};
 	}
 }

@@ -1,3 +1,4 @@
+9 October 2025: Read futures data from stooq, add FUTURE MarketType
 3 October 2025:  Add option to convert Time to LocalDateTime
 23 September 2025: Fix iterations counter reset in Find Better Exits
 21 September 2025: Remove lambda from SignalExecutor logging
