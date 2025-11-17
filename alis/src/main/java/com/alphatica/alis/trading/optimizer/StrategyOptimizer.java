@@ -88,6 +88,7 @@ public class StrategyOptimizer extends Optimizer {
 						case NONE -> optimizeWithAllTradesAndMarkets();
 						case REMOVE_MARKETS -> optimizeWithReducedMarkets();
 						case REMOVE_ORDERS -> optimizeWithReducedOrders();
+						case FUZZY_START_TIME -> optimizeWithFuzzyStartTime();
 					}
 					long endTime = System.nanoTime();
 					counter.incrementAndGet();
@@ -204,6 +205,43 @@ public class StrategyOptimizer extends Optimizer {
 		Collections.sort(scoredAccounts);
 		ScoredAccount medianScore = scoredAccounts.get(scoredAccounts.size() / 2);
 		registerScore(medianScore.score(), medianScore.account(), params);
+	}
+
+	private void optimizeWithFuzzyStartTime() throws IllegalAccessException {
+		final int maxOptimizations = 49;
+		Map<String, Object> params = paramsSelector.next();
+		if (params.isEmpty()) {
+			return;
+		}
+		List<Time> times = marketData.getTimes();
+		int startTimeIndex = getStartTimeIndex(times, maxOptimizations);
+		List<ScoredAccount> scoredAccounts = new ArrayList<>();
+		while (scoredAccounts.size() < maxOptimizations) {
+			Time randomizedStartTime = times.get(startTimeIndex++);
+			AccountScorer scorer = scorerFactory.get();
+			StrategyExecutor executor = executorFactory.get().withTimeFrom(randomizedStartTime);
+			Strategy strategy = strategyFactory.get();
+			copyParameters(params, strategy);
+			try {
+				Account account = executor.execute(marketData, strategy);
+				double score = scorer.score(account, strategy.getCustomStats());
+				scoredAccounts.add(new ScoredAccount(score, account));
+			} catch (AccountActionException e) {
+				passException(e);
+			}
+		}
+		Collections.sort(scoredAccounts);
+		ScoredAccount medianScore = scoredAccounts.get(scoredAccounts.size() / 2);
+		registerScore(medianScore.score(), medianScore.account(), params);
+	}
+
+	private int getStartTimeIndex(List<Time> times, int maxOptimizations) {
+		Time startTime = executorFactory.get().getTimeFrom();
+		int index = Collections.binarySearch(times, startTime);
+		if (index < 0) {
+			index = -index - 1;
+		}
+		return Math.max(0, index - (maxOptimizations / 2));
 	}
 
 	private synchronized void registerScore(double score, Account account, Map<String, Object> parameters) {

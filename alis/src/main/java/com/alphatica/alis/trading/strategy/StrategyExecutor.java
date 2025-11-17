@@ -56,6 +56,11 @@ public class StrategyExecutor {
 		return this;
 	}
 
+	public StrategyExecutor withTimeFrom(Time timeFrom) {
+		this.timeFrom = timeFrom;
+		return this;
+	}
+
 	public StrategyExecutor withTradePrice(TradePrice tradePrice) {
 		this.tradePrice = tradePrice;
 		return this;
@@ -79,6 +84,10 @@ public class StrategyExecutor {
 	public StrategyExecutor useCachedMarketData() {
 		this.useCachedMarketData = true;
 		return this;
+	}
+
+	public Time getTimeFrom() {
+		return timeFrom;
 	}
 
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'

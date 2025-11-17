@@ -135,6 +135,7 @@ public class OptimizationPane extends JPanel {
 		resultVerifierComboBox.addOption("None", () -> ResultVerifier.NONE);
 		resultVerifierComboBox.addOption("Remove markets", () -> ResultVerifier.REMOVE_MARKETS);
 		resultVerifierComboBox.addOption("Remove orders", () -> ResultVerifier.REMOVE_ORDERS);
+		resultVerifierComboBox.addOption("Fuzzy start time", () -> ResultVerifier.FUZZY_START_TIME);
 		settingsPanel.add(resultVerifierComboBox, gbc);
 
 		// Parameters selection
