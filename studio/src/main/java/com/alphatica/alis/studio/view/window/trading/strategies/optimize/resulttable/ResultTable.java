@@ -17,8 +17,8 @@ import static java.lang.String.format;
 
 public class ResultTable extends JTable {
 
-	private static final String[] RESULTS_COLUMNS = {"Score", "NAV", "Max DD", "Trades", "Accuracy", "Expectancy", "Profit factor", "Profit per trade", "Params"};
-	private static final int PARAMS_COLUMN_INDEX = 8;
+	private static final String[] RESULTS_COLUMNS = {"Score", "NAV", "Max DD", "Trades", "Accuracy", "Expectancy", "Profit factor", "Profit per trade", "Profitable markets", "Params"};
+	private static final int PARAMS_COLUMN_INDEX = RESULTS_COLUMNS.length - 1;
 
 	private final ReadOnlyTableModel resultsTableModel = new ReadOnlyTableModel(new Object[][]{}, RESULTS_COLUMNS);
 	private final List<ResultsTableRow> resultsTableRows = new ArrayList<>();
@@ -70,6 +70,7 @@ public class ResultTable extends JTable {
 				format("%.2f", tr.expectancy()),
 				format("%.2f", tr.profitFactor()),
 				format("%.2f", tr.profitPerTrade()),
+				format("%.1f", tr.profitableMarkets()),
 				"View"
 		};
 	}
@@ -85,9 +86,12 @@ public class ResultTable extends JTable {
 
 	private ResultsTableRow createResultsRow(OptimizerScore score, Account account) {
 		TradeStats stats = account.getAccountHistory().getStats();
+		long profitableMarkets = account.getAccountHistory().countProfitableMarkets();
+		long unprofitableMarkets = account.getAccountHistory().countUnprofitableMarkets();
+		double profitableMarketsPercent = 100 * ((double) profitableMarkets / (profitableMarkets + unprofitableMarkets));
 		return new ResultsTableRow(
 				account.getNAV(), account.getMaxDD(), stats.trades(), stats.accuracy(),
-				stats.expectancy(), stats.profitFactor(), stats.profitPerTrade(), score
+				stats.expectancy(), stats.profitFactor(), stats.profitPerTrade(), profitableMarketsPercent, score
 		);
 	}
 
