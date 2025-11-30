@@ -1,3 +1,4 @@
+30 November 2025: Add 'number of profitable markets' as AccountScorer
 18 November 2025: Add 'profitable markets percent' to optimization result table
 17 November 2025: Add 'fuzzy start time' optimization verifier
 9 October 2025: Read futures data from stooq, add FUTURE MarketType

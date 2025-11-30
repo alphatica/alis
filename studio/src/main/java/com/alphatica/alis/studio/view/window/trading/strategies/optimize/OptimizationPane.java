@@ -12,6 +12,7 @@ import com.alphatica.alis.studio.view.tools.components.StrategySelector;
 import com.alphatica.alis.studio.view.tools.components.TimeTextField;
 import com.alphatica.alis.studio.view.window.trading.strategies.optimize.resulttable.ResultTable;
 import com.alphatica.alis.trading.account.Account;
+import com.alphatica.alis.trading.account.scorer.ProfitableMarkets;
 import com.alphatica.alis.trading.optimizer.*;
 import com.alphatica.alis.trading.strategy.Strategy;
 import com.alphatica.alis.trading.strategy.StrategyExecutor;
@@ -157,6 +158,7 @@ public class OptimizationPane extends JPanel {
 		backtestScorerComboBox.addOption("Net asset value", NetAssetValue::new);
 		backtestScorerComboBox.addOption("Trade expectancy", Expectancy::new);
 		backtestScorerComboBox.addOption("NAV / max drawdown", NavAdjustedForMaxDD::new);
+		backtestScorerComboBox.addOption("Max profitable markets", ProfitableMarkets::new);
 		settingsPanel.add(backtestScorerComboBox, gbc);
 
 		// Max permutations
