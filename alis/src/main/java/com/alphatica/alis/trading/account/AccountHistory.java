@@ -115,6 +115,7 @@ public class AccountHistory {
 		int winCount = 0;
 		double sumLossPercent = 0;
 		int lossCount = 0;
+		int totalTradesLength = 0;
 		for (PositionResult result : list) {
 			if (result.profitValue() > 0) {
 				winCount++;
@@ -124,6 +125,7 @@ public class AccountHistory {
 				lossCount++;
 				sumLossPercent += result.profitPercent();
 			}
+			totalTradesLength += result.tradeLength();
 		}
 		int trades = list.size();
 		double accuracy;
@@ -151,6 +153,6 @@ public class AccountHistory {
 			double winProbability = (double) winCount / trades;
 			expectancy = ((1 + averageWinPercent / -averageLossPercent) * winProbability) - 1;
 		}
-		return new TradeStats(overallProfitPercent / trades, accuracy, averageWinPercent, averageLossPercent, profitFactor, expectancy, trades);
+		return new TradeStats(overallProfitPercent / trades, accuracy, averageWinPercent, averageLossPercent, profitFactor, expectancy, trades, (double) totalTradesLength / trades);
 	}
 }

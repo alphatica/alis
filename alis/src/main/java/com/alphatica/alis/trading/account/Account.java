@@ -130,7 +130,6 @@ public class Account {
 	}
 
 	public void updateLastKnown(TimeMarketDataSet data) {
-
 		positions.forEach((market, position) -> {
 			TimeMarketData marketData = data.get(market);
 			if (marketData != null) {
@@ -173,7 +172,7 @@ public class Account {
 
 	private void addToHistory(MarketName marketName, Position removed) {
 		PositionStats stats = removed.getStats();
-		PositionResult positionResult = new PositionResult(stats.profitValue(), stats.profitPercent());
+		PositionResult positionResult = new PositionResult(stats.profitValue(), stats.profitPercent(), stats.tradeLength());
 		accountHistory.add(marketName, positionResult);
 	}
 }

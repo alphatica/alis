@@ -311,6 +311,7 @@ public class BacktestPane extends JPanel {
 		statsTableModel.addRow(new Object[]{"Average win", format("%.0f %%", stats.averageWinPercent())});
 		statsTableModel.addRow(new Object[]{"Average loss", format("%.0f %%", stats.averageLossPercent())});
 		statsTableModel.addRow(new Object[]{"Average profit per trade", format("%.0f %%", stats.profitPerTrade())});
+		statsTableModel.addRow(new Object[]{"Average trade length", format("%.1f", stats.averageTradeLength())});
 		statsTableModel.addRow(new Object[]{"Accuracy", format("%.1f %%", stats.accuracy())});
 		statsTableModel.addRow(new Object[]{"Paid commissions", format("%.0f", history.getPaidCommissions())});
 		statsTableModel.addRow(new Object[]{"Profitable markets", format("%d", history.countProfitableMarkets())});

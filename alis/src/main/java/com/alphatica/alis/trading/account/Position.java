@@ -15,6 +15,7 @@ public class Position {
 	private final List<PositionExit> exits;
 	private final MarketName marketName;
 	private double lastClose;
+	private int tradeLength;
 
 	public Position(MarketName marketName, PositionEntry entry) {
 		this.entries = new ArrayList<>();
@@ -22,6 +23,7 @@ public class Position {
 		this.entries.add(entry);
 		this.lastClose = entry.price;
 		this.marketName = marketName;
+		this.tradeLength = 0;
 	}
 
 	public double getEntryPrice() {
@@ -34,7 +36,7 @@ public class Position {
 		double entryValue = entries.stream().map(p -> p.initialQuantity * p.price).reduce(0.0, Double::sum);
 		double exitValue = exits.stream().map(p -> p.quantity * p.price).reduce(0.0, Double::sum);
 		double profitValue = exitValue - entryValue;
-		return new PositionStats(profitValue, percentChange(entryValue, exitValue));
+		return new PositionStats(profitValue, percentChange(entryValue, exitValue), tradeLength);
 	}
 
 	public int getQuantity() {
@@ -81,6 +83,7 @@ public class Position {
 
 	public void updatePrices(double close, double high, double low) {
 		lastClose = close;
+		tradeLength++;
 		for (PositionEntry entry : entries) {
 			if (entry.quantity > 0) {
 				if (high > entry.highestHigh) {
