@@ -23,8 +23,8 @@ public class BuyAll {
 		double spent = 0.0;
 		double portion = 100.0;
 
-//		MarketData stooqData = StooqLoader.loadPL(WORK_DIR);
-		MarketData stooqData = StooqLoader.loadUS(WORK_DIR);
+//		MarketData stooqData = StooqLoader.loadPL(WORK_DIR); // Score: 2.23
+		MarketData stooqData = StooqLoader.loadUS(WORK_DIR); // Score: 4.93
 		List<Time> times = stooqData.getTimes().stream().filter(t -> t.isAfter(new Time(2016_01_01))).toList();
 		for(Time time: times) {
 			var data = TimeMarketDataSet.build(time, stooqData);
@@ -34,11 +34,15 @@ public class BuyAll {
 				for(var market : data.listUpToDateMarkets(STOCKS)) {
 					var p = positions.computeIfAbsent(market.getMarketName(), marketName -> new Position());
 					var newSize = perStock / market.getData(Layer.OPEN, 0);
-					if (Double.isNaN(newSize)) {
+					if (!Double.isFinite(newSize)) {
+						continue;
+					}
+					var lastPrice = market.getData(Layer.OPEN, 0);
+					if (!Double.isFinite(newSize) || !Double.isFinite(lastPrice)) {
 						continue;
 					}
 					p.count += newSize;
-					p.lastPrice = market.getData(Layer.OPEN, 0);
+					p.lastPrice = lastPrice;
 					spent += perStock;
 				}
 			}

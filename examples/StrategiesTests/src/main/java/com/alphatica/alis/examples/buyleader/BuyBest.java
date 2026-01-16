@@ -19,12 +19,14 @@ public class BuyBest {
 
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
 	public static void main(String[] args) throws ExecutionException, InterruptedException {
-		HashMap<MarketName, Position> positions = new HashMap<>();
-		double spent = 0.0;
-		double portion = 100.0;
 
-		MarketData stooqData = StooqLoader.loadPL(WORK_DIR);
+
+//		MarketData stooqData = StooqLoader.loadPL(WORK_DIR);
+		MarketData stooqData = StooqLoader.loadUS(WORK_DIR);
 		for(int len = 2; len < 500; len++) {
+			HashMap<MarketName, Position> positions = new HashMap<>();
+			double spent = 0.0;
+			double portion = 100.0;
 			List<Time> times = stooqData.getTimes().stream().filter(t -> t.isAfter(new Time(2016_01_01))).toList();
 			for(Time time: times) {
 				var data = TimeMarketDataSet.getCached(time, stooqData);
@@ -40,7 +42,7 @@ public class BuyBest {
 							continue;
 						}
 						var pos = positions.computeIfAbsent(market.getMarketName(), marketName -> new Position());
-						pos.lastPrice = market.getData(Layer.OPEN, 0);
+						pos.lastPrice = opens.get(0);
 						var score = opens.get(0) / opens.get(len - 1);
 						if (score > bestScore) {
 							bestScore = score;
@@ -48,12 +50,11 @@ public class BuyBest {
 							bestPrice = opens.get(0);
 						}
 					}
-					if (bestScore < 1.0) {
-						continue;
-					}
 					var p = positions.computeIfAbsent(bestName, marketName -> new Position());
-					p.count += portion / bestPrice;
-					spent += portion;
+					if (bestPrice > 0.0) {
+						p.count += portion / bestPrice;
+						spent += portion;
+					}
 				}
 			}
 			var total = positions.values().stream().mapToDouble(p -> p.count * p.lastPrice).sum();
