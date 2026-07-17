@@ -1,3 +1,4 @@
+17 July 2026: Update dependencies
 22 December 2025: Add 'average trade length' to backtest stats
 30 November 2025: Add 'number of profitable markets' as AccountScorer
 18 November 2025: Add 'profitable markets percent' to optimization result table

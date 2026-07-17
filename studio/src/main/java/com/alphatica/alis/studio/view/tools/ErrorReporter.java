@@ -2,13 +2,12 @@ package com.alphatica.alis.studio.view.tools;
 
 import com.alphatica.alis.studio.Constants;
 import com.alphatica.alis.studio.tools.GlobalThreadExecutor;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +27,7 @@ public class ErrorReporter {
         });
     }
 
-    private static HttpPost prepareRequest(String message, Exception e) throws JsonProcessingException {
+    private static HttpPost prepareRequest(String message, Exception e) {
         List<String> lines = prepareLines(message, e);
         String json = prepareContent(lines);
         HttpPost request = new HttpPost(BACKEND_URL + "/error/report");
@@ -36,7 +35,7 @@ public class ErrorReporter {
         return request;
     }
 
-    private static String prepareContent(List<String> lines) throws JsonProcessingException {
+    private static String prepareContent(List<String> lines) {
         ErrorReport report = new ErrorReport(lines);
         ObjectMapper mapper = new ObjectMapper();
         return mapper.writeValueAsString(report);
