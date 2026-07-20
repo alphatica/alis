@@ -22,7 +22,7 @@ public class BiggestMVIndex {
 
 	public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
 		MarketData stooqData = StooqLoader.loadPL(WORK_DIR);
-		List<Time> times = stooqData.getTimes().stream().filter(t -> t.isAfter(new Time(2004_01_01L))).toList();
+		List<Time> times = stooqData.getTimes().stream().filter(t -> t.isAfter(new Time(2004_01_01))).toList();
 		for (Time time : times) {
 			showValueAt(time, stooqData);
 		}

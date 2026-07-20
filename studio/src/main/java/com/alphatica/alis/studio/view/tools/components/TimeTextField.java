@@ -16,7 +16,7 @@ public class TimeTextField extends JTextField {
 		try {
 			String text = getText().replace("-", "").replace(" ", "").replace("_", "");
 			if (!text.isEmpty()) {
-				long v = Long.parseLong(text);
+				int v = Integer.parseInt(text);
 				return new Time(v);
 			} else {
 				return new Time(0);

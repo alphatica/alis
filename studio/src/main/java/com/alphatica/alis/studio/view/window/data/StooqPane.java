@@ -79,7 +79,7 @@ public class StooqPane {
 			if (first == null) {
 				continue;
 			}
-			TimeMarketData last = market.getAtOrPrevious(new Time(Long.MAX_VALUE));
+			TimeMarketData last = market.getAtOrPrevious(new Time(Integer.MAX_VALUE));
 			String[] row = {market.getName().toString(), market.getType().toString(), first.getTime().toString(), last.getTime().toString(),
 					String.format("%.2f", last.getData(Layer.CLOSE, 0))};
 			data.add(row);

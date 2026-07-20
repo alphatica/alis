@@ -12,7 +12,7 @@ public class AccountActionParser {
 	public static AccountAction fromCsv(String row) {
 		String[] fields = row.split(",");
 		try {
-			Time time = new Time(Long.parseLong(fields[0]));
+			Time time = new Time(Integer.parseInt(fields[0]));
 			return switch (fields[1]) {
 				case "Trade" -> parseTrade(fields, time);
 				case "Withdrawal" -> parseWithdrawal(fields, time);

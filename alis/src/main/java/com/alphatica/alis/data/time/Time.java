@@ -2,9 +2,8 @@ package com.alphatica.alis.data.time;
 
 
 import java.time.LocalDate;
-import java.util.Objects;
 
-public record Time(long time) implements Comparable<Time> {
+public record Time(int time) implements Comparable<Time> {
 
 	public boolean isBefore(Time time) {
 		return this.time < time.time;
@@ -20,20 +19,7 @@ public record Time(long time) implements Comparable<Time> {
 
 	@Override
 	public int compareTo(Time o) {
-		return Long.compare(this.time, o.time);
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
-		Time time1 = (Time) o;
-		return time == time1.time;
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hashCode(time);
+		return Integer.compare(this.time, o.time);
 	}
 
 	@Override
@@ -42,9 +28,9 @@ public record Time(long time) implements Comparable<Time> {
 	}
 
     public LocalDate toLocalDate() {
-        int day = (int)time % 1_00;
-        int month = (int)(time / 1_00) % 100;
-        int year = (int)(time / 1_00_00);
+        int day = time % 1_00;
+        int month = (time / 1_00) % 100;
+        int year = (time / 1_00_00);
         return LocalDate.of(year, month, day);
     }
 }
