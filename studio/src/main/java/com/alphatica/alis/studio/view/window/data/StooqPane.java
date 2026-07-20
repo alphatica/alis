@@ -9,6 +9,7 @@ import com.alphatica.alis.studio.logic.data.stooq.StooqDataProvider;
 import com.alphatica.alis.studio.state.AppState;
 
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -18,6 +19,7 @@ import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -100,6 +102,7 @@ public class StooqPane {
 
 		JButton unzip = createUnzipButton();
 		JButton loadPl = createLoadPLButton();
+		JButton loadPlFromDirectory = createLoadPLFromDirectoryButton();
 		JButton loadUs = createLoadUSButton();
 		JLabel dataStatus = new JLabel();
 		bindLabelToEvent(dataStatus, DATA_STATUS_CHANGED, AppState::getDataStatus);
@@ -108,6 +111,7 @@ public class StooqPane {
 		topPanel.add(webLink);
 		topPanel.add(unzip);
 		topPanel.add(loadPl);
+		topPanel.add(loadPlFromDirectory);
 		topPanel.add(loadUs);
 		topPanel.add(dataStatus);
 		return topPanel;
@@ -117,6 +121,27 @@ public class StooqPane {
 		JButton load = new JButton("Load PL");
 		runOnAction(load, e -> StooqDataProvider.loadPLData());
 		return load;
+	}
+
+	private static JButton createLoadPLFromDirectoryButton() {
+		JButton load = new JButton("Load PL from directory");
+		load.addActionListener(e -> {
+			JFileChooser chooser = createPLDirectoryChooser();
+			if (chooser.showOpenDialog(load) != JFileChooser.APPROVE_OPTION) {
+				return;
+			}
+			Path dataDirectory = chooser.getSelectedFile().toPath();
+			new Thread(() -> StooqDataProvider.loadPLData(dataDirectory)).start();
+		});
+		return load;
+	}
+
+	static JFileChooser createPLDirectoryChooser() {
+		JFileChooser chooser = new JFileChooser();
+		chooser.setDialogTitle("Select Stooq PL data directory");
+		chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		chooser.setMultiSelectionEnabled(false);
+		return chooser;
 	}
 
 	private static JButton createLoadUSButton() {

@@ -8,6 +8,7 @@ import com.alphatica.alis.studio.view.tools.ErrorDialog;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 import static com.alphatica.alis.data.market.MarketFilters.ALL;
@@ -23,7 +24,12 @@ public class StooqDataProvider {
 
 	@SuppressWarnings("java:S2142")
 	public static void loadPLData() {
-		handleDataLoading(() -> StooqLoader.loadPL(GPW_TARGET_DATA_DIR));
+		loadPLData(Path.of(GPW_TARGET_DATA_DIR));
+	}
+
+	@SuppressWarnings("java:S2142")
+	public static void loadPLData(Path dataDirectory) {
+		handleDataLoading(() -> StooqLoader.loadPL(dataDirectory.toString()));
 	}
 
 	private static void handleDataLoading(ThrowingMarketDataSupplier loader) {
@@ -38,6 +44,7 @@ public class StooqDataProvider {
 				AppState.setDataStatus("Data loaded");
 			}
 		} catch (Exception ex) {
+			AppState.setDataStatus("Unable to load data");
 			ErrorDialog.showError("Unable to load new data", ex.toString(), ex);
 		}
 	}

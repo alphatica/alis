@@ -13,6 +13,7 @@ import com.alphatica.alis.tools.java.Zipper;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +47,7 @@ public class StooqLoader {
 
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
 	public static StandardMarketData loadPL(String workDir) throws ExecutionException, InterruptedException {
-		String dataDir = workDir + separator + STOOQ_DATA_DIR + separator + "data" + separator + "daily" + separator + "pl" + separator;
+		String dataDir = resolvePLDataDirectory(workDir).toString();
 		StandardMarketData standardMarketData = new StandardMarketData();
 
 		Map<MarketName, Market> markets = loadFiles(dataDir, "wse stocks", "wse stocks indicators", STOCK, new Time(0));
@@ -58,6 +59,30 @@ public class StooqLoader {
 		Map<MarketName, Market> futures = loadFiles(dataDir, "wse futures", null, FUTURE, new Time(0));
 		standardMarketData.addMarkets(futures);
 		return standardMarketData;
+	}
+
+	private static Path resolvePLDataDirectory(String directory) {
+		if (directory == null || directory.isBlank()) {
+			throw new IllegalArgumentException("Stooq data directory must be specified");
+		}
+
+		Path selectedDirectory = Path.of(directory).toAbsolutePath().normalize();
+		if (!Files.isDirectory(selectedDirectory)) {
+			throw new IllegalArgumentException("Stooq data directory does not exist or is not a directory: " + selectedDirectory);
+		}
+
+		List<Path> candidates = List.of(
+				selectedDirectory.resolve(Path.of(STOOQ_DATA_DIR, "data", "daily", "pl")),
+				selectedDirectory.resolve(Path.of("data", "daily", "pl")),
+				selectedDirectory
+		);
+		for (Path candidate : candidates) {
+			if (Files.isDirectory(candidate) && candidate.getFileName() != null && "pl".equals(candidate.getFileName().toString())) {
+				return candidate;
+			}
+		}
+
+		throw new IllegalArgumentException("Directory does not contain unpacked Stooq PL data: " + selectedDirectory);
 	}
 
 	public static boolean unzipNewPL(String workDir, String downloadDir) throws IOException {
