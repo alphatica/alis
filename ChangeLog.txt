@@ -1,3 +1,4 @@
+21 July 2026: Remove build from TimeMarketDataSet
 20 July 2026: Change Time internal type from long to int
 20 July 2026: Add option to load Polish data from the specified directory
 17 July 2026: Update dependencies

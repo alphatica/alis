@@ -1,16 +1,12 @@
 package com.alphatica.alis.data.time;
 
-import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
-
-import static com.alphatica.alis.data.market.MarketFilters.ALL;
 
 public class TimeMarketDataSet {
 	private static final Map<Time, TimeMarketDataSet> cache = new ConcurrentHashMap<>(1024);
@@ -29,19 +25,7 @@ public class TimeMarketDataSet {
 			cachedMarketData = marketData;
 			cache.clear();
 		}
-		return cache.computeIfAbsent(time, t -> build(t, marketData));
-	}
-
-	public static TimeMarketDataSet build(Time time, MarketData marketData) {
-		List<Market> markets = marketData.listMarkets(ALL);
-		Map<MarketName, TimeMarketData> result = HashMap.newHashMap(markets.size());
-		for (Market market : markets) {
-			TimeMarketData timeData = market.getAtOrPrevious(time);
-			if (timeData != null) {
-				result.put(market.getName(), timeData);
-			}
-		}
-		return new TimeMarketDataSet(result, time);
+		return cache.computeIfAbsent(time, marketData::snapshotAt);
 	}
 
 	public TimeMarketData get(MarketName name) {

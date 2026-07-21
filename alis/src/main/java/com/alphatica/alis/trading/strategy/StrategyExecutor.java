@@ -126,7 +126,7 @@ public class StrategyExecutor {
 		if (useCachedMarketData) {
 			return TimeMarketDataSet.getCached(time, marketData);
 		} else {
-			return TimeMarketDataSet.build(time, marketData);
+			return marketData.snapshotAt(time);
 		}
 	}
 

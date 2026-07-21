@@ -272,7 +272,7 @@ public class FindBetterExitsPanel extends JPanel {
 		for (Time time : times) {
 			performActionsForTime(time, loadedActions, account);
 			if (marketData != null) {
-				TimeMarketDataSet timeMarketDataSet = TimeMarketDataSet.build(time, marketData);
+				TimeMarketDataSet timeMarketDataSet = marketData.snapshotAt(time);
 				account.updateLastKnown(timeMarketDataSet);
 			}
 		}

@@ -61,7 +61,7 @@ public class ChangeCheckExecutor {
 			}
 			Time startTime = times.get(startTimeIndex);
 			Time endTime = times.get(endTimeIndex);
-			TimeMarketDataSet timeMarketDataSet = TimeMarketDataSet.build(conditionTime, marketData);
+			TimeMarketDataSet timeMarketDataSet = marketData.snapshotAt(conditionTime);
 			executor.submit(() -> checkCondition(new ChangeCheckTask(conditionTime, startTime, endTime, markets, timeMarketDataSet, changeCheck)));
 		}
 	}

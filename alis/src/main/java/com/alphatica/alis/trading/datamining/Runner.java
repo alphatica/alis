@@ -52,7 +52,7 @@ public class Runner {
             executePendingSells(time, marketData, pendingSells, account);
             performActionsForTime(time, actions, account);
             reduceExtraCash(time, account);
-            TimeMarketDataSet timeMarketDataSet = TimeMarketDataSet.build(time, marketData);
+            TimeMarketDataSet timeMarketDataSet = marketData.snapshotAt(time);
             account.updateLastKnown(timeMarketDataSet);
             for(Map.Entry<MarketName, Position> position: account.getPositions().entrySet()) {
                 TimeMarketData timeMarketData = timeMarketDataSet.get(position.getKey());

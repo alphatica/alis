@@ -5,7 +5,6 @@ import com.alphatica.alis.data.loader.stooq.StooqLoader;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
-import com.alphatica.alis.data.time.TimeMarketDataSet;
 
 import java.io.File;
 import java.util.HashMap;
@@ -27,7 +26,7 @@ public class BuyAll {
 		MarketData stooqData = StooqLoader.loadUS(WORK_DIR); // Score: 4.93
 		List<Time> times = stooqData.getTimes().stream().filter(t -> t.isAfter(new Time(2016_01_01))).toList();
 		for(Time time: times) {
-			var data = TimeMarketDataSet.build(time, stooqData);
+			var data = stooqData.snapshotAt(time);
 			var numberOfStocks = data.listUpToDateMarkets(STOCKS).size();
 			if (numberOfStocks > 100) {
 				var perStock = portion / numberOfStocks;

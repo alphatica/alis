@@ -51,7 +51,7 @@ public class SignalsProvider {
 	private static List<String[]> getOrdersForTimes(Strategy strategy, List<Time> times, List<AccountAction> accountActions, Account account, MarketData marketData) throws AccountActionException {
 		List<String[]> ordersTableData = new ArrayList<>();
 		for (Time time : times) {
-			TimeMarketDataSet timeMarketDataSet = TimeMarketDataSet.build(time, marketData);
+			TimeMarketDataSet timeMarketDataSet = marketData.snapshotAt(time);
 			performActionsForTime(time, accountActions, account);
 			List<Order> orders = applyTimeData(account, timeMarketDataSet, strategy);
 			fillSignalsList(time, orders, ordersTableData);

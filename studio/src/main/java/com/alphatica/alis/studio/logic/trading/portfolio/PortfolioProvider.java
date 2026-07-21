@@ -23,7 +23,7 @@ public class PortfolioProvider {
 		for (Time time : times) {
 			double change = performActionsForTime(time, accountActions, account);
 			if (marketData != null) {
-				TimeMarketDataSet timeMarketDataSet = TimeMarketDataSet.build(time, marketData);
+				TimeMarketDataSet timeMarketDataSet = marketData.snapshotAt(time);
 				account.updateLastKnown(timeMarketDataSet);
 			}
 			if (change != 0) {
