@@ -1,5 +1,14 @@
 package com.alphatica.alis.charting;
 
+import org.knowm.xchart.BitmapEncoder;
+import org.knowm.xchart.XYChart;
+import org.knowm.xchart.XYChartBuilder;
+import org.knowm.xchart.XYSeries;
+import org.knowm.xchart.style.Styler;
+import org.knowm.xchart.style.XYStyler;
+import org.knowm.xchart.style.lines.SeriesLines;
+import org.knowm.xchart.style.markers.SeriesMarkers;
+
 import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.Font;
@@ -9,34 +18,22 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.stream.Collectors;
-
-import static com.alphatica.alis.tools.java.CollectionsTools.arrayList;
 
 public class Chart<X extends Comparable<X>> {
 
-	private static final Font CHART_LABELS_FONT = new Font("Monospaced", Font.PLAIN, 30);
-	private static final int MARGIN_TOP = 200;
-	private static final int MARGIN_BOTTOM = 150;
-	private static final int MARGIN_LEFT = 250;
-	private static final int WIDTH = 3840;
-	private static final int HEIGHT = 2160;
-	private static final int POINT_SIZE = 4;
-	private static final int Y_AXIS_LABEL_OFFSET = 15;
-	private static final int HORIZONTAL_GRID_LABEL_OFFSET = 170;
-
 	private final List<LineChartData<X>> dataLines = new ArrayList<>();
 	private final List<HorizontalLine> horizontalLines = new ArrayList<>();
-	private String copyright = null;
-	private String title = null;
-	private String xName = null;
-	private String yName = null;
-	private boolean isLogarithmic = false;
+	private String copyright;
+	private String title;
+	private String xName;
+	private String yName;
+	private boolean isLogarithmic;
 	private int marginRight = 300;
 
 	public void setLogarithmic(boolean logarithmic) {
@@ -64,7 +61,7 @@ public class Chart<X extends Comparable<X>> {
 	}
 
 	public void addHorizontalLine(HorizontalLine horizontalLine) {
-		this.horizontalLines.add(horizontalLine);
+		horizontalLines.add(horizontalLine);
 	}
 
 	public void setMarginRight(int marginRight) {
@@ -72,204 +69,275 @@ public class Chart<X extends Comparable<X>> {
 	}
 
 	public void createImage(File file) throws IOException {
-		BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
-		Graphics2D graphics = image.createGraphics();
-		initCanvas(graphics);
-
-		MinMaxValue yMinMax = new MinMaxValue(dataLines);
-		List<X> xValues = xValues();
-		drawAxes(graphics, yMinMax, xValues);
-		drawLines(graphics, xValues, yMinMax);
-		addCopyright(graphics);
-		addTitle(graphics);
-
-		ImageIO.write(image, "PNG", file);
-		graphics.dispose();
+		ChartSettings settings = new ChartSettings(copyright, title, xName, yName, isLogarithmic, marginRight);
+		ChartModel<X> model = new ChartModel<>(List.copyOf(dataLines), List.copyOf(horizontalLines), xValues(), settings);
+		new XChartRenderer<>(model).createImage(file);
 	}
 
 	List<X> xValues() {
-		Set<X> set = dataLines.stream().map(line -> line.getData().keySet()).flatMap(Set::stream).collect(Collectors.toSet());
-		return set.stream().sorted().toList();
+		Set<X> values = dataLines.stream()
+				.map(line -> line.getData().keySet())
+				.flatMap(Set::stream)
+				.collect(Collectors.toSet());
+		return values.stream().sorted().toList();
 	}
 
-	private void drawVerticalGrid(Graphics2D graphics, List<X> xValues, int gridLines) {
-		double xStep = (double) (xValues.size() - 1) / gridLines;
-		int xSpace = (WIDTH - marginRight - MARGIN_LEFT) / gridLines;
-		for (int i = 0; i <= gridLines; i++) {
-			X x = xValues.get((int) Math.round(i * xStep));
-			int xPix = i * xSpace + MARGIN_LEFT;
-			graphics.drawLine(xPix, MARGIN_TOP, xPix, HEIGHT - MARGIN_BOTTOM);
-			graphics.drawString(x.toString(), xPix, HEIGHT - MARGIN_BOTTOM + 35);
+	private record ChartSettings(
+			String copyright,
+			String title,
+			String xName,
+			String yName,
+			boolean logarithmic,
+			int marginRight) {
+	}
+
+	private record ChartModel<X extends Comparable<X>>(
+			List<LineChartData<X>> dataLines,
+			List<HorizontalLine> horizontalLines,
+			List<X> xValues,
+			ChartSettings settings) {
+	}
+
+	private static final class XChartRenderer<X extends Comparable<X>> {
+
+		private static final int WIDTH = 3840;
+		private static final int HEIGHT = 2160;
+		private static final int FOOTER_HEIGHT = 100;
+		private static final int CHART_HEIGHT = HEIGHT - FOOTER_HEIGHT;
+		private static final int FOOTER_BASELINE_OFFSET = 25;
+		private static final int MARGIN_TOP = 200;
+		private static final int MARGIN_BOTTOM = 150;
+		private static final int MARGIN_LEFT = 250;
+		private static final int POINT_SIZE = 4;
+		private static final Font LABEL_FONT = new Font("Monospaced", Font.PLAIN, 30);
+		private static final Font TITLE_FONT = new Font("Helvetica", Font.ITALIC, 70);
+		private static final Font COPYRIGHT_FONT = new Font("Helvetica", Font.PLAIN, 25);
+		private static final Color[] SERIES_COLORS = {
+				Color.WHITE, Color.GREEN, Color.ORANGE, Color.CYAN, Color.GRAY, Color.RED,
+				Color.MAGENTA, Color.PINK, Color.YELLOW, Color.BLUE, Color.RED
+		};
+
+		private final ChartModel<X> model;
+		private final ChartSettings settings;
+
+		private XChartRenderer(ChartModel<X> model) {
+			this.model = model;
+			settings = model.settings();
 		}
-	}
 
-	private static String getYAxisLabel(double y) {
-		return String.format("%6.0f", y);
-	}
-
-	private static void drawPointConnection(Graphics2D graphics, int lastX, int lastY, int x, int y) {
-		for (int i = 0; i < POINT_SIZE; i++) {
-			graphics.drawLine(lastX + i, lastY + i, x + i, y + 1);
+		private void createImage(File file) throws IOException {
+			BufferedImage chartImage = BitmapEncoder.getBufferedImage(createXChart());
+			BufferedImage image = addFooterSpace(chartImage);
+			addCopyright(image);
+			if (!ImageIO.write(image, "PNG", file)) {
+				throw new IOException("No PNG image writer is available");
+			}
 		}
-	}
 
-	private int drawLineLabel(String line, Graphics2D graphics, int offset) {
-		if (line != null) {
-			graphics.drawString(line, WIDTH - marginRight + 20, offset);
-			offset += 50;
+		private XYChart createXChart() {
+			XYChart chart = new XYChartBuilder()
+					.width(WIDTH)
+					.height(CHART_HEIGHT)
+					.title(settings.title() == null ? "" : settings.title())
+					.xAxisTitle(settings.xName() == null ? "" : settings.xName())
+					.yAxisTitle(settings.yName() == null ? "" : settings.yName())
+					.build();
+
+			configureStyle(chart);
+			Map<X, Double> xPositions = createXPositions();
+			addDataSeries(chart, xPositions);
+			addHorizontalSeries(chart, xRange());
+			addEmptyChartAnchor(chart);
+			configureAxes(chart);
+			chart.getStyler().setLegendVisible(
+					chart.getSeriesCollection().stream().anyMatch(XYSeries::isShowInLegend));
+			return chart;
 		}
-		return offset;
-	}
 
-	private void drawLines(Graphics2D graphics, List<X> xValues, MinMaxValue yMinMax) {
-		int offset = MARGIN_TOP + 20;
-		List<Color> colors = arrayList(Color.WHITE, Color.GREEN, Color.ORANGE, Color.CYAN, Color.GRAY, Color.RED, Color.MAGENTA, Color.PINK,
-				Color.YELLOW, Color.BLUE, Color.RED);
-		graphics.setFont(CHART_LABELS_FONT);
-		offset = drawDataLines(graphics, xValues, yMinMax, colors, offset);
-		drawHorizontalLines(graphics, yMinMax, colors, offset);
-	}
+		private void configureStyle(XYChart chart) {
+			XYStyler styler = chart.getStyler();
+			styler.setAntiAlias(true);
+			styler.setTextAntiAlias(true);
+			styler.setChartBackgroundColor(Color.BLACK);
+			styler.setPlotBackgroundColor(Color.BLACK);
+			styler.setChartFontColor(Color.LIGHT_GRAY);
+			styler.setChartTitleFontColor(Color.WHITE);
+			styler.setChartTitleFont(TITLE_FONT);
+			styler.setChartTitleVisible(settings.title() != null);
+			styler.setAxisTitleFont(LABEL_FONT);
+			styler.setAxisTickLabelsFont(LABEL_FONT);
+			styler.setAxisTickLabelsColor(Color.LIGHT_GRAY);
+			styler.setAxisTickMarksColor(Color.LIGHT_GRAY);
+			styler.setXAxisTitleColor(Color.LIGHT_GRAY);
+			styler.setYAxisTitleColor(Color.LIGHT_GRAY);
+			styler.setPlotBorderVisible(true);
+			styler.setPlotBorderColor(Color.LIGHT_GRAY);
+			styler.setPlotGridLinesVisible(true);
+			styler.setPlotGridLinesColor(Color.DARK_GRAY);
+			styler.setSeriesColors(SERIES_COLORS);
+			styler.setMarkerSize(POINT_SIZE);
+			styler.setLegendPosition(Styler.LegendPosition.OutsideE);
+			styler.setLegendBackgroundColor(Color.BLACK);
+			styler.setLegendBorderColor(Color.LIGHT_GRAY);
+			styler.setLegendFont(LABEL_FONT);
+			styler.setPlotContentSize(plotContentSize());
+			styler.setXAxisMaxLabelCount(Math.clamp(model.xValues().size(), 1, 11));
+			styler.setXAxisTickMarkSpacingHint(Math.max(1, (WIDTH - MARGIN_LEFT - settings.marginRight()) / 10));
+			styler.setYAxisTickMarkSpacingHint(Math.max(1, (CHART_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM) / 10));
+		}
 
-	private int drawDataLines(Graphics2D graphics, List<X> xValues, MinMaxValue yMinMax, List<Color> colors, int offset) {
-		for (LineChartData<X> line : dataLines) {
-			setNextColor(graphics, colors);
-			offset = drawLineLabel(line.getName(), graphics, offset);
-			int lastX = 0;
-			int lastY = 0;
-			boolean firstPoint = true;
-			SortedMap<X, List<Double>> data = line.getData();
-			for (Map.Entry<X, List<Double>> entry : data.entrySet()) {
-				int x = xToPix(entry.getKey(), xValues);
-				for (Double value : entry.getValue()) {
-					int y = yToPix(value, yMinMax);
-					graphics.fillRect(x, y, POINT_SIZE, POINT_SIZE);
-					if (line.isConnectPoints()) {
-						if (!firstPoint) {
-							drawPointConnection(graphics, lastX, lastY, x, y);
-						}
-						firstPoint = false;
-						lastX = x;
-						lastY = y;
-					}
+		private double plotContentSize() {
+			double horizontalSize = (double) (WIDTH - MARGIN_LEFT - settings.marginRight()) / WIDTH;
+			double verticalSize = (double) (CHART_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM) / CHART_HEIGHT;
+			return Math.clamp(horizontalSize, 0.5, verticalSize);
+		}
+
+		private Map<X, Double> createXPositions() {
+			Map<X, Double> positions = new HashMap<>();
+			for (int index = 0; index < model.xValues().size(); index++) {
+				positions.put(model.xValues().get(index), (double) index);
+			}
+			return positions;
+		}
+
+		private void addDataSeries(XYChart chart, Map<X, Double> xPositions) {
+			for (int index = 0; index < model.dataLines().size(); index++) {
+				LineChartData<X> dataLine = model.dataLines().get(index);
+				List<Double> xData = new ArrayList<>();
+				List<Double> yData = new ArrayList<>();
+				dataLine.getData().forEach((x, values) -> addPoints(xPositions.get(x), values, xData, yData));
+				if (!xData.isEmpty()) {
+					XYSeries series = chart.addSeries("data-" + index, xData, yData);
+					configureDataSeries(series, dataLine);
 				}
 			}
 		}
-		return offset;
-	}
 
-	private void drawHorizontalLines(Graphics2D graphics, MinMaxValue yMinMax, List<Color> colors, int offset) {
-		for (HorizontalLine line : horizontalLines) {
-			setNextColor(graphics, colors);
-			offset = drawLineLabel(line.name(), graphics, offset);
-			int y = yToPix(line.value(), yMinMax);
-			graphics.drawLine(MARGIN_LEFT, y, WIDTH - marginRight, y);
-			String label = getYAxisLabel(line.value());
-			graphics.drawString(label, MARGIN_LEFT - HORIZONTAL_GRID_LABEL_OFFSET, y + Y_AXIS_LABEL_OFFSET);
+		private void addPoints(Double x, List<Double> values, List<Double> xData, List<Double> yData) {
+			for (Double value : values) {
+				if (value != null && Double.isFinite(value)) {
+					xData.add(x);
+					yData.add(transformY(value));
+				}
+			}
 		}
-	}
 
-	private void setNextColor(Graphics2D graphics, List<Color> colors) {
-		if (!colors.isEmpty()) {
-			graphics.setColor(colors.removeFirst());
+		private static <X extends Comparable<X>> void configureDataSeries(XYSeries series, LineChartData<X> dataLine) {
+			series.setMarker(SeriesMarkers.SQUARE);
+			series.setXYSeriesRenderStyle(dataLine.isConnectPoints()
+					? XYSeries.XYSeriesRenderStyle.Line
+					: XYSeries.XYSeriesRenderStyle.Scatter);
+			series.setLineStyle(dataLine.isConnectPoints() ? SeriesLines.SOLID : SeriesLines.NONE);
+			series.setLineWidth(3.0f);
+			configureLegendEntry(series, dataLine.getName());
 		}
-	}
 
-	private void initCanvas(Graphics2D graphics) {
-		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-		graphics.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-		graphics.setColor(Color.BLACK);
-		graphics.fillRect(0, 0, WIDTH, HEIGHT);
-	}
-
-	private void addTitle(Graphics2D graphics) {
-		if (title != null) {
-			graphics.setColor(Color.WHITE);
-			graphics.setFont(new Font("Helvetica", Font.ITALIC, 70));
-			int x = WIDTH / 2 - 40 * (title.length() / 2);
-			graphics.drawString(title, x, MARGIN_TOP - 80);
+		private void addHorizontalSeries(XYChart chart, XRange range) {
+			for (int index = 0; index < model.horizontalLines().size(); index++) {
+				HorizontalLine horizontalLine = model.horizontalLines().get(index);
+				if (!Double.isFinite(horizontalLine.value())) {
+					continue;
+				}
+				XYSeries series = chart.addSeries(
+						"horizontal-" + index,
+						List.of(range.min(), range.max()),
+						List.of(transformY(horizontalLine.value()), transformY(horizontalLine.value())));
+				series.setXYSeriesRenderStyle(XYSeries.XYSeriesRenderStyle.Line);
+				series.setMarker(SeriesMarkers.NONE);
+				series.setLineStyle(SeriesLines.SOLID);
+				series.setLineWidth(3.0f);
+				configureLegendEntry(series, horizontalLine.name());
+			}
 		}
-	}
 
-	private void addCopyright(Graphics2D graphics) {
-		if (copyright != null) {
-			graphics.setColor(Color.WHITE);
-			graphics.setFont(new Font("Helvetica", Font.PLAIN, 25));
-			graphics.drawString("© " + copyright, MARGIN_LEFT, HEIGHT - 60);
+		private static void configureLegendEntry(XYSeries series, String label) {
+			series.setShowInLegend(label != null);
+			if (label != null) {
+				series.setLabel(label);
+			}
 		}
-	}
 
-	private void drawAxes(Graphics2D graphics, MinMaxValue yMinMax, List<X> xValues) {
-		graphics.setColor(Color.LIGHT_GRAY);
-		graphics.setFont(CHART_LABELS_FONT);
-		int xAxisY;
-		if (0 > yMinMax.getMin() && 0 < yMinMax.getMax()) {
-			xAxisY = yToPix(0, yMinMax);
-			graphics.drawString(getYAxisLabel(0), MARGIN_LEFT - HORIZONTAL_GRID_LABEL_OFFSET, xAxisY + Y_AXIS_LABEL_OFFSET);
-		} else {
-			xAxisY = yToPix(yMinMax.getMin(), yMinMax);
-			graphics.drawString(getYAxisLabel(yMinMax.getMin()), MARGIN_LEFT - HORIZONTAL_GRID_LABEL_OFFSET, xAxisY + Y_AXIS_LABEL_OFFSET);
+		private static void addEmptyChartAnchor(XYChart chart) {
+			if (!chart.getSeriesCollection().isEmpty()) {
+				return;
+			}
+			XYSeries anchor = chart.addSeries("empty-chart", List.of(0.0, 1.0), List.of(0.0, 0.0));
+			anchor.setShowInLegend(false);
+			anchor.setMarker(SeriesMarkers.NONE);
+			anchor.setLineStyle(SeriesLines.NONE);
 		}
-		graphics.fillRect(MARGIN_LEFT, xAxisY, WIDTH - marginRight - MARGIN_LEFT, 2);
-		graphics.fillRect(MARGIN_LEFT, MARGIN_TOP, 2, HEIGHT - MARGIN_BOTTOM - MARGIN_TOP);
-		if (xName != null) {
-			graphics.drawString(xName, WIDTH - marginRight + 10, xAxisY);
-		}
-		if (yName != null) {
-			graphics.drawString(yName, MARGIN_LEFT, MARGIN_TOP - 10);
-		}
-		int gridLines = 10;
-		drawHorizontalGrid(graphics, yMinMax, gridLines);
-		drawVerticalGrid(graphics, xValues, gridLines);
-	}
 
-	private void drawHorizontalGrid(Graphics2D graphics, MinMaxValue yMinMax, int gridLines) {
-		double yGridStep = (yMinMax.getMax() - yMinMax.getMin()) / (gridLines - 1);
-		for (int i = 0; i < gridLines; i++) {
-			double y = i * yGridStep + yMinMax.getMin();
-			int yPix = yToPix(y, yMinMax);
-			graphics.drawLine(MARGIN_LEFT, yPix, WIDTH - marginRight, yPix);
-			String label = getYAxisLabel(y);
-			graphics.drawString(label, MARGIN_LEFT - HORIZONTAL_GRID_LABEL_OFFSET, yPix + Y_AXIS_LABEL_OFFSET);
+		private void configureAxes(XYChart chart) {
+			XRange range = xRange();
+			chart.getStyler().setXAxisMin(range.min());
+			chart.getStyler().setXAxisMax(range.max());
+			chart.setCustomXAxisTickLabelsFormatter(value -> formatXLabel(value, model.xValues()));
+			chart.setCustomYAxisTickLabelsFormatter(value -> formatYLabel(inverseTransformY(value)));
 		}
-	}
 
-	private int xToPix(X key, List<X> xValues) {
-		int canvas = WIDTH - MARGIN_LEFT - marginRight;
-		double pixPerX = (double) canvas / (double) xValues.size();
-		int xIndex = Collections.binarySearch(xValues, key);
-		return (int) Math.round(MARGIN_LEFT + xIndex * pixPerX);
-	}
-
-	private int yToPix(double y, MinMaxValue yMinMax) {
-		if (isLogarithmic) {
-			return HEIGHT - MARGIN_BOTTOM - getLogYPix(y, yMinMax);
-		} else {
-			return HEIGHT - MARGIN_BOTTOM - getArithmeticYPix(y, yMinMax);
+		private static <X> String formatXLabel(Double value, List<X> xValues) {
+			long index = Math.round(value);
+			if (Math.abs(value - index) > 0.000_001 || index < 0 || index >= xValues.size()) {
+				return "";
+			}
+			return xValues.get((int) index).toString();
 		}
-	}
 
-	private int getArithmeticYPix(double y, MinMaxValue yMinMax) {
-		int canvas = HEIGHT - MARGIN_TOP - MARGIN_BOTTOM;
-		double pixPerY = canvas / (yMinMax.getMax() - yMinMax.getMin());
-		double yOffset = y - yMinMax.getMin();
-		double yOffsetPix = pixPerY * yOffset;
-		return (int) Math.round(yOffsetPix);
-	}
-
-	private int getLogYPix(double y, MinMaxValue yMinMax) {
-		double adjustedMax = yMinMax.getMax();
-		double adjustedMin = yMinMax.getMin();
-		double adjustedY = y;
-		while (adjustedY - adjustedMin < 1.0) {
-			adjustedMax *= 10;
-			adjustedMin *= 10;
-			adjustedY *= 10;
+		private static String formatYLabel(double value) {
+			return String.format(Locale.ROOT, "%.0f", value);
 		}
-		double yRangeLn = Math.log(adjustedMax - adjustedMin);
-		double yLn = Math.log(adjustedY - adjustedMin);
-		int canvas = HEIGHT - MARGIN_TOP - MARGIN_BOTTOM;
-		return (int) Math.round(canvas * yLn / yRangeLn);
+
+		private double transformY(double value) {
+			if (!settings.logarithmic()) {
+				return value;
+			}
+			// Financial changes can be zero or negative, which XChart's native logarithmic axis rejects.
+			return Math.copySign(Math.log1p(Math.abs(value)), value);
+		}
+
+		private double inverseTransformY(double value) {
+			if (!settings.logarithmic()) {
+				return value;
+			}
+			return Math.copySign(Math.expm1(Math.abs(value)), value);
+		}
+
+		private XRange xRange() {
+			if (model.xValues().size() == 1) {
+				return new XRange(-0.5, 0.5);
+			}
+			return new XRange(0.0, Math.max(1.0, model.xValues().size() - 1.0));
+		}
+
+		private static BufferedImage addFooterSpace(BufferedImage chartImage) {
+			BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+			Graphics2D graphics = image.createGraphics();
+			try {
+				graphics.setColor(Color.BLACK);
+				graphics.fillRect(0, 0, WIDTH, HEIGHT);
+				graphics.drawImage(chartImage, 0, 0, null);
+			} finally {
+				graphics.dispose();
+			}
+			return image;
+		}
+
+		private void addCopyright(BufferedImage image) {
+			if (settings.copyright() == null) {
+				return;
+			}
+			Graphics2D graphics = image.createGraphics();
+			try {
+				graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				graphics.setColor(Color.WHITE);
+				graphics.setFont(COPYRIGHT_FONT);
+				graphics.drawString("© " + settings.copyright(), MARGIN_LEFT, HEIGHT - FOOTER_BASELINE_OFFSET);
+			} finally {
+				graphics.dispose();
+			}
+		}
+
+		private record XRange(double min, double max) {
+		}
 	}
 }
