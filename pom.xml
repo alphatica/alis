@@ -14,4 +14,43 @@
     <artifactId>alis-parent</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <build>
+        <plugins>
+            <!--
+                Code quality checks:
+                  mvn pmd:pmd pmd:cpd  - generate reports without failing the build
+                  mvn pmd:check  - run PMD and fail on rule violations
+                  mvn pmd:cpd-check  - run CPD and fail on duplicated code
+                  mvn verify  - run tests and both quality checks
+
+                Reports are written to target/pmd.xml and target/cpd.xml in each module.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>3.28.0</version>
+                <configuration>
+                    <rulesets>
+                        <ruleset>${maven.multiModuleProjectDirectory}/config/pmd/ruleset.xml</ruleset>
+                    </rulesets>
+                    <includeTests>true</includeTests>
+                    <minimumTokens>80</minimumTokens>
+                    <failOnViolation>true</failOnViolation>
+                    <printFailingErrors>true</printFailingErrors>
+                    <linkXRef>false</linkXRef>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>code-quality</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                            <goal>cpd-check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
