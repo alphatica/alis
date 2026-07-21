@@ -5,7 +5,6 @@ import com.alphatica.alis.data.loader.stooq.StooqLoader;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
-import com.alphatica.alis.data.time.TimeMarketDataSet;
 
 import java.io.File;
 import java.util.HashMap;
@@ -29,7 +28,7 @@ public class BuyBest {
 			double portion = 100.0;
 			List<Time> times = stooqData.getTimes().stream().filter(t -> t.isAfter(new Time(2016_01_01))).toList();
 			for(Time time: times) {
-				var data = TimeMarketDataSet.getCached(time, stooqData);
+				var data = stooqData.cachedSnapshotAt(time);
 				var numberOfStocks = data.listUpToDateMarkets(STOCKS).size();
 				if (numberOfStocks > 100) {
 					MarketName bestName = null;

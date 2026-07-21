@@ -4,6 +4,8 @@ import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
+import com.alphatica.alis.data.time.TimeMarketDataSet;
+import com.alphatica.alis.data.time.TimeMarketDataSetCache;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,10 +17,12 @@ import java.util.function.Predicate;
 
 public class StandardMarketData implements MarketData {
 	private final Map<MarketName, Market> markets;
+	private final TimeMarketDataSetCache snapshotCache;
 	private List<Time> times;
 
 	public StandardMarketData() {
 		markets = new HashMap<>();
+		snapshotCache = new TimeMarketDataSetCache(this);
 		times = new ArrayList<>();
 	}
 
@@ -29,6 +33,7 @@ public class StandardMarketData implements MarketData {
 			timeHashSet.addAll(stock.getTimes());
 		}
 		this.times = timeHashSet.stream().sorted().toList();
+		snapshotCache.clear();
 	}
 
 	@Override
@@ -44,6 +49,11 @@ public class StandardMarketData implements MarketData {
 	@Override
 	public List<Market> listMarkets(Predicate<Market> filter) {
 		return markets.values().stream().filter(filter).map(Market.class::cast).toList();
+	}
+
+	@Override
+	public TimeMarketDataSet cachedSnapshotAt(Time time) {
+		return snapshotCache.get(time);
 	}
 
 

@@ -3,6 +3,7 @@ package com.alphatica.alis.data.market;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
+import com.alphatica.alis.data.time.TimeMarketDataSetCache;
 
 import java.util.HashMap;
 import java.util.List;
@@ -30,8 +31,13 @@ public interface MarketData {
 		return new TimeMarketDataSet(result, time);
 	}
 
+	default TimeMarketDataSet cachedSnapshotAt(Time time) {
+		return snapshotAt(time);
+	}
+
 	default MarketData fromSingle(Market market) {
 		return new MarketData() {
+			private final TimeMarketDataSetCache snapshotCache = new TimeMarketDataSetCache(this);
 
 			@Override
 			public List<Time> getTimes() {
@@ -54,6 +60,11 @@ public interface MarketData {
 				} else {
 					return List.of();
 				}
+			}
+
+			@Override
+			public TimeMarketDataSet cachedSnapshotAt(Time time) {
+				return snapshotCache.get(time);
 			}
 		};
 	}
