@@ -85,9 +85,13 @@ public class SignalOptimizer extends Optimizer {
 				return null;
 			}
 		};
-		var signalExecutor = new SignalExecutor(optimizedTradeSignalSupplier, startTime, endTime, marketData, marketFilter, commissionRate, tradeSecondarySignals, scoreGeneratorSupplier.get())
+		var signalExecutor = new SignalExecutor()
+				.withTimeRange(startTime, endTime)
+				.withMarketFilter(marketFilter)
+				.withCommissionRate(commissionRate)
+				.withSecondarySignals(tradeSecondarySignals)
 				.useCachedMarketData();
-		var score = signalExecutor.execute();
+		var score = signalExecutor.execute(marketData, optimizedTradeSignalSupplier, scoreGeneratorSupplier.get());
 		var optimizerScore = new OptimizerScore(score, nextParams);
 		paramsSelector.registerScore(optimizerScore);
 		show(optimizerScore);

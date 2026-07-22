@@ -26,9 +26,13 @@ class SignalCheckTest {
 		var scoreGenerator = new TestScoreGenerator();
 		var data = new TestData("test_market");
 		var positionReporter = new PositionReporter();
-		var executor = new SignalExecutor(TestSignal::new, new Time(10), new Time(20), data, STOCKS, 0.01f, false, scoreGenerator);
-		executor.withPositionReporter(positionReporter, "s1");
-		var score = executor.execute();
+		var executor = new SignalExecutor()
+				.withTimeRange(new Time(10), new Time(20))
+				.withMarketFilter(STOCKS)
+				.withCommissionRate(0.01)
+				.withSecondarySignals(false)
+				.withPositionReporter(positionReporter, "s1");
+		var score = executor.execute(data, TestSignal::new, scoreGenerator);
 		assertEquals(50.80, score, 0.01);
 		assertEquals(1, scoreGenerator.trades.get());
 	}
@@ -37,8 +41,12 @@ class SignalCheckTest {
 	void shouldExecuteSignalForSecondaryTrades() {
 		var scoreGenerator = new TestScoreGenerator();
 		var data = new TestData("test_market");
-		var executor = new SignalExecutor(TestSignal::new, new Time(10), new Time(20), data, STOCKS, 0.01f, true, scoreGenerator);
-		var score = executor.execute();
+		var executor = new SignalExecutor()
+				.withTimeRange(new Time(10), new Time(20))
+				.withMarketFilter(STOCKS)
+				.withCommissionRate(0.01)
+				.withSecondarySignals(true);
+		var score = executor.execute(data, TestSignal::new, scoreGenerator);
 		assertEquals(159.36, score, 0.01);
 		assertEquals(5, scoreGenerator.trades.get());
 	}
@@ -47,9 +55,13 @@ class SignalCheckTest {
 	void shouldReportTrades() {
 		var data = new TestData("market1", "market2");
 		var positionReporter = new PositionReporter();
-		var executor = new SignalExecutor(TestSignal::new, new Time(10), new Time(20), data, STOCKS, 0.0f, true, new ArithmeticAverageProfitPerBarScoreGenerator());
-		executor.withPositionReporter(positionReporter, "s1");
-		executor.execute();
+		var executor = new SignalExecutor()
+				.withTimeRange(new Time(10), new Time(20))
+				.withMarketFilter(STOCKS)
+				.withCommissionRate(0)
+				.withSecondarySignals(true)
+				.withPositionReporter(positionReporter, "s1");
+		executor.execute(data, TestSignal::new, new ArithmeticAverageProfitPerBarScoreGenerator());
 		var positionReports = positionReporter.getContent();
 		assertNull(positionReports.get(new Time(13)));
 		assertEquals(1, positionReports.get(new Time(14)).get("s1").get(new MarketName("market1")).doubleValue());
@@ -63,11 +75,15 @@ class SignalCheckTest {
 	@Test
 	void shouldRejectSecondExecution() {
 		var data = new TestData("test_market");
-		var executor = new SignalExecutor(TestSignal::new, new Time(10), new Time(20), data, STOCKS, 0.01f, false,
-				new TestScoreGenerator());
-		executor.execute();
+		var executor = new SignalExecutor()
+				.withTimeRange(new Time(10), new Time(20))
+				.withMarketFilter(STOCKS)
+				.withCommissionRate(0.01)
+				.withSecondarySignals(false);
+		executor.execute(data, TestSignal::new, new TestScoreGenerator());
 
-		assertThrows(IllegalStateException.class, executor::execute);
+		assertThrows(IllegalStateException.class,
+				() -> executor.execute(data, TestSignal::new, new TestScoreGenerator()));
 	}
 
 }

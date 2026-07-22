@@ -17,13 +17,17 @@ public class Main {
 
     @SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
     public static void main(String[] args) throws ExecutionException, InterruptedException {
-        MarketData stooqData = StooqLoader.loadPL(WORK_DIR);
+		MarketData stooqData = StooqLoader.loadPL(WORK_DIR);
 
-        var scoreGenerator = new ArithmeticAverageProfitPerBarScoreGenerator();
-        var signalExecutor = new SignalExecutor(BuyAthSellSmaTradeSignal::new,
-                new Time(20150101), new Time(20260101), stooqData, STOCKS, 0.01f, true, scoreGenerator);
-        signalExecutor.withVerbose(true).withMaxOpenedPositions(100);
-        var score = signalExecutor.execute();
+		var scoreGenerator = new ArithmeticAverageProfitPerBarScoreGenerator();
+		var signalExecutor = new SignalExecutor()
+				.withTimeRange(new Time(20150101), new Time(20260101))
+				.withMarketFilter(STOCKS)
+				.withCommissionRate(0.01)
+				.withSecondarySignals(true)
+				.withVerbose(true)
+				.withMaxOpenedPositions(100);
+		var score = signalExecutor.execute(stooqData, BuyAthSellSmaTradeSignal::new, scoreGenerator);
         System.out.printf("Final score: %.3f%n", score);
         scoreGenerator.show();
     }

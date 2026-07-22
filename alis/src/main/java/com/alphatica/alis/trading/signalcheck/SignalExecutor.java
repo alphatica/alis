@@ -23,17 +23,22 @@ import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_CLOSE;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_OPEN;
 
+/**
+ * Executes a single signal check. Configure the executor before calling
+ * {@link #execute(MarketData, Supplier, ScoreGenerator)} and create a new instance for every subsequent check.
+ */
 public class SignalExecutor {
     private final AtomicBoolean executed = new AtomicBoolean(false);
-    private final Supplier<TradeSignal> signalSupplier;
-    private final Time startTime;
-    private final Time endTime;
-    private final MarketData marketData;
-    private final Predicate<TimeMarketData> marketFilter;
-    private final float commissionRate;
-    private final boolean tradeSecondarySignals;
-    private final ScoreGenerator scoreGenerator;
     private final Map<MarketName, List<OpenTrade>> openTradeMap = HashMap.newHashMap(1024);
+
+	private Supplier<TradeSignal> signalSupplier;
+	private MarketData marketData;
+	private ScoreGenerator scoreGenerator;
+	private Time timeFrom = new Time(0);
+	private Time timeTo = new Time(Integer.MAX_VALUE);
+	private Predicate<TimeMarketData> marketFilter = ignored -> true;
+	private double commissionRate = 0.01;
+	private boolean tradeSecondarySignals = false;
 	private double currentlyOpened;
 
 	private int maxOpenedPositions = Integer.MAX_VALUE;
@@ -42,23 +47,34 @@ public class SignalExecutor {
 	private String sourceId;
 	private boolean useCachedMarketData = false;
 
-	public SignalExecutor(Supplier<TradeSignal> signalSupplier, Time startTime, Time endTime, MarketData marketData,
-                          Predicate<TimeMarketData> marketFilter, float commissionRate, boolean tradeSecondarySignals,
-                          ScoreGenerator scoreGenerator) {
-        this.signalSupplier = signalSupplier;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.marketData = marketData;
-        this.marketFilter = marketFilter;
-        this.commissionRate = commissionRate;
-        this.tradeSecondarySignals = tradeSecondarySignals;
-        this.scoreGenerator = scoreGenerator;
-    }
+	public SignalExecutor withTimeRange(Time timeFrom, Time timeTo) {
+		this.timeFrom = timeFrom;
+		this.timeTo = timeTo;
+		return this;
+	}
 
-    public double execute() {
+	public SignalExecutor withMarketFilter(Predicate<TimeMarketData> marketFilter) {
+		this.marketFilter = marketFilter;
+		return this;
+	}
+
+	public SignalExecutor withCommissionRate(double commissionRate) {
+		this.commissionRate = commissionRate;
+		return this;
+	}
+
+	public SignalExecutor withSecondarySignals(boolean enabled) {
+		this.tradeSecondarySignals = enabled;
+		return this;
+	}
+
+    public double execute(MarketData marketData, Supplier<TradeSignal> signalSupplier, ScoreGenerator scoreGenerator) {
         ensureNotExecutedBefore();
+		this.marketData = Objects.requireNonNull(marketData);
+		this.signalSupplier = Objects.requireNonNull(signalSupplier);
+		this.scoreGenerator = Objects.requireNonNull(scoreGenerator);
         populateOpenTradesMap();
-        List<Time> times = marketData.getTimes().stream().filter(t -> !t.isBefore(startTime) && !t.isAfter(endTime)).toList();
+        List<Time> times = marketData.getTimes().stream().filter(t -> !t.isBefore(timeFrom) && !t.isAfter(timeTo)).toList();
         for (Time time : times) {
             checkTime(time);
         }
@@ -104,7 +120,7 @@ public class SignalExecutor {
         for (Map.Entry<MarketName, List<OpenTrade>> entry : openTradeMap.entrySet()) {
             for (OpenTrade trade : entry.getValue()) {
                 if (trade.getTradeStatus() == TradeStatus.OPEN) {
-                    var closePrice = trade.getLastKnownPrice() * (1 - commissionRate);
+					float closePrice = (float) (trade.getLastKnownPrice() * (1 - commissionRate));
                     closeTrade(entry.getKey(), trade, closePrice);
                 }
             }
@@ -163,13 +179,13 @@ public class SignalExecutor {
             var trade = iterator.next();
             if (trade.getTradeStatus() == PENDING_CLOSE) {
                 iterator.remove();
-                closeTrade(market.getMarketName(), trade, market.getData(OPEN, 0) * (1 - commissionRate));
+				closeTrade(market.getMarketName(), trade, (float) (market.getData(OPEN, 0) * (1 - commissionRate)));
             }
         }
     }
 
     private void openPending(TimeMarketData market, List<OpenTrade> openedTrades) {
-        var openPrice = market.getData(OPEN, 0) * (1 + commissionRate);
+		float openPrice = (float) (market.getData(OPEN, 0) * (1 + commissionRate));
 		for (OpenTrade trade : openedTrades) {
 			if (trade.getTradeStatus() == PENDING_OPEN) {
 				currentlyOpened += trade.getPositionSize();
