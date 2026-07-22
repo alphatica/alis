@@ -194,7 +194,9 @@ public class StrategyExecutor {
 			case PERCENTAGE -> {
 				switch (order.direction()) {
 					case BUY -> {
-						return (int) Math.floor(order.sizeValue() * (account.getNAV() / price) / 100);
+						double orderBudget = order.sizeValue() * account.getNAV() / 100.0;
+						double unitCostIncludingCommission = price * (1.0 + commissionRate);
+						return (int) Math.floor(orderBudget / unitCostIncludingCommission);
 					}
 					case SELL -> {
 						return order.sizeValue() * account.getPosition(order.market()).getQuantity() / 100;

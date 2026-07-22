@@ -1,3 +1,4 @@
+22 July 2026: Add commission to calculated value of BUY orders
 21 July 2026: Attach timed cache to MarketData instance
 21 July 2026: Remove build from TimeMarketDataSet
 20 July 2026: Change Time internal type from long to int
