@@ -30,8 +30,11 @@ public class ResultTable extends JTable {
 	}
 
 	public void scoreCallback(OptimizerScore newScore, Account account) {
-		addToTableRows(newScore, account);
-		rebuildUITable();
+		ResultsTableRow row = createResultsRow(newScore, account);
+		SwingHelper.runUiThread(() -> {
+			addToTableRows(row);
+			rebuildUITable();
+		});
 	}
 
 	public void clearResults() {
@@ -54,10 +57,8 @@ public class ResultTable extends JTable {
 
 	private void rebuildUITable() {
 		Object[][] tableRows = resultsTableRows.stream().map(this::mapRowToValues).toArray(Object[][]::new);
-		SwingHelper.runUiThread(() -> {
-			resultsTableModel.setDataVector(tableRows, RESULTS_COLUMNS);
-			resultsTableModel.fireTableDataChanged();
-		});
+		resultsTableModel.setDataVector(tableRows, RESULTS_COLUMNS);
+		resultsTableModel.fireTableDataChanged();
 	}
 
 	private Object[] mapRowToValues(ResultsTableRow tr) {
@@ -75,8 +76,7 @@ public class ResultTable extends JTable {
 		};
 	}
 
-	private void addToTableRows(OptimizerScore score, Account account) {
-		ResultsTableRow row = createResultsRow(score, account);
+	private void addToTableRows(ResultsTableRow row) {
 		resultsTableRows.add(row);
 		resultsTableRows.sort(Comparator.comparingDouble(r -> -r.score().score()));
 		if (resultsTableRows.size() > 100) {

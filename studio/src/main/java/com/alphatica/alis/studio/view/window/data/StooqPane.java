@@ -29,9 +29,9 @@ import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
 import static com.alphatica.alis.studio.state.ChangeListeners.bindLabelToEvent;
 import static com.alphatica.alis.studio.state.StateChange.DATA_LOADED;
 import static com.alphatica.alis.studio.state.StateChange.DATA_STATUS_CHANGED;
-import static com.alphatica.alis.studio.view.tools.SwingHelper.buildUiThread;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.createHtmlLinkLabel;
-import static com.alphatica.alis.studio.view.tools.SwingHelper.runOnAction;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runUiThread;
 
 public class StooqPane {
 
@@ -65,14 +65,19 @@ public class StooqPane {
 	}
 
 	private static void addUpdateListener(DefaultTableModel tableModel) {
-		addListener(DATA_LOADED, buildUiThread(() -> updateTable(tableModel)));
+		addListener(DATA_LOADED, () -> runInBackground(() -> {
+			Object[][] data = buildTableData();
+			if (data != null) {
+				runUiThread(() -> updateTable(tableModel, data));
+			}
+		}));
 	}
 
-	private static void updateTable(DefaultTableModel tableModel) {
+	private static Object[][] buildTableData() {
 		List<String[]> data = new ArrayList<>();
 		MarketData marketData = AppState.getMarketData();
 		if (marketData == null) {
-			return;
+			return null;
 		}
 		for (Market market : marketData.listMarkets(ALL)) {
 			TimeMarketData first = market.getAtOrNext(new Time(0));
@@ -85,9 +90,11 @@ public class StooqPane {
 			data.add(row);
 		}
 		data.sort(Comparator.comparing(o -> o[0]));
-		Object[][] array = data.toArray(new Object[0][]);
-		tableModel.setRowCount(data.size());
-		tableModel.setDataVector(array, COLUMN_NAMES);
+		return data.toArray(new Object[0][]);
+	}
+
+	private static void updateTable(DefaultTableModel tableModel, Object[][] data) {
+		tableModel.setDataVector(data, COLUMN_NAMES);
 	}
 
 	private static JPanel createMainPanel() {
@@ -119,7 +126,7 @@ public class StooqPane {
 
 	private static JButton createLoadPLButton() {
 		JButton load = new JButton("Load PL");
-		runOnAction(load, e -> StooqDataProvider.loadPLData());
+		load.addActionListener(e -> runInBackground(StooqDataProvider::loadPLData));
 		return load;
 	}
 
@@ -131,7 +138,7 @@ public class StooqPane {
 				return;
 			}
 			Path dataDirectory = chooser.getSelectedFile().toPath();
-			new Thread(() -> StooqDataProvider.loadPLData(dataDirectory)).start();
+			runInBackground(() -> StooqDataProvider.loadPLData(dataDirectory));
 		});
 		return load;
 	}
@@ -146,13 +153,13 @@ public class StooqPane {
 
 	private static JButton createLoadUSButton() {
 		JButton load = new JButton("Load US");
-		runOnAction(load, e -> StooqDataProvider.loadUSData());
+		load.addActionListener(e -> runInBackground(StooqDataProvider::loadUSData));
 		return load;
 	}
 
 	private static JButton createUnzipButton() {
 		JButton unzip = new JButton("Unzip");
-		runOnAction(unzip, a -> StooqDataProvider.unzipNewData());
+		unzip.addActionListener(e -> runInBackground(StooqDataProvider::unzipNewData));
 		return unzip;
 	}
 

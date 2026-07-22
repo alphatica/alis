@@ -1,7 +1,6 @@
 package com.alphatica.alis.studio.view.tools;
 
 import com.alphatica.alis.studio.Constants;
-import com.alphatica.alis.studio.tools.GlobalThreadExecutor;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -13,11 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.alphatica.alis.studio.Constants.BACKEND_URL;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
 
 public class ErrorReporter {
 
     public static void reportError(String message, Exception e) {
-        GlobalThreadExecutor.GLOBAL_EXECUTOR.execute(() -> {
+        runInBackground(() -> {
             try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
                 HttpPost request = prepareRequest(message, e);
                 httpClient.execute(request, response -> null);

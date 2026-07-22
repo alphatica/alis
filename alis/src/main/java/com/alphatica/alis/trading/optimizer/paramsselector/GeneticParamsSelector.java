@@ -20,7 +20,8 @@ public class GeneticParamsSelector extends ParamsSelector {
 	private final List<OptimizerScore> scores = new ArrayList<>();
 	private final RandomParamsSelector randomParamsSelector;
 
-	private volatile double totalScore = 0;
+	private double scoreOffset = 0;
+	private double totalSelectionWeight = 0;
 
 	public GeneticParamsSelector(ParamsStepsSet paramsStepsSet) {
 		super(paramsStepsSet);
@@ -35,9 +36,6 @@ public class GeneticParamsSelector extends ParamsSelector {
 				return randomParamsSelector.next();
 			}
 			if (scores.isEmpty()) {
-				return randomParamsSelector.next();
-			}
-			if (totalScore < 1) {
 				return randomParamsSelector.next();
 			}
 			Map<String, Object> parent1 = selectParent();
@@ -75,8 +73,14 @@ public class GeneticParamsSelector extends ParamsSelector {
 			if (scores.size() > MAX_SCORES) {
 				scores.removeLast();
 			}
-			totalScore = scores.stream().map(OptimizerScore::score).reduce(Double::sum).get();
+			updateSelectionWeights();
 		}
+	}
+
+	private void updateSelectionWeights() {
+		double minimumScore = scores.stream().mapToDouble(OptimizerScore::score).min().orElse(0);
+		scoreOffset = Math.max(0, -minimumScore);
+		totalSelectionWeight = scores.stream().mapToDouble(this::selectionWeight).sum();
 	}
 
 	private boolean alreadyPresent(Map<String, Object> newParams) {
@@ -84,16 +88,32 @@ public class GeneticParamsSelector extends ParamsSelector {
 	}
 
 	private Map<String, Object> selectParent() {
-		double scoreSoFar = 0.0;
+		return selectParent(ThreadLocalRandom.current().nextDouble());
+	}
 
-		synchronized (this) {
+	Map<String, Object> selectParent(double randomFraction) {
+		synchronized (scores) {
+			if (scores.isEmpty()) {
+				throw new IllegalStateException("selectParent couldn't find parent");
+			}
+			if (totalSelectionWeight == 0) {
+				int index = Math.min((int) (randomFraction * scores.size()), scores.size() - 1);
+				return scores.get(index).params();
+			}
+
+			double selectionPoint = randomFraction * totalSelectionWeight;
+			double weightSoFar = 0.0;
 			for (OptimizerScore score : scores) {
-				scoreSoFar += score.score();
-				if (ThreadLocalRandom.current().nextDouble(totalScore) < scoreSoFar) {
+				weightSoFar += selectionWeight(score);
+				if (selectionPoint < weightSoFar) {
 					return score.params();
 				}
 			}
 		}
 		throw new IllegalStateException("selectParent couldn't find parent");
+	}
+
+	private double selectionWeight(OptimizerScore score) {
+		return score.score() + scoreOffset;
 	}
 }

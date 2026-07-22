@@ -5,9 +5,7 @@ import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.studio.state.AppState;
 import com.alphatica.alis.studio.tools.AccountActionCSVFacade;
-import com.alphatica.alis.studio.tools.GlobalThreadExecutor;
 import com.alphatica.alis.studio.view.tools.ErrorDialog;
-import com.alphatica.alis.studio.view.tools.SwingHelper;
 import com.alphatica.alis.studio.view.tools.components.SmartComboBox;
 import com.alphatica.alis.studio.view.window.analysis.resultable.ResultTable;
 import com.alphatica.alis.trading.account.Account;
@@ -34,11 +32,14 @@ import java.awt.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static com.alphatica.alis.trading.account.actions.AccountAction.performActionsForTime;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runUiThread;
 import static java.lang.String.format;
 
 public class FindBetterExitsPanel extends JPanel {
@@ -175,7 +176,7 @@ public class FindBetterExitsPanel extends JPanel {
 
 	private void stopRunners() {
 		isStarted.set(false);
-		setSettingsInputs(true);
+		stopButton.setEnabled(false);
 	}
 
 	private void startRunners() {
@@ -184,42 +185,45 @@ public class FindBetterExitsPanel extends JPanel {
 		resultsTable.clear();
         iterationsCountLabel.setText("0");
         iterationsDone.set(0);
-		GlobalThreadExecutor.GLOBAL_EXECUTOR.execute(() -> {
-			int processors = Runtime.getRuntime().availableProcessors();
-			MarketData marketData = AppState.getMarketData();
-			List<Thread> threads = startThreads(processors, marketData);
-			waitForFinish(threads);
-			SwingHelper.runUiThread(() -> setSettingsInputs(true));
-		});
+		int processors = Runtime.getRuntime().availableProcessors();
+		MarketData marketData = AppState.getMarketData();
+		Supplier<AccountScorer> scorerFactory = accountScorerSmartComboBox.getValueSupplier();
+		runInBackground(() -> {
+			CountDownLatch tasksFinished = startTasks(processors, marketData, scorerFactory);
+			waitForFinish(tasksFinished);
+		}, () -> setSettingsInputs(true));
 	}
 
-	private static void waitForFinish(List<Thread> threads) {
-		while (!threads.isEmpty()) {
-			try {
-				threads.getLast().join();
-				threads.removeLast();
-			} catch (InterruptedException ex) {
-			}
+	private void waitForFinish(CountDownLatch tasksFinished) {
+		try {
+			tasksFinished.await();
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			isStarted.set(false);
 		}
 	}
 
-	private List<Thread> startThreads(int processors, MarketData marketData) {
-		List<Thread> threads = new ArrayList<>();
+	private CountDownLatch startTasks(int processors, MarketData marketData, Supplier<AccountScorer> scorerFactory) {
+		CountDownLatch tasksFinished = new CountDownLatch(processors);
 		for (int i = 0; i < processors; i++) {
-			Runnable runnable = buildTask(marketData);
-			Thread thread = new Thread(runnable);
-			threads.add(thread);
-			thread.start();
+			Runnable runnable = buildTask(marketData, scorerFactory);
+			runInBackground(() -> {
+				try {
+					runnable.run();
+				} finally {
+					tasksFinished.countDown();
+				}
+			});
 		}
-		return threads;
+		return tasksFinished;
 	}
 
-	private Runnable buildTask(MarketData marketData) {
+	private Runnable buildTask(MarketData marketData, Supplier<AccountScorer> scorerFactory) {
 		return () -> {
 			while (isStarted.get()) {
 				Runner runner = new Runner();
 				try {
-					runner.run(marketData, accountActions, exitFinders, accountScorerSmartComboBox::getValue, this::resultCallback);
+					runner.run(marketData, accountActions, exitFinders, scorerFactory, this::resultCallback);
 				} catch (AccountActionException e) {
 				}
 			}
@@ -228,8 +232,10 @@ public class FindBetterExitsPanel extends JPanel {
 
 	private void resultCallback(ExitFinderResult result) {
 		int done = iterationsDone.incrementAndGet();
-		resultsTable.addResult(result);
-		SwingHelper.runUiThread(() -> iterationsCountLabel.setText(format("%d", done)));
+		runUiThread(() -> {
+			resultsTable.addResult(result);
+			iterationsCountLabel.setText(format("%d", done));
+		});
 	}
 
 	private void loadFile() {

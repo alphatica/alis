@@ -19,14 +19,14 @@ public class RecentDrawdownChecker {
 
 	private static void doAnalysis(List<Double> navHistory, Consumer<String> stringConsumer) {
 		stringConsumer.accept(format("Getting account history from %d data points", navHistory.size()));
-		DrawDownCalc drawDownCalc = new DrawDownCalc();
+		DrawdownCalc drawdownCalc = new DrawdownCalc();
 		List<Double> ddLengths = new ArrayList<>();
 		List<Double> ddDepths = new ArrayList<>();
 		double currentDDLen = 0;
 		double maxCurrentDdDepth = 0.0;
 		for (Double nav : navHistory) {
-			drawDownCalc.updateNav(nav);
-			if (drawDownCalc.getCurrentDD() == 0 && currentDDLen > 0) {
+			drawdownCalc.updateNav(nav);
+			if (drawdownCalc.getCurrentDD() == 0 && currentDDLen > 0) {
 				ddLengths.add(currentDDLen);
 				currentDDLen = 0;
 				ddDepths.add(maxCurrentDdDepth);
@@ -34,19 +34,19 @@ public class RecentDrawdownChecker {
 			} else {
 				currentDDLen++;
 			}
-			if (drawDownCalc.getCurrentDD() < maxCurrentDdDepth) {
-				maxCurrentDdDepth = drawDownCalc.getCurrentDD();
+			if (drawdownCalc.getCurrentDD() < maxCurrentDdDepth) {
+				maxCurrentDdDepth = drawdownCalc.getCurrentDD();
 			}
 		}
-		showAnalysis(stringConsumer, ddLengths, drawDownCalc, maxCurrentDdDepth, ddDepths, currentDDLen);
+		showAnalysis(stringConsumer, ddLengths, drawdownCalc, maxCurrentDdDepth, ddDepths, currentDDLen);
 	}
 
-	private static void showAnalysis(Consumer<String> stringConsumer, List<Double> ddLengths, DrawDownCalc drawDownCalc, double maxCurrentDdDepth, List<Double> ddDepths, double currentDDLen) {
+	private static void showAnalysis(Consumer<String> stringConsumer, List<Double> ddLengths, DrawdownCalc drawdownCalc, double maxCurrentDdDepth, List<Double> ddDepths, double currentDDLen) {
 		if (ddLengths.size() < 10) {
 			stringConsumer.accept(format("Need at least 10 recovered drawdowns, got %d", ddLengths.size()));
 			return;
 		}
-		double maxDd = drawDownCalc.getMaxDD();
+		double maxDd = drawdownCalc.getMaxDD();
 		if (maxCurrentDdDepth > maxDd) {
 			stringConsumer.accept(format("Maximum of current drawdown (%.1f %%) is smaller than the biggest (%.1f %%). No statistical analysis needed", maxCurrentDdDepth, maxDd));
 		} else {

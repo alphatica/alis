@@ -6,7 +6,7 @@ import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.indicators.oscilators.WilliamsR;
+import com.alphatica.alis.indicators.oscillators.WilliamsR;
 
 import java.io.File;
 import java.io.IOException;

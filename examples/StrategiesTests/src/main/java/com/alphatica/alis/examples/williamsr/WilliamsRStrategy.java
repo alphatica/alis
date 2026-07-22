@@ -6,7 +6,7 @@ import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.indicators.oscilators.WilliamsR;
+import com.alphatica.alis.indicators.oscillators.WilliamsR;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;

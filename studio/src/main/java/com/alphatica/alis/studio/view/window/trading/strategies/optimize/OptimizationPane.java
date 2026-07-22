@@ -5,6 +5,7 @@ import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.studio.state.AppState;
 import com.alphatica.alis.studio.view.tools.ErrorDialog;
 import com.alphatica.alis.studio.view.tools.SwingHelper;
+import com.alphatica.alis.studio.view.tools.components.ComponentValidationException;
 import com.alphatica.alis.studio.view.tools.components.DoubleTextField;
 import com.alphatica.alis.studio.view.tools.components.LongTextField;
 import com.alphatica.alis.studio.view.tools.components.SmartComboBox;
@@ -27,11 +28,11 @@ import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
 import static com.alphatica.alis.studio.state.StateChange.DATA_LOADED;
-import static com.alphatica.alis.studio.tools.GlobalThreadExecutor.GLOBAL_EXECUTOR;
 import static com.alphatica.alis.trading.optimizer.ParametersSelection.FULL_PERMUTATION;
 
 public class OptimizationPane extends JPanel {
@@ -51,7 +52,8 @@ public class OptimizationPane extends JPanel {
 	private final JLabel iterationCounterLabel = new JLabel(ITERATIONS_LABEL_PREFIX);
 	private final JPanel settingsPanel = new JPanel(new GridBagLayout());
 	private final ResultTable resultTable = new ResultTable();
-	private StrategyOptimizer strategyOptimizer = null;
+	private final AtomicBoolean stopRequested = new AtomicBoolean(false);
+	private volatile StrategyOptimizer strategyOptimizer = null;
 
 	public OptimizationPane() {
 		setLayout(new BorderLayout());
@@ -72,7 +74,7 @@ public class OptimizationPane extends JPanel {
 		addListener(DATA_LOADED, this::updateDefaults);
 
 		// Initialize button states and listeners
-		startButton.addActionListener(e -> GLOBAL_EXECUTOR.execute(this::optimize));
+		startButton.addActionListener(e -> startOptimization());
 		stopButton.setEnabled(false);
 		stopButton.addActionListener(e -> stopOptimization());
 		maxPermutationsField.setText("10000");
@@ -241,10 +243,12 @@ public class OptimizationPane extends JPanel {
 	}
 
 	private void stopOptimization() {
-		if (strategyOptimizer != null) {
-			strategyOptimizer.stop();
+		stopRequested.set(true);
+		StrategyOptimizer optimizer = strategyOptimizer;
+		if (optimizer != null) {
+			optimizer.stop();
 		}
-		setSettingsInputs(true);
+		stopButton.setEnabled(false);
 	}
 
 	private void setSettingsInputs(boolean enabled) {
@@ -257,48 +261,76 @@ public class OptimizationPane extends JPanel {
 		startButton.setEnabled(enabled);
 	}
 
-	private void optimize() {
-		MarketData marketData = AppState.getMarketData();
-		Supplier<Strategy> strategySupplier = strategySelector::getValue;
-		Time startTime = timeStartField.getTime();
-		Time endTime = timeEndField.getTime();
-		Supplier<StrategyExecutor> strategyExecutorFactory = () -> new StrategyExecutor().withInitialCash(initialCapitalField.getDoubleValue())
-																						 .withCommissionRate(commissionRateField.getDoubleValue())
-																						 .withTimeRange(startTime, endTime)
-																						 .useCachedMarketData();
+	private void startOptimization() {
+		OptimizationRequest request;
+		try {
+			request = readOptimizationRequest();
+		} catch (ComponentValidationException e) {
+			ErrorDialog.showError("Unable to start optimization", e.getMessage(), null);
+			return;
+		}
+		if (request.marketData() == null) {
+			ErrorDialog.showError("Unable to start optimization", "Load data first", null);
+			return;
+		}
+
+		stopRequested.set(false);
 		resultTable.clearResults();
 		iterationCounterLabel.setText(ITERATIONS_LABEL_PREFIX);
-		Supplier<AccountScorer> scorerFactory = backtestScorerComboBox::getValue;
 		setSettingsInputs(false);
-		tryOptimize(strategySupplier, marketData, strategyExecutorFactory, scorerFactory,
+		SwingHelper.runInBackground(() -> tryOptimize(request), this::optimizationFinished);
+	}
+
+	private OptimizationRequest readOptimizationRequest() {
+		MarketData marketData = AppState.getMarketData();
+		Supplier<Strategy> strategyFactory = strategySelector.getValueSupplier();
+		Time startTime = timeStartField.getTime();
+		Time endTime = timeEndField.getTime();
+		double initialCapital = initialCapitalField.getDoubleValue();
+		double commissionRate = commissionRateField.getDoubleValue();
+		Supplier<StrategyExecutor> executorFactory = () -> new StrategyExecutor().withInitialCash(initialCapital)
+				.withCommissionRate(commissionRate)
+				.withTimeRange(startTime, endTime)
+				.useCachedMarketData();
+		Supplier<AccountScorer> scorerFactory = backtestScorerComboBox.getValueSupplier();
+		return new OptimizationRequest(strategyFactory, marketData, executorFactory, scorerFactory,
 				resultVerifierComboBox.getValue(), parametersSelectionComboBox.getValue(), maxPermutationsField.getValue());
 	}
 
-	private void tryOptimize(Supplier<Strategy> strategyFactory, MarketData marketData, Supplier<StrategyExecutor> executorFactory,
-							 Supplier<AccountScorer> scorerFactory, ResultVerifier resultVerifier, ParametersSelection parametersSelection, long maxCounter) {
+	private void tryOptimize(OptimizationRequest request) {
 		try {
-			strategyOptimizer = new StrategyOptimizer(strategyFactory, marketData, executorFactory, scorerFactory, resultVerifier, parametersSelection, maxCounter);
-			strategyOptimizer.registerScoreCallback(this::scoreCallback);
-			strategyOptimizer.setExceptionCallback(this::exceptionCallback);
-			strategyOptimizer.startOptimizations();
-			stopOptimization();
+			StrategyOptimizer optimizer = new StrategyOptimizer(request.strategyFactory(), request.marketData(), request.executorFactory(),
+					request.scorerFactory(), request.resultVerifier(), request.parametersSelection(), request.maxCounter());
+			strategyOptimizer = optimizer;
+			optimizer.registerScoreCallback((score, account) -> scoreCallback(optimizer, score, account));
+			optimizer.setExceptionCallback(exception -> exceptionCallback(optimizer, exception));
+			if (stopRequested.get()) {
+				optimizer.stop();
+			}
+			optimizer.startOptimizations();
 		} catch (OptimizerException e) {
 			ErrorDialog.showError("Error during optimization", e.getMessage(), e);
 		}
 	}
 
-	private void exceptionCallback(Exception ex) {
-		strategyOptimizer.stop();
+	private void optimizationFinished() {
+		strategyOptimizer = null;
+		setSettingsInputs(true);
+	}
+
+	private void exceptionCallback(StrategyOptimizer optimizer, Exception ex) {
+		optimizer.stop();
 		ErrorDialog.showError("Optimization error", ex.toString(), ex);
 	}
 
-	private void scoreCallback(OptimizerScore newScore, Account account) {
-		GLOBAL_EXECUTOR.execute(() -> {
-			int count = strategyOptimizer.getLoopCount();
-			SwingHelper.runUiThread(() -> iterationCounterLabel.setText(ITERATIONS_LABEL_PREFIX + " " + count));
-			synchronized (OptimizationPane.class) {
-				resultTable.scoreCallback(newScore, account);
-			}
-		});
+	private void scoreCallback(StrategyOptimizer optimizer, OptimizerScore newScore, Account account) {
+		int count = optimizer.getLoopCount();
+		resultTable.scoreCallback(newScore, account);
+		SwingHelper.runUiThread(() -> iterationCounterLabel.setText(ITERATIONS_LABEL_PREFIX + " " + count));
+	}
+
+	private record OptimizationRequest(Supplier<Strategy> strategyFactory, MarketData marketData,
+			Supplier<StrategyExecutor> executorFactory, Supplier<AccountScorer> scorerFactory, ResultVerifier resultVerifier,
+			ParametersSelection parametersSelection, long maxCounter) {
 	}
 }

@@ -1,6 +1,6 @@
 package com.alphatica.alis.trading.account;
 
-public class DrawDownCalc {
+public class DrawdownCalc {
 	private double dd = 1.0;
 	private double maxDd = 1.0;
 	private double nav;

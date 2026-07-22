@@ -15,6 +15,7 @@ import javax.swing.*;
 import java.awt.*;
 
 import static com.alphatica.alis.studio.tools.IfThenOrError.ifThenOrError;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runUiThread;
 
 public class AddTradeFrame extends JFrame {
 
@@ -114,6 +115,6 @@ public class AddTradeFrame extends JFrame {
 
 	private void saveAction(AccountAction action) throws AccountActionException, DaoException {
 		AccountProvider.saveAction(action);
-		dispose();
+		runUiThread(this::dispose);
 	}
 }

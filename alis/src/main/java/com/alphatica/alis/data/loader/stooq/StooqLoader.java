@@ -27,7 +27,7 @@ import static com.alphatica.alis.data.layer.Layer.MV;
 import static com.alphatica.alis.data.layer.Layer.PB;
 import static com.alphatica.alis.data.layer.Layer.PE;
 import static com.alphatica.alis.data.market.MarketType.FUTURE;
-import static com.alphatica.alis.data.market.MarketType.INDICE;
+import static com.alphatica.alis.data.market.MarketType.INDEX;
 import static com.alphatica.alis.data.market.MarketType.STOCK;
 import static java.io.File.separator;
 
@@ -53,7 +53,7 @@ public class StooqLoader {
 		Map<MarketName, Market> markets = loadFiles(dataDir, "wse stocks", "wse stocks indicators", STOCK, new Time(0));
 		standardMarketData.addMarkets(markets);
 
-		Map<MarketName, Market> indices = loadFiles(dataDir, "wse indices", "wse indices indicators", INDICE, new Time(0));
+		Map<MarketName, Market> indices = loadFiles(dataDir, "wse indices", "wse indices indicators", INDEX, new Time(0));
 		standardMarketData.addMarkets(indices);
 
 		Map<MarketName, Market> futures = loadFiles(dataDir, "wse futures", null, FUTURE, new Time(0));

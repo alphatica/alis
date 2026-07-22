@@ -1,4 +1,4 @@
-package com.alphatica.alis.indicators.oscilators;
+package com.alphatica.alis.indicators.oscillators;
 
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.indicators.Indicator;

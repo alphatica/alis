@@ -18,15 +18,15 @@ import static java.lang.String.format;
 
 public class Account {
 	private final Map<MarketName, Position> positions = new HashMap<>();
-	private final DrawDownCalc ddCalc;
-	private final DownsideDrawDownCalc downsideDrawDownCalc;
+	private final DrawdownCalc ddCalc;
+	private final DownsideDrawdownCalc downsideDrawdownCalc;
 	private final AccountHistory accountHistory;
 	private double cash;
 
 	public Account(double cash) {
-		this.downsideDrawDownCalc = new DownsideDrawDownCalc(cash);
+		this.downsideDrawdownCalc = new DownsideDrawdownCalc(cash);
 		this.cash = cash;
-		this.ddCalc = new DrawDownCalc();
+		this.ddCalc = new DrawdownCalc();
 		accountHistory = new AccountHistory(cash);
 	}
 
@@ -39,11 +39,11 @@ public class Account {
 	}
 
 	public double getMaxDownsideDD() {
-		return downsideDrawDownCalc.getMaxDownsideDrawdown();
+		return downsideDrawdownCalc.getMaxDownsideDrawdown();
 	}
 
 	public double getCurrentDownsideDD() {
-		return downsideDrawDownCalc.getCurrentDownsideDrawdown();
+		return downsideDrawdownCalc.getCurrentDownsideDrawdown();
 	}
 
 	public Position getPosition(MarketName market) {
@@ -53,7 +53,7 @@ public class Account {
 	public double getPositionValue(MarketName marketName) {
 		Position position = positions.get(marketName);
 		if (position != null) {
-			return position.getQuantity() * position.getEntryPrice();
+			return position.getQuantity() * position.getLastClose();
 		} else {
 			return 0;
 		}
@@ -138,7 +138,7 @@ public class Account {
 		});
 		var nav = getNAV();
 		ddCalc.updateNav(nav);
-		downsideDrawDownCalc.updateState(cash, nav);
+		downsideDrawdownCalc.updateState(cash, nav);
 	}
 
 	public AccountHistory getAccountHistory() {
@@ -163,11 +163,11 @@ public class Account {
 			double commissionValue = quantity * price * commissionRate;
 			reducePosition(next.getKey(), exit, commissionValue);
 		}
-		downsideDrawDownCalc.updateState(cash, getNAV());
+		downsideDrawdownCalc.updateState(cash, getNAV());
 	}
 
 	public void afterSells() {
-		downsideDrawDownCalc.updateState(cash, getNAV());
+		downsideDrawdownCalc.updateState(cash, getNAV());
 	}
 
 	private void addToHistory(MarketName marketName, Position removed) {

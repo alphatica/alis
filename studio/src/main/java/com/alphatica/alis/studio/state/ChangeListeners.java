@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static com.alphatica.alis.studio.view.tools.SwingHelper.buildUiThread;
-
 public class ChangeListeners {
 	private static final Map<StateChange, List<Runnable>> listeners = new EnumMap<>(StateChange.class);
 
@@ -29,6 +27,6 @@ public class ChangeListeners {
 	}
 
 	public static void bindLabelToEvent(JLabel label, StateChange stateChange, Supplier<String> supplier) {
-		addListener(stateChange, buildUiThread(() -> label.setText(supplier.get())));
+		addListener(stateChange, () -> label.setText(supplier.get()));
 	}
 }

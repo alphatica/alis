@@ -4,11 +4,11 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class DrawDownCalcTests {
+class DrawdownCalcTests {
 
 	@Test
 	void shouldCalcSimple() {
-		DrawDownCalc dc = new DrawDownCalc();
+		DrawdownCalc dc = new DrawdownCalc();
 		dc.updateNav(100);
 		dc.updateNav(70);
 		dc.updateNav(80);
@@ -18,7 +18,7 @@ class DrawDownCalcTests {
 
 	@Test
 	void shouldIgnoreWithdrawal() {
-		DrawDownCalc dc = new DrawDownCalc();
+		DrawdownCalc dc = new DrawdownCalc();
 		dc.updateNav(100);
 		dc.updateNav(200);
 		dc.updateNav(100);
@@ -33,7 +33,7 @@ class DrawDownCalcTests {
 
 	@Test
 	void shouldIgnoreDeposit() {
-		DrawDownCalc dc = new DrawDownCalc();
+		DrawdownCalc dc = new DrawdownCalc();
 		dc.updateNav(100);
 		dc.updateNav(200);
 		dc.updateNav(100);

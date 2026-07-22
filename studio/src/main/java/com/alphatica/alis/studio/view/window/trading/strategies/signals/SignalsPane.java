@@ -24,8 +24,8 @@ import java.util.Map;
 import static com.alphatica.alis.studio.logic.trading.signals.SignalsProvider.getOrdersTableData;
 import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
 import static com.alphatica.alis.studio.state.StateChange.DATA_LOADED;
-import static com.alphatica.alis.studio.view.tools.SwingHelper.buildUiThread;
-import static com.alphatica.alis.studio.view.tools.SwingHelper.runOnAction;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runUiThread;
 import static com.alphatica.alis.tools.java.MarketAttributes.getAttributeNames;
 
 public class SignalsPane extends JPanel {
@@ -58,7 +58,7 @@ public class SignalsPane extends JPanel {
 	}
 
 	private void setupListeners() {
-		addListener(DATA_LOADED, buildUiThread(this::updateStartTimeTextField));
+		addListener(DATA_LOADED, this::updateStartTimeTextField);
 		applySignalsToPortfolio.addActionListener(e -> applySignalsToPortfolioAction());
 	}
 
@@ -77,7 +77,7 @@ public class SignalsPane extends JPanel {
 		topPanel.add(applySignalsToPortfolio);
 
 		topPanel.add(showSignalsButton);
-		runOnAction(showSignalsButton, a -> showSignalsAction());
+		showSignalsButton.addActionListener(a -> startShowingSignals());
 
 		return topPanel;
 	}
@@ -108,7 +108,7 @@ public class SignalsPane extends JPanel {
 		startTimeTextField.setEditable(!applySignalsToPortfolio.isSelected());
 	}
 
-	private void showSignalsAction() {
+	private void startShowingSignals() {
 		if (AppState.getMarketData() == null) {
 			ErrorDialog.showError("No data loaded", "Load market data first", null);
 			return;
@@ -117,16 +117,30 @@ public class SignalsPane extends JPanel {
 		if (strategy == null) {
 			return;
 		}
+		boolean applyToPortfolio = applySignalsToPortfolio.isSelected();
+		Time startTime;
 		try {
-			showSignalsButton.setEnabled(false);
-			List<String[]> ordersTableData = getOrdersTableData(strategy, applySignalsToPortfolio.isSelected(), startTimeTextField.getTime());
-			Collections.reverse(ordersTableData);
-			updateSignalsTable(ordersTableData);
-			updateCustomInfoTable(strategy.getSummaryTable());
+			startTime = startTimeTextField.getTime();
 		} catch (Exception ex) {
 			ErrorDialog.showError("Unable to get orders table data", ex.toString(), ex);
-		} finally {
-			showSignalsButton.setEnabled(true);
+			return;
+		}
+
+		showSignalsButton.setEnabled(false);
+		runInBackground(() -> showSignals(strategy, applyToPortfolio, startTime), () -> showSignalsButton.setEnabled(true));
+	}
+
+	private void showSignals(Strategy strategy, boolean applyToPortfolio, Time startTime) {
+		try {
+			List<String[]> ordersTableData = new ArrayList<>(getOrdersTableData(strategy, applyToPortfolio, startTime));
+			Collections.reverse(ordersTableData);
+			Map<MarketName, MarketAttributes> customInfo = strategy.getSummaryTable();
+			runUiThread(() -> {
+				updateSignalsTable(ordersTableData);
+				updateCustomInfoTable(customInfo);
+			});
+		} catch (Exception ex) {
+			ErrorDialog.showError("Unable to get orders table data", ex.toString(), ex);
 		}
 	}
 

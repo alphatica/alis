@@ -4,7 +4,6 @@ import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.studio.state.AppState;
 import com.alphatica.alis.studio.tools.AccountActionCSVFacade;
-import com.alphatica.alis.studio.tools.GlobalThreadExecutor;
 import com.alphatica.alis.studio.view.tools.ErrorDialog;
 import com.alphatica.alis.studio.view.tools.components.ComponentValidationException;
 import com.alphatica.alis.studio.view.tools.components.DoubleTextField;
@@ -34,6 +33,7 @@ import java.util.Map;
 import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
 import static com.alphatica.alis.studio.state.ChangeListeners.publish;
 import static com.alphatica.alis.studio.state.StateChange.*;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.runUiThread;
 import static com.alphatica.alis.tools.java.StringHelper.emptyOnNull;
 import static com.alphatica.alis.trading.order.Order.*;
@@ -47,7 +47,7 @@ public class BacktestPane extends JPanel {
 	private final DoubleTextField initialCapitalField = new DoubleTextField("initial capital", 6);
 	private final JButton startButton = new JButton("Start");
 	private final JButton exportButton = new JButton("Export trades to CSV");
-	private final JButton drawDownCheckButton = new JButton("Drawdown check");
+	private final JButton drawdownCheckButton = new JButton("Drawdown check");
 	private final JButton compareToRandomButton = new JButton("Compare to random");
 	private final List<Double> backtestNavHistory = new ArrayList<>();
 
@@ -146,10 +146,10 @@ public class BacktestPane extends JPanel {
 		buttonPanel.add(exportButton);
 		buttonPanel.add(Box.createVerticalStrut(5));
 
-		drawDownCheckButton.addActionListener(a -> checkDrawdown());
-		drawDownCheckButton.setEnabled(false);
-		configureButton(drawDownCheckButton);
-		buttonPanel.add(drawDownCheckButton);
+		drawdownCheckButton.addActionListener(a -> checkDrawdown());
+		drawdownCheckButton.setEnabled(false);
+		configureButton(drawdownCheckButton);
+		buttonPanel.add(drawdownCheckButton);
 		buttonPanel.add(Box.createVerticalStrut(5));
 
 		compareToRandomButton.addActionListener(a -> compareWithRandom());
@@ -203,7 +203,7 @@ public class BacktestPane extends JPanel {
 	private void setButtonsState(boolean state) {
 		startButton.setEnabled(state);
 		exportButton.setEnabled(state);
-		drawDownCheckButton.setEnabled(state);
+		drawdownCheckButton.setEnabled(state);
 		compareToRandomButton.setEnabled(state);
 	}
 
@@ -252,44 +252,50 @@ public class BacktestPane extends JPanel {
 	}
 
 	private void startBacktest() {
+		BacktestRequest request;
+		try {
+			request = readBacktestRequest();
+		} catch (ComponentValidationException e) {
+			ErrorDialog.showError("Unable to execute strategy", e.getMessage(), null);
+			return;
+		}
+		if (!validateBacktestSettings(request.strategy(), request.marketData(), request.timeStart(), request.timeEnd(), request.initialCapital())) {
+			return;
+		}
+
 		ordersTableModel.setRowCount(0);
 		tradesTableModel.setRowCount(0);
 		statsTableModel.setRowCount(0);
-		GlobalThreadExecutor.GLOBAL_EXECUTOR.execute(this::tryExecuteBacktest);
+		backtestNavHistory.clear();
+		setButtonsState(false);
+		publish(BACKTEST_STARTED);
+		runInBackground(() -> tryExecuteBacktest(request), () -> {
+			publish(BACKTEST_FINISHED);
+			setButtonsState(true);
+		});
 	}
 
-	private void tryExecuteBacktest() {
+	private BacktestRequest readBacktestRequest() {
+		return new BacktestRequest(timeStartField.getTime(), timeEndField.getTime(), commissionRateField.getDoubleValue(),
+				initialCapitalField.getDoubleValue(), strategySelector.getValue(), AppState.getMarketData());
+	}
+
+	private void tryExecuteBacktest(BacktestRequest request) {
 		try {
-			executeBacktest();
-		} catch (ComponentValidationException e) {
-			ErrorDialog.showError("Unable to execute strategy", e.getMessage(), null);
+			executeBacktest(request);
 		} catch (Exception e) {
 			ErrorDialog.showError("Unable to execute strategy", e.getMessage(), e);
 		}
 	}
 
-	private void executeBacktest() throws AccountActionException {
-		Time timeStart = timeStartField.getTime();
-		Time timeEnd = timeEndField.getTime();
-		double commissionRate = commissionRateField.getDoubleValue();
-		double initialCapital = this.initialCapitalField.getDoubleValue();
-		Strategy strategy = strategySelector.getValue();
-		MarketData marketData = AppState.getMarketData();
-		if (!validateBacktestSettings(strategy, marketData, timeStart, timeEnd, initialCapital)) {
-			return;
-		}
-		StrategyExecutor executor = new StrategyExecutor().withTimeRange(timeStart, timeEnd)
-														  .withCommissionRate(commissionRate)
-														  .withInitialCash(initialCapital)
-														  .withBarExecutedConsumer(this::barExecutedCallback);
-		publish(BACKTEST_STARTED);
-		setButtonsState(false);
-		backtestNavHistory.clear();
-		Account account = executor.execute(marketData, strategy);
-		barExecutedCallback(timeEnd, account, List.of());
+	private void executeBacktest(BacktestRequest request) throws AccountActionException {
+		StrategyExecutor executor = new StrategyExecutor().withTimeRange(request.timeStart(), request.timeEnd())
+																  .withCommissionRate(request.commissionRate())
+																  .withInitialCash(request.initialCapital())
+																  .withBarExecutedConsumer(this::barExecutedCallback);
+		Account account = executor.execute(request.marketData(), request.strategy());
+		barExecutedCallback(request.timeEnd(), account, List.of());
 		finishBacktest(account, executor);
-		publish(BACKTEST_FINISHED);
-		setButtonsState(true);
 	}
 
 	private void finishBacktest(Account account, StrategyExecutor executor) {
@@ -372,5 +378,9 @@ public class BacktestPane extends JPanel {
 			return false;
 		}
 		return true;
+	}
+
+	private record BacktestRequest(Time timeStart, Time timeEnd, double commissionRate, double initialCapital, Strategy strategy,
+			MarketData marketData) {
 	}
 }

@@ -14,7 +14,10 @@ public class SmartComboBox<T> extends JComboBox<String> {
 	}
 
 	public T getValue() {
-		int selected = this.getSelectedIndex();
-		return suppliers.get(selected).get();
+		return getValueSupplier().get();
+	}
+
+	public Supplier<T> getValueSupplier() {
+		return suppliers.get(getSelectedIndex());
 	}
 }

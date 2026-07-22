@@ -11,7 +11,7 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
-import static com.alphatica.alis.studio.tools.GlobalThreadExecutor.GLOBAL_EXECUTOR;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
 import static java.lang.String.format;
 
 public class CompareWithRandomFrame extends JFrame {
@@ -37,10 +37,9 @@ public class CompareWithRandomFrame extends JFrame {
 	private void start(Account account, Time startTime, Time endTime, double commissionRate, double initialCapital) {
 		randomStrategyComparator = new RandomStrategyComparator(this::showMessage, (int) numberOfIterations.getValue(), initialCapital, commissionRate, startTime, endTime, AppState.getMarketData());
 		enableButtons(false);
-		GLOBAL_EXECUTOR.execute(() -> {
+		runInBackground(() -> {
 			randomStrategyComparator.compare(account);
-			SwingHelper.runUiThread(() -> enableButtons(true));
-		});
+		}, () -> enableButtons(true));
 	}
 
 	private void init() {

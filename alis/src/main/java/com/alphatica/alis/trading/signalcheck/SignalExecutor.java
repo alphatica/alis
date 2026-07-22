@@ -12,6 +12,7 @@ import com.alphatica.alis.trading.signalcheck.scoregenerator.ScoreGenerator;
 import com.alphatica.alis.trading.signalcheck.tradesignal.TradeSignal;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -23,6 +24,7 @@ import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_CLOSE;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_OPEN;
 
 public class SignalExecutor {
+    private final AtomicBoolean executed = new AtomicBoolean(false);
     private final Supplier<TradeSignal> signalSupplier;
     private final Time startTime;
     private final Time endTime;
@@ -31,7 +33,7 @@ public class SignalExecutor {
     private final float commissionRate;
     private final boolean tradeSecondarySignals;
     private final ScoreGenerator scoreGenerator;
-    private final Map<MarketName, List<OpenTrade>> openTradeMap = new HashMap<>(1024);
+    private final Map<MarketName, List<OpenTrade>> openTradeMap = HashMap.newHashMap(1024);
 	private double currentlyOpened;
 
 	private int maxOpenedPositions = Integer.MAX_VALUE;
@@ -54,6 +56,7 @@ public class SignalExecutor {
     }
 
     public double execute() {
+        ensureNotExecutedBefore();
         populateOpenTradesMap();
         List<Time> times = marketData.getTimes().stream().filter(t -> !t.isBefore(startTime) && !t.isAfter(endTime)).toList();
         for (Time time : times) {
@@ -62,6 +65,12 @@ public class SignalExecutor {
         closeLastTrades();
         scoreGenerator.onDone();
         return scoreGenerator.score();
+    }
+
+    private void ensureNotExecutedBefore() {
+        if (!executed.compareAndSet(false, true)) {
+            throw new IllegalStateException("SignalExecutor can only be executed once");
+        }
     }
 
 	public SignalExecutor withPositionReporter(PositionReporter positionReporter, String sourceId) {
@@ -95,7 +104,7 @@ public class SignalExecutor {
         for (Map.Entry<MarketName, List<OpenTrade>> entry : openTradeMap.entrySet()) {
             for (OpenTrade trade : entry.getValue()) {
                 if (trade.getTradeStatus() == TradeStatus.OPEN) {
-                    var closePrice = trade.getLastKnowPrice() * (1 - commissionRate);
+                    var closePrice = trade.getLastKnownPrice() * (1 - commissionRate);
                     closeTrade(entry.getKey(), trade, closePrice);
                 }
             }

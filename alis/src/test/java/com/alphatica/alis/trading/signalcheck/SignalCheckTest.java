@@ -17,6 +17,7 @@ import static com.alphatica.alis.data.time.TimeMarketDataFilters.STOCKS;
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SignalCheckTest {
 
@@ -57,6 +58,16 @@ class SignalCheckTest {
 		assertEquals(6, positionReports.get(new Time(16)).get("s1").get(new MarketName("market2")).doubleValue());
 		assertEquals(10, positionReports.get(new Time(20)).get("s1").get(new MarketName("market2")).doubleValue());
 		assertNull(positionReports.get(new Time(21)));
+	}
+
+	@Test
+	void shouldRejectSecondExecution() {
+		var data = new TestData("test_market");
+		var executor = new SignalExecutor(TestSignal::new, new Time(10), new Time(20), data, STOCKS, 0.01f, false,
+				new TestScoreGenerator());
+		executor.execute();
+
+		assertThrows(IllegalStateException.class, executor::execute);
 	}
 
 }

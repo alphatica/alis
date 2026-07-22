@@ -1,19 +1,18 @@
 package com.alphatica.alis.studio.view.tools;
 
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import java.awt.Cursor;
 import java.awt.Desktop;
-import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.function.Consumer;
+
+import static com.alphatica.alis.studio.tools.GlobalThreadExecutor.GLOBAL_EXECUTOR;
 
 public class SwingHelper {
 	private SwingHelper() {
@@ -44,15 +43,25 @@ public class SwingHelper {
 		return hyperlinkLabel;
 	}
 
-	public static void runOnAction(JButton button, Consumer<ActionEvent> consumer) {
-		button.addActionListener(e -> new Thread(() -> consumer.accept(e)).start());
+	public static void runInBackground(Runnable runnable) {
+		GLOBAL_EXECUTOR.execute(runnable);
 	}
 
-	public static Runnable buildUiThread(Runnable runnable) {
-		return () -> SwingUtilities.invokeLater(runnable);
+	public static void runInBackground(Runnable runnable, Runnable uiCompletion) {
+		runInBackground(() -> {
+			try {
+				runnable.run();
+			} finally {
+				runUiThread(uiCompletion);
+			}
+		});
 	}
 
 	public static void runUiThread(Runnable runnable) {
-		SwingUtilities.invokeLater(runnable);
+		if (SwingUtilities.isEventDispatchThread()) {
+			runnable.run();
+		} else {
+			SwingUtilities.invokeLater(runnable);
+		}
 	}
 }

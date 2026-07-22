@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.alphatica.alis.data.layer.Layer.TURNOVER;
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
@@ -27,6 +28,7 @@ import static com.alphatica.alis.trading.order.Direction.SELL;
 
 public class StrategyExecutor {
 
+	private final AtomicBoolean executed = new AtomicBoolean(false);
 	private double commissionRate = 0.01;
 	private double initialCash = 100_000.0;
 	private Time timeFrom = new Time(0);
@@ -92,6 +94,7 @@ public class StrategyExecutor {
 
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
 	public Account execute(MarketData marketData, Strategy strategy) throws AccountActionException {
+		ensureNotExecutedBefore();
 		List<Time> times = marketData.getTimes().stream().filter(time -> !time.isBefore(timeFrom) && !time.isAfter(timeTo)).toList();
 		Account account = new Account(initialCash);
 		if (times.isEmpty()) {
@@ -122,6 +125,12 @@ public class StrategyExecutor {
 		return account;
 	}
 
+	private void ensureNotExecutedBefore() {
+		if (!executed.compareAndSet(false, true)) {
+			throw new IllegalStateException("StrategyExecutor can only be executed once");
+		}
+	}
+
 	private TimeMarketDataSet getTimeMarketDataSet(MarketData marketData, Time time) {
 		if (useCachedMarketData) {
 			return marketData.cachedSnapshotAt(time);
@@ -146,8 +155,7 @@ public class StrategyExecutor {
 	}
 
 	private List<Order> getNewPendingOrders(Strategy strategy, TimeMarketDataSet current, Account account) {
-		List<Order> pendingOrders;
-		pendingOrders = strategy.afterClose(current, account);
+		List<Order> pendingOrders = new ArrayList<>(strategy.afterClose(current, account));
 		if (skipTradesProbability > 0.0) {
 			pendingOrders.removeIf(o -> ThreadLocalRandom.current().nextDouble() < skipTradesProbability);
 		}

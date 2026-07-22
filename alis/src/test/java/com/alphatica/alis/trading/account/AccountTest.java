@@ -26,4 +26,15 @@ class AccountTest {
 		assertEquals(expected.getEntryPrice(), actual.getEntryPrice());
 	}
 
+	@Test
+	void shouldCalculatePositionValueUsingLastClose() throws AccountActionException {
+		MarketName market = new MarketName("market");
+		Account account = new Account(2000);
+		account.addPosition(market, new PositionEntry(new Time(1), 10, 100), 0);
+
+		account.getPosition(market).updatePrices(125, 130, 95);
+
+		assertEquals(1250, account.getPositionValue(market));
+	}
+
 }

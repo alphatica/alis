@@ -2,12 +2,12 @@ package com.alphatica.alis.trading.account;
 
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 
-public class DownsideDrawDownCalc {
+public class DownsideDrawdownCalc {
 	private double maxCash;
 	private double maxDD = 0;
 	private double currentDD = 0;
 
-	public DownsideDrawDownCalc(double init) {
+	public DownsideDrawdownCalc(double init) {
 		maxCash = init;
 	}
 

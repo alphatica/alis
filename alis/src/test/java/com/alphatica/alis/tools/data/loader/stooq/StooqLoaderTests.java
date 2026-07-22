@@ -35,7 +35,7 @@ class StooqLoaderTests {
 	@Test
 	void shouldLoadPLStock() throws ExecutionException, InterruptedException {
 		Market market = loadPLStooqMarket(new MarketName("ind"));
-		assertEquals(MarketType.INDICE, market.getType());
+		assertEquals(MarketType.INDEX, market.getType());
 		Time timeFirst = new Time(20100104);
 		TimeMarketData firstTimeMarketData = market.getAtOrNext(timeFirst);
 		assertEquals(timeFirst, firstTimeMarketData.getTime());

@@ -1,6 +1,5 @@
 package com.alphatica.alis.studio.view.window.analysis.resultable;
 
-import com.alphatica.alis.studio.view.tools.SwingHelper;
 import com.alphatica.alis.studio.view.tools.models.ReadOnlyTableModel;
 import com.alphatica.alis.trading.datamining.betterexits.ExitFinderResult;
 
@@ -21,7 +20,7 @@ public class ResultTable extends JTable {
 		getTableHeader().setResizingAllowed(true);
 	}
 
-	public synchronized void addResult(ExitFinderResult newResult) {
+	public void addResult(ExitFinderResult newResult) {
 		if (alreadyHas(newResult)) {
 			return;
 		}
@@ -49,10 +48,8 @@ public class ResultTable extends JTable {
 
 	private void rebuildUITable() {
 		Object[][] tableRows = results.stream().map(this::mapResultToRow).toArray(Object[][]::new);
-		SwingHelper.runUiThread(() -> {
-			resultsTableModel.setDataVector(tableRows, RESULTS_COLUMNS);
-			resultsTableModel.fireTableDataChanged();
-		});
+		resultsTableModel.setDataVector(tableRows, RESULTS_COLUMNS);
+		resultsTableModel.fireTableDataChanged();
 	}
 
 	private Object[] mapResultToRow(ExitFinderResult result) {

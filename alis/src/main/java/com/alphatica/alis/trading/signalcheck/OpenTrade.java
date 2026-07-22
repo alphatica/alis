@@ -11,7 +11,7 @@ public class OpenTrade {
     private final float positionSize;
 
     private float openPrice;
-    private float lastKnowPrice;
+    private float lastKnownPrice;
     private TradeStatus tradeStatus;
     private int bars;
 
@@ -36,12 +36,12 @@ public class OpenTrade {
         return signal;
     }
 
-    public float getLastKnowPrice() {
-        return lastKnowPrice;
+    public float getLastKnownPrice() {
+        return lastKnownPrice;
     }
 
     public void updateLastKnownPrice(float price) {
-        lastKnowPrice = price;
+        lastKnownPrice = price;
     }
 
     public void incrementBars() {

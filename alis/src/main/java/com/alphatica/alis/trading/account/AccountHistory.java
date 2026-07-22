@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 
 public class AccountHistory {
+	private static final TradeStats EMPTY_STATS = new TradeStats(0, 0, 0, 0, 0, 0, 0, 0);
+
 	private final Map<MarketName, List<PositionResult>> results;
 	private final List<PositionPricesRecord> pricesRecords;
 	private final List<AccountAction> accountActions;
@@ -111,6 +113,9 @@ public class AccountHistory {
 	}
 
 	private TradeStats calcStats(List<PositionResult> list) {
+		if (list.isEmpty()) {
+			return EMPTY_STATS;
+		}
 		double sumWinPercent = 0;
 		int winCount = 0;
 		double sumLossPercent = 0;

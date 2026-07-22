@@ -10,7 +10,7 @@ import com.alphatica.alis.data.loader.stooq.StooqLoader;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.indicators.Indicator;
-import com.alphatica.alis.indicators.oscilators.WilliamsR;
+import com.alphatica.alis.indicators.oscillators.WilliamsR;
 import com.alphatica.alis.tools.java.TaskExecutor;
 
 import java.io.File;

@@ -8,7 +8,7 @@ import java.awt.*;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static com.alphatica.alis.studio.tools.GlobalThreadExecutor.GLOBAL_EXECUTOR;
+import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
 import static java.lang.String.format;
 
 public class DrawdownCheckFrame extends JFrame {
@@ -55,7 +55,7 @@ public class DrawdownCheckFrame extends JFrame {
 	}
 
 	private void startWork(List<Double> navHistory) {
-		GLOBAL_EXECUTOR.execute(() -> doWork(navHistory));
+		runInBackground(() -> doWork(navHistory));
 	}
 
 	private void doWork(List<Double> navHistory) {

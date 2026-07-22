@@ -17,6 +17,7 @@ import static com.alphatica.alis.tools.java.CollectionsTools.arrayList;
 import static com.alphatica.alis.trading.order.Direction.BUY;
 import static com.alphatica.alis.trading.order.OrderSize.PERCENTAGE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StrategyExecutorTests {
@@ -85,5 +86,14 @@ class StrategyExecutorTests {
 		assertEquals(0, account.getPositions().size());
 		double nav = 100_000;
 		assertEquals(nav, account.getNAV());
+	}
+
+	@Test
+	void shouldRejectSecondExecution() throws AccountActionException {
+		StrategyExecutor executor = new StrategyExecutor();
+		TestData marketData = new TestData("test_market");
+		executor.execute(marketData, new TestStrategy());
+
+		assertThrows(IllegalStateException.class, () -> executor.execute(marketData, new TestStrategy()));
 	}
 }
