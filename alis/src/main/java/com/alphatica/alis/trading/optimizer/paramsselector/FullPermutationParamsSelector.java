@@ -13,7 +13,7 @@ import static java.util.Collections.emptyMap;
 public class FullPermutationParamsSelector extends ParamsSelector {
 
 	private final SortedMap<String, Integer> nextIndices = new TreeMap<>();
-	private volatile boolean finished = false;
+	private boolean finished;
 
 	public FullPermutationParamsSelector(ParamsStepsSet paramsStepsSet) {
 		super(paramsStepsSet);

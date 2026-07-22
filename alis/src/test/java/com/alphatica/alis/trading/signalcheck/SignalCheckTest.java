@@ -113,14 +113,12 @@ class TestSignal extends TradeSignal {
 
 class TestScoreGenerator extends ScoreGenerator {
 	AtomicInteger trades = new AtomicInteger(0);
-	volatile double profit;
+	double profit;
 
 	@Override
 	public void afterTrade(OpenTrade trade, float effectiveClosePrice) {
 		trades.incrementAndGet();
-		synchronized (this) {
-			profit += percentChange(trade.getOpenPrice(), effectiveClosePrice);
-		}
+		profit += percentChange(trade.getOpenPrice(), effectiveClosePrice);
 	}
 
 	@Override

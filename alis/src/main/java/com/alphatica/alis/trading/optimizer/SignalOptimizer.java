@@ -29,7 +29,7 @@ public class SignalOptimizer extends Optimizer {
 	private final ParamsSelector paramsSelector;
 	private final AtomicBoolean isStopped = new AtomicBoolean(false);
 
-	private volatile double bestScore = 0;
+	private double bestScore;
 
 	public SignalOptimizer(Supplier<TradeSignal> tradeSignalSupplier, MarketData marketData, Time startTime, Time endTime,
 						   Predicate<TimeMarketData> marketFilter, float commissionRate, boolean tradeSecondarySignals,

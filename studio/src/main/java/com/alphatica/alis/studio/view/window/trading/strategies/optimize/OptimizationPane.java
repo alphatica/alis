@@ -29,6 +29,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
@@ -53,7 +54,7 @@ public class OptimizationPane extends JPanel {
 	private final JPanel settingsPanel = new JPanel(new GridBagLayout());
 	private final ResultTable resultTable = new ResultTable();
 	private final AtomicBoolean stopRequested = new AtomicBoolean(false);
-	private volatile StrategyOptimizer strategyOptimizer = null;
+	private final AtomicReference<StrategyOptimizer> strategyOptimizer = new AtomicReference<>();
 
 	public OptimizationPane() {
 		setLayout(new BorderLayout());
@@ -244,7 +245,7 @@ public class OptimizationPane extends JPanel {
 
 	private void stopOptimization() {
 		stopRequested.set(true);
-		StrategyOptimizer optimizer = strategyOptimizer;
+		StrategyOptimizer optimizer = strategyOptimizer.get();
 		if (optimizer != null) {
 			optimizer.stop();
 		}
@@ -301,7 +302,7 @@ public class OptimizationPane extends JPanel {
 		try {
 			StrategyOptimizer optimizer = new StrategyOptimizer(request.strategyFactory(), request.marketData(), request.executorFactory(),
 					request.scorerFactory(), request.resultVerifier(), request.parametersSelection(), request.maxCounter());
-			strategyOptimizer = optimizer;
+			strategyOptimizer.set(optimizer);
 			optimizer.registerScoreCallback((score, account) -> scoreCallback(optimizer, score, account));
 			optimizer.setExceptionCallback(exception -> exceptionCallback(optimizer, exception));
 			if (stopRequested.get()) {
@@ -314,7 +315,7 @@ public class OptimizationPane extends JPanel {
 	}
 
 	private void optimizationFinished() {
-		strategyOptimizer = null;
+		strategyOptimizer.set(null);
 		setSettingsInputs(true);
 	}
 
