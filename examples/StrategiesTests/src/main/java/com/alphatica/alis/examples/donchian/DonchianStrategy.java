@@ -2,6 +2,8 @@ package com.alphatica.alis.examples.donchian;
 
 import com.alphatica.alis.charting.Chart;
 import com.alphatica.alis.charting.LineChartData;
+import com.alphatica.alis.charting.PaneSettings;
+import com.alphatica.alis.charting.Scale;
 import com.alphatica.alis.condition.HighestClose;
 import com.alphatica.alis.condition.LowestClose;
 import com.alphatica.alis.data.layer.Layer;
@@ -90,8 +92,11 @@ public class DonchianStrategy extends Strategy {
 			equityLine.setName("Equity");
 			wigLine.setConnectPoints(true);
 			wigLine.setName("WIG");
-			chart.addDataLines(List.of(equityLine, wigLine));
-			chart.setTitle("Donchian channel breakout");
+			chart.addPane(
+					Scale.ARITHMETIC,
+					"Donchian channel breakout",
+					List.of(equityLine, wigLine),
+					PaneSettings.defaults());
 			chart.setCopyright("Alphatica.com");
 			try {
 				chart.createImage(new File("donchianBreakout.png"));

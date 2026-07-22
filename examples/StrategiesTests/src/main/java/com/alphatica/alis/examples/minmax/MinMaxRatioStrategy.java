@@ -2,6 +2,8 @@ package com.alphatica.alis.examples.minmax;
 
 import com.alphatica.alis.charting.Chart;
 import com.alphatica.alis.charting.LineChartData;
+import com.alphatica.alis.charting.PaneSettings;
+import com.alphatica.alis.charting.Scale;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
@@ -56,11 +58,13 @@ public class MinMaxRatioStrategy extends Strategy {
 		Chart<String> chart = new Chart<>();
 		wigLine.setConnectPoints(true);
 		navLine.setConnectPoints(true);
-		chart.addDataLines(List.of(wigLine, navLine));
+		chart.addPane(
+				Scale.ARITHMETIC,
+				"Min-Max breadth WIG signals",
+				List.of(wigLine, navLine),
+				new PaneSettings(1.0, "Value", List.of()));
 		chart.setXName("Date");
-		chart.setYName("Value");
 		chart.setCopyright("Alphatica.com");
-		chart.setTitle("Min-Max breadth WIG signals");
 		try {
 			chart.createImage(new File("minMax.png"));
 		} catch (IOException e) {

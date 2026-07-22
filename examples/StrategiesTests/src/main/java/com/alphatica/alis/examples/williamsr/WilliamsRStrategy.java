@@ -2,6 +2,8 @@ package com.alphatica.alis.examples.williamsr;
 
 import com.alphatica.alis.charting.Chart;
 import com.alphatica.alis.charting.LineChartData;
+import com.alphatica.alis.charting.PaneSettings;
+import com.alphatica.alis.charting.Scale;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.TimeMarketData;
@@ -95,8 +97,11 @@ public class WilliamsRStrategy extends Strategy {
 			equityLine.setName("Equity");
 			wigLine.setConnectPoints(true);
 			wigLine.setName("WIG");
-			chart.addDataLines(List.of(equityLine, wigLine));
-			chart.setTitle("Williams R strategy");
+			chart.addPane(
+					Scale.ARITHMETIC,
+					"Williams R strategy",
+					List.of(equityLine, wigLine),
+					PaneSettings.defaults());
 			chart.setCopyright("Alphatica.com");
 			try {
 				chart.createImage(new File("williamsR.png"));

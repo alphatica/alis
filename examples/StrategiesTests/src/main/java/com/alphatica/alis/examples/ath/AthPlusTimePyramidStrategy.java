@@ -2,6 +2,8 @@ package com.alphatica.alis.examples.ath;
 
 import com.alphatica.alis.charting.Chart;
 import com.alphatica.alis.charting.LineChartData;
+import com.alphatica.alis.charting.PaneSettings;
+import com.alphatica.alis.charting.Scale;
 import com.alphatica.alis.condition.AllTimeHigh;
 import com.alphatica.alis.condition.Condition;
 import com.alphatica.alis.data.market.MarketName;
@@ -86,8 +88,11 @@ public class AthPlusTimePyramidStrategy extends Strategy {
 	public void finished(Account account) {
 		Chart<String> chart = new Chart<>();
 		equityLine.setConnectPoints(true);
-		chart.addDataLines(List.of(equityLine));
-		chart.setTitle("Buy at ATH + pyramid, hold for 2 months, ");
+		chart.addPane(
+				Scale.ARITHMETIC,
+				"Buy at ATH + pyramid, hold for 2 months, ",
+				List.of(equityLine),
+				PaneSettings.defaults());
 		chart.setCopyright("Alphatica.com");
 		try {
 			chart.createImage(new File("athTimePyramid.png"));

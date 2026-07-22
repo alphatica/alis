@@ -3,6 +3,8 @@ package com.alphatica.alis.examples.changecheck;
 
 import com.alphatica.alis.charting.Chart;
 import com.alphatica.alis.charting.HorizontalLine;
+import com.alphatica.alis.charting.PaneSettings;
+import com.alphatica.alis.charting.Scale;
 import com.alphatica.alis.condition.AllTimeHigh;
 import com.alphatica.alis.condition.Condition;
 import com.alphatica.alis.condition.TurnoverMoreThan;
@@ -40,13 +42,17 @@ public class AllTimeHighChangeCheck {
 		results.showStats(System.out);
 
 		Chart<Time> chart = new Chart<>();
-		chart.addDataLines(results.getChartLines());
-		results.average().ifPresent(average -> chart.addHorizontalLine(new HorizontalLine("Average", average)));
+		List<HorizontalLine> horizontalLines = results.average()
+				.map(average -> new HorizontalLine("Average", average))
+				.stream()
+				.toList();
+		chart.addPane(
+				Scale.LOGARITHMIC,
+				"1-Year change after ATH",
+				results.getChartLines(),
+				new PaneSettings(1.0, "% Change", horizontalLines));
 		chart.setCopyright("Alphatica.com");
-		chart.setTitle("1-Year change after ATH");
 		chart.setXName("Date");
-		chart.setYName("% Change");
-		chart.setLogarithmic(true);
 		chart.createImage(new File("1yearAth.png"));
 	}
 }
