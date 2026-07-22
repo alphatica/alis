@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
 
 public class StrategyOptimizer extends Optimizer {
 
+	private static final int MAX_FUZZY_START_TIME_OPTIMIZATIONS = 49;
+
 	private final Supplier<Strategy> strategyFactory;
 	private final MarketData marketData;
 	private final Supplier<StrategyExecutor> executorFactory;
@@ -208,16 +210,14 @@ public class StrategyOptimizer extends Optimizer {
 	}
 
 	private void optimizeWithFuzzyStartTime() throws IllegalAccessException {
-		final int maxOptimizations = 49;
 		Map<String, Object> params = paramsSelector.next();
 		if (params.isEmpty()) {
 			return;
 		}
-		List<Time> times = marketData.getTimes();
-		int startTimeIndex = getStartTimeIndex(times, maxOptimizations);
+		Time preferredStartTime = executorFactory.get().getTimeFrom();
+		List<Time> startTimes = selectFuzzyStartTimes(marketData.getTimes(), preferredStartTime, MAX_FUZZY_START_TIME_OPTIMIZATIONS);
 		List<ScoredAccount> scoredAccounts = new ArrayList<>();
-		while (scoredAccounts.size() < maxOptimizations) {
-			Time randomizedStartTime = times.get(startTimeIndex++);
+		for (Time randomizedStartTime : startTimes) {
 			AccountScorer scorer = scorerFactory.get();
 			StrategyExecutor executor = executorFactory.get().withTimeFrom(randomizedStartTime);
 			Strategy strategy = strategyFactory.get();
@@ -230,18 +230,27 @@ public class StrategyOptimizer extends Optimizer {
 				passException(e);
 			}
 		}
+		if (scoredAccounts.isEmpty()) {
+			return;
+		}
 		Collections.sort(scoredAccounts);
 		ScoredAccount medianScore = scoredAccounts.get(scoredAccounts.size() / 2);
 		registerScore(medianScore.score(), medianScore.account(), params);
 	}
 
-	private int getStartTimeIndex(List<Time> times, int maxOptimizations) {
-		Time startTime = executorFactory.get().getTimeFrom();
-		int index = Collections.binarySearch(times, startTime);
+	static List<Time> selectFuzzyStartTimes(List<Time> times, Time preferredStartTime, int maxOptimizations) {
+		if (times.isEmpty() || maxOptimizations <= 0) {
+			return List.of();
+		}
+		int optimizations = Math.min(maxOptimizations, times.size());
+		int index = Collections.binarySearch(times, preferredStartTime);
 		if (index < 0) {
 			index = -index - 1;
 		}
-		return Math.max(0, index - (maxOptimizations / 2));
+		int preferredIndex = Math.min(index, times.size() - 1);
+		int lastPossibleStartIndex = times.size() - optimizations;
+		int startIndex = Math.max(0, Math.min(preferredIndex - optimizations / 2, lastPossibleStartIndex));
+		return List.copyOf(times.subList(startIndex, startIndex + optimizations));
 	}
 
 	private synchronized void registerScore(double score, Account account, Map<String, Object> parameters) {
