@@ -5,17 +5,20 @@ import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.indicators.trend.MinMax;
 import com.alphatica.alis.indicators.trend.Sma;
+import com.alphatica.alis.trading.signalcheck.BuySignal;
 
-public class SmaMinMaxTradeSignal extends TradeSignal {
+import java.util.Optional;
+
+public class SmaMinMaxSignalGenerator extends SignalGenerator {
     private final Sma sma = new Sma(200);
     private final MinMax minMax = new MinMax(250);
 
     @Override
-    public float shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
+    public Optional<BuySignal> shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
         if (marketData.getData(Layer.CLOSE, 0) > sma.calculate(marketData) && minMax.calculate(marketData) > 0) {
-            return 1.0f;
+            return Optional.of(new BuySignal(1.0, 1.0));
         } else {
-            return Float.NaN;
+            return Optional.empty();
         }
     }
 

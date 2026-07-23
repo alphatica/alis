@@ -18,7 +18,7 @@ public class PositionReporter {
 				.computeIfAbsent(report.time(), t -> new ConcurrentHashMap<>())
 				.computeIfAbsent(report.sourceClass(), s -> new ConcurrentHashMap<>())
 				.computeIfAbsent(report.market(), m -> new DoubleAdder())
-				.add(report.positionSize());
+				.add(report.requestedAllocation());
 	}
 
 	public Map<Time, Map<String, Map<MarketName, DoubleAdder>>> getContent() {

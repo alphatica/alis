@@ -6,8 +6,11 @@ import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.indicators.trend.Sma;
 import com.alphatica.alis.trading.optimizer.params.IntParam;
+import com.alphatica.alis.trading.signalcheck.BuySignal;
 
-public class BuyAthSellSmaTradeSignal extends TradeSignal {
+import java.util.Optional;
+
+public class BuyAthSellSmaSignalGenerator extends SignalGenerator {
     private final AllTimeHigh ath = new AllTimeHigh();
 
     @IntParam(start = 20, step = 1, end = 500)
@@ -16,11 +19,11 @@ public class BuyAthSellSmaTradeSignal extends TradeSignal {
     private Sma sma = new Sma(smaLength);
 
     @Override
-    public float shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
+    public Optional<BuySignal> shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
         if (ath.matches(marketData, marketDataSet)) {
-            return 1.0f;
+            return Optional.of(new BuySignal(1.0, 1.0));
         } else {
-            return Float.NaN;
+            return Optional.empty();
         }
     }
 

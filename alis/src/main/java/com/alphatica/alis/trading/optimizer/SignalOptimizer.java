@@ -5,44 +5,54 @@ import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.trading.optimizer.params.Validator;
 import com.alphatica.alis.trading.optimizer.paramsselector.ParamsSelector;
+import com.alphatica.alis.trading.signalcheck.AllocationPolicy;
+import com.alphatica.alis.trading.signalcheck.AllocationReplayer;
 import com.alphatica.alis.trading.signalcheck.SignalExecutor;
-import com.alphatica.alis.trading.signalcheck.scoregenerator.ScoreGenerator;
-import com.alphatica.alis.trading.signalcheck.tradesignal.TradeSignal;
+import com.alphatica.alis.trading.signalcheck.scoregenerator.ScoreCalculator;
+import com.alphatica.alis.trading.signalcheck.tradesignal.SignalGenerator;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class SignalOptimizer extends Optimizer {
 
-	private final Supplier<TradeSignal> tradeSignalSupplier;
+	private final Supplier<SignalGenerator> signalGeneratorSupplier;
 	private final MarketData marketData;
 	private final Time startTime;
 	private final Time endTime;
 	private final Predicate<TimeMarketData> marketFilter;
 	private final float commissionRate;
 	private final boolean tradeSecondarySignals;
-	private final Supplier<ScoreGenerator> scoreGeneratorSupplier;
+	private final double maxAllocation;
+	private final AllocationPolicy allocationPolicy;
+	private final ScoreCalculator scoreCalculator;
 	private final ParamsSelector paramsSelector;
 	private final AtomicBoolean isStopped = new AtomicBoolean(false);
 
 	private double bestScore;
 
-	public SignalOptimizer(Supplier<TradeSignal> tradeSignalSupplier, MarketData marketData, Time startTime, Time endTime,
+	public SignalOptimizer(Supplier<SignalGenerator> signalGeneratorSupplier, MarketData marketData,
+						   Time startTime, Time endTime,
 						   Predicate<TimeMarketData> marketFilter, float commissionRate, boolean tradeSecondarySignals,
-						   ParametersSelection parametersSelection, Supplier<ScoreGenerator> scoreGeneratorSupplier) throws OptimizerException {
-		this.tradeSignalSupplier = tradeSignalSupplier;
-		this.marketData = marketData;
-		this.startTime = startTime;
-		this.endTime = endTime;
-		this.marketFilter = marketFilter;
+						   ParametersSelection parametersSelection, double maxAllocation,
+						   AllocationPolicy allocationPolicy, ScoreCalculator scoreCalculator) throws OptimizerException {
+		this.signalGeneratorSupplier = Objects.requireNonNull(signalGeneratorSupplier, "signalGeneratorSupplier");
+		this.marketData = Objects.requireNonNull(marketData, "marketData");
+		this.startTime = Objects.requireNonNull(startTime, "startTime");
+		this.endTime = Objects.requireNonNull(endTime, "endTime");
+		this.marketFilter = Objects.requireNonNull(marketFilter, "marketFilter");
 		this.commissionRate = commissionRate;
 		this.tradeSecondarySignals = tradeSecondarySignals;
-		this.scoreGeneratorSupplier = scoreGeneratorSupplier;
-		var fields = tradeSignalSupplier.get().getClass().getDeclaredFields();
+		this.maxAllocation = maxAllocation;
+		AllocationReplayer.validateMaxAllocation(maxAllocation);
+		this.allocationPolicy = Objects.requireNonNull(allocationPolicy, "allocationPolicy");
+		this.scoreCalculator = Objects.requireNonNull(scoreCalculator, "scoreCalculator");
+		var fields = signalGeneratorSupplier.get().getClass().getDeclaredFields();
 		Validator.validate(fields);
 		ParamsStepsSet paramsStepsSet = buildParamsStepsSet(fields);
 		this.paramsSelector = ParamsSelector.get(parametersSelection, paramsStepsSet);
@@ -75,11 +85,11 @@ public class SignalOptimizer extends Optimizer {
 			isStopped.set(true);
 			return;
 		}
-		Supplier<TradeSignal> optimizedTradeSignalSupplier = () -> {
-			var tradeSignal = tradeSignalSupplier.get();
+		Supplier<SignalGenerator> optimizedSignalGeneratorSupplier = () -> {
+			var signalGenerator = signalGeneratorSupplier.get();
 			try {
-				copyParameters(nextParams, tradeSignal);
-				return tradeSignal;
+				copyParameters(nextParams, signalGenerator);
+				return signalGenerator;
 			} catch (IllegalAccessException e) {
 				System.out.println(e);
 				return null;
@@ -91,7 +101,9 @@ public class SignalOptimizer extends Optimizer {
 				.withCommissionRate(commissionRate)
 				.withSecondarySignals(tradeSecondarySignals)
 				.useCachedMarketData();
-		var score = signalExecutor.execute(marketData, optimizedTradeSignalSupplier, scoreGeneratorSupplier.get());
+		var execution = signalExecutor.execute(marketData, optimizedSignalGeneratorSupplier);
+		var replay = new AllocationReplayer().replay(execution, maxAllocation, allocationPolicy);
+		var score = scoreCalculator.calculate(execution, replay);
 		var optimizerScore = new OptimizerScore(score, nextParams);
 		paramsSelector.registerScore(optimizerScore);
 		show(optimizerScore);

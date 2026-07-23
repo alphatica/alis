@@ -1,3 +1,4 @@
+23 July 2026: Separate SignalExecutor discovery from allocation replay and scoring
 23 July 2026: Change Chart api to allow multiple panes
 22 July 2026: Change SignalExecutor api to similar to StrategyExecutor
 22 July 2026: Add commission to calculated value of BUY orders
@@ -27,7 +28,7 @@
 28 July 2025: Add position number limits and logs to SignalExecutor
 27 July 2025: Fix 'Remove random markets' result verifier
 26 July 2025: Fix FullPermutationParamsSelector
-15 July 2025: Add TradeSignal optimization
+15 July 2025: Add SignalGenerator optimization
 15 July 2025: Change Optimizer name to StrategyOptimizer
 12 July 2025: Add feature to check single signal effectiveness
 3 July 2025: Add option to set right margin in Charts

@@ -5,8 +5,11 @@ import com.alphatica.alis.condition.LowestClose;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.optimizer.params.IntParam;
+import com.alphatica.alis.trading.signalcheck.BuySignal;
 
-public class DonchianChannelSignal extends TradeSignal {
+import java.util.Optional;
+
+public class DonchianChannelSignalGenerator extends SignalGenerator {
 
     @IntParam(start = 10, step = 1, end = 400)
     private int highLength = 200;
@@ -17,16 +20,16 @@ public class DonchianChannelSignal extends TradeSignal {
     private HighestClose highestClose;
     private LowestClose lowestClose;
 
-    public DonchianChannelSignal() {
+    public DonchianChannelSignalGenerator() {
         paramsChanged();
     }
 
     @Override
-    public float shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
+    public Optional<BuySignal> shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
         if (highestClose.matches(marketData, marketDataSet)) {
-            return 1.0f;
+            return Optional.of(new BuySignal(1.0, 1.0));
         } else {
-            return Float.NaN;
+            return Optional.empty();
         }
     }
 

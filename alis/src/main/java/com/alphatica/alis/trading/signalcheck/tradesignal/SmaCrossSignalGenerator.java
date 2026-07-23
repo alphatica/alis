@@ -3,17 +3,20 @@ package com.alphatica.alis.trading.signalcheck.tradesignal;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.indicators.trend.Sma;
+import com.alphatica.alis.trading.signalcheck.BuySignal;
 
-public class SmaCrossTradeSignal extends TradeSignal {
+import java.util.Optional;
+
+public class SmaCrossSignalGenerator extends SignalGenerator {
     private final Sma smaShort = new Sma(50);
     private final Sma smaLong = new Sma(200);
     
     @Override
-    public float shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
+    public Optional<BuySignal> shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
         if (smaShort.calculate(marketData) > smaLong.calculate(marketData)) {
-            return 1.0f;
+            return Optional.of(new BuySignal(1.0, 1.0));
         } else {
-            return Float.NaN;
+            return Optional.empty();
         }
     }
 

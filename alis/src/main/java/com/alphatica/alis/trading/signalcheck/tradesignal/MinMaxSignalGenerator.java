@@ -3,16 +3,19 @@ package com.alphatica.alis.trading.signalcheck.tradesignal;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.indicators.trend.MinMax;
+import com.alphatica.alis.trading.signalcheck.BuySignal;
 
-public class MinMaxTradeSignal extends TradeSignal {
+import java.util.Optional;
+
+public class MinMaxSignalGenerator extends SignalGenerator {
     private final MinMax minMax = new MinMax(250);
 
     @Override
-    public float shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
+    public Optional<BuySignal> shouldBuy(TimeMarketData marketData, TimeMarketDataSet marketDataSet) {
         if (minMax.calculate(marketData) > 0) {
-            return 1.0f;
+            return Optional.of(new BuySignal(1.0, 1.0));
         } else {
-            return Float.NaN;
+            return Optional.empty();
         }
     }
 

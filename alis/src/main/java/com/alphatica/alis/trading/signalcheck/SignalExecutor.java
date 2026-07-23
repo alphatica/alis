@@ -8,11 +8,15 @@ import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.ranking.PositionReport;
 import com.alphatica.alis.trading.ranking.PositionReporter;
-import com.alphatica.alis.trading.signalcheck.scoregenerator.ScoreGenerator;
-import com.alphatica.alis.trading.signalcheck.tradesignal.TradeSignal;
+import com.alphatica.alis.trading.signalcheck.tradesignal.SignalGenerator;
 
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -23,217 +27,212 @@ import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_CLOSE;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_OPEN;
 
-/**
- * Executes a single signal check. Configure the executor before calling
- * {@link #execute(MarketData, Supplier, ScoreGenerator)} and create a new instance for every subsequent check.
- */
 public class SignalExecutor {
-    private final AtomicBoolean executed = new AtomicBoolean(false);
-    private final Map<MarketName, List<OpenTrade>> openTradeMap = HashMap.newHashMap(1024);
-
-	private Supplier<TradeSignal> signalSupplier;
-	private MarketData marketData;
-	private ScoreGenerator scoreGenerator;
 	private Time timeFrom = new Time(0);
 	private Time timeTo = new Time(Integer.MAX_VALUE);
 	private Predicate<TimeMarketData> marketFilter = ignored -> true;
 	private double commissionRate = 0.01;
-	private boolean tradeSecondarySignals = false;
-	private double currentlyOpened;
-
-	private int maxOpenedPositions = Integer.MAX_VALUE;
-	private boolean verbose = false;
+	private boolean tradeSecondarySignals;
+	private boolean verbose;
 	private PositionReporter positionReporter;
 	private String sourceId;
-	private boolean useCachedMarketData = false;
+	private boolean useCachedMarketData;
 
 	public SignalExecutor withTimeRange(Time timeFrom, Time timeTo) {
-		this.timeFrom = timeFrom;
-		this.timeTo = timeTo;
+		this.timeFrom = Objects.requireNonNull(timeFrom, "timeFrom");
+		this.timeTo = Objects.requireNonNull(timeTo, "timeTo");
+		if (timeTo.isBefore(timeFrom)) {
+			throw new IllegalArgumentException("timeTo must not be before timeFrom");
+		}
 		return this;
 	}
 
 	public SignalExecutor withMarketFilter(Predicate<TimeMarketData> marketFilter) {
-		this.marketFilter = marketFilter;
+		this.marketFilter = Objects.requireNonNull(marketFilter, "marketFilter");
 		return this;
 	}
 
 	public SignalExecutor withCommissionRate(double commissionRate) {
+		if (!Double.isFinite(commissionRate) || commissionRate < 0.0 || commissionRate >= 1.0) {
+			throw new IllegalArgumentException("commissionRate must be finite and in [0, 1)");
+		}
 		this.commissionRate = commissionRate;
 		return this;
 	}
 
 	public SignalExecutor withSecondarySignals(boolean enabled) {
-		this.tradeSecondarySignals = enabled;
+		tradeSecondarySignals = enabled;
 		return this;
 	}
-
-    public double execute(MarketData marketData, Supplier<TradeSignal> signalSupplier, ScoreGenerator scoreGenerator) {
-        ensureNotExecutedBefore();
-		this.marketData = Objects.requireNonNull(marketData);
-		this.signalSupplier = Objects.requireNonNull(signalSupplier);
-		this.scoreGenerator = Objects.requireNonNull(scoreGenerator);
-        populateOpenTradesMap();
-        List<Time> times = marketData.getTimes().stream().filter(t -> !t.isBefore(timeFrom) && !t.isAfter(timeTo)).toList();
-        for (Time time : times) {
-            checkTime(time);
-        }
-        closeLastTrades();
-        scoreGenerator.onDone();
-        return scoreGenerator.score();
-    }
-
-    private void ensureNotExecutedBefore() {
-        if (!executed.compareAndSet(false, true)) {
-            throw new IllegalStateException("SignalExecutor can only be executed once");
-        }
-    }
 
 	public SignalExecutor withPositionReporter(PositionReporter positionReporter, String sourceId) {
-		this.positionReporter = positionReporter;
-		this.sourceId = sourceId;
+		this.positionReporter = Objects.requireNonNull(positionReporter, "positionReporter");
+		this.sourceId = Objects.requireNonNull(sourceId, "sourceId");
 		return this;
 	}
 
-    public SignalExecutor withMaxOpenedPositions(int newMax) {
-        maxOpenedPositions = newMax;
-        return this;
-    }
-
-    public SignalExecutor withVerbose(boolean newVerbose) {
-        verbose = newVerbose;
-        return this;
-    }
+	public SignalExecutor withVerbose(boolean enabled) {
+		verbose = enabled;
+		return this;
+	}
 
 	public SignalExecutor useCachedMarketData() {
-		this.useCachedMarketData = true;
+		useCachedMarketData = true;
 		return this;
 	}
 
-    private void populateOpenTradesMap() {
-        for(Market market: marketData.listMarkets(ALL)) {
-            openTradeMap.put(market.getName(), new ArrayList<>(1024));
-        }
-    }
-
-    private void closeLastTrades() {
-        for (Map.Entry<MarketName, List<OpenTrade>> entry : openTradeMap.entrySet()) {
-            for (OpenTrade trade : entry.getValue()) {
-                if (trade.getTradeStatus() == TradeStatus.OPEN) {
-					float closePrice = (float) (trade.getLastKnownPrice() * (1 - commissionRate));
-                    closeTrade(entry.getKey(), trade, closePrice);
-                }
-            }
-        }
-    }
-
-    private void checkTime(Time time) {
-        TimeMarketDataSet marketDataSet = getTimeMarketDataSet(marketData, time);
-        log("%s =================================================", time);
-		reportPositions(time);
-		scoreGenerator.beforeTime(marketDataSet, openTradeMap);
-		for (TimeMarketData market : marketDataSet.listUpToDateMarkets(marketFilter)) {
-			checkMarketOnTime(market, marketDataSet);
+	public SignalExecutionResult execute(MarketData marketData, Supplier<SignalGenerator> signalGeneratorSupplier) {
+		Objects.requireNonNull(marketData, "marketData");
+		Objects.requireNonNull(signalGeneratorSupplier, "signalGeneratorSupplier");
+		List<Time> executionTimes = marketData.getTimes().stream()
+				.filter(time -> !time.isBefore(timeFrom) && !time.isAfter(timeTo))
+				.sorted()
+				.toList();
+		DiscoveryState state = new DiscoveryState(createTradeMap(marketData));
+		for (int eventIndex = 0; eventIndex < executionTimes.size(); eventIndex++) {
+			checkTime(marketData, signalGeneratorSupplier, state, executionTimes.get(eventIndex), eventIndex);
 		}
-		scoreGenerator.afterTime(marketDataSet, openTradeMap);
-		log("Opened positions: %.1f", currentlyOpened);
-    }
+		closeLastTrades(state, executionTimes.size());
+		return new SignalExecutionResult(timeFrom, timeTo, executionTimes, state.opportunities);
+	}
 
-	private TimeMarketDataSet getTimeMarketDataSet(MarketData marketData, Time time) {
-		if (useCachedMarketData) {
-			return marketData.cachedSnapshotAt(time);
-		} else {
-			return marketData.snapshotAt(time);
+	private Map<MarketName, List<OpenTrade>> createTradeMap(MarketData marketData) {
+		List<Market> markets = marketData.listMarkets(ALL).stream()
+				.sorted(Comparator.comparing(Market::getName))
+				.toList();
+		Map<MarketName, List<OpenTrade>> result = new LinkedHashMap<>();
+		for (Market market : markets) {
+			result.put(market.getName(), new ArrayList<>());
+		}
+		return result;
+	}
+
+	private void checkTime(MarketData marketData, Supplier<SignalGenerator> signalGeneratorSupplier,
+			DiscoveryState state, Time time, int eventIndex) {
+		TimeMarketDataSet marketDataSet = getTimeMarketDataSet(marketData, time);
+		List<TimeMarketData> currentMarkets = marketDataSet.listUpToDateMarkets(marketFilter).stream()
+				.sorted(Comparator.comparing(TimeMarketData::getMarketName))
+				.toList();
+		log("%s =================================================", time);
+		reportPositions(state.openTrades, time);
+
+		for (TimeMarketData market : currentMarkets) {
+			closePending(state, market, eventIndex);
+		}
+		for (TimeMarketData market : currentMarkets) {
+			openPending(state.openTrades.get(market.getMarketName()), market, eventIndex);
+		}
+		for (TimeMarketData market : currentMarkets) {
+			processOpenTrades(state.openTrades.get(market.getMarketName()), market, marketDataSet);
+		}
+		for (TimeMarketData market : currentMarkets) {
+			checkNewSignals(signalGeneratorSupplier, state, market, marketDataSet);
 		}
 	}
 
-	private void reportPositions(Time time) {
+	private TimeMarketDataSet getTimeMarketDataSet(MarketData marketData, Time time) {
+		return useCachedMarketData ? marketData.cachedSnapshotAt(time) : marketData.snapshotAt(time);
+	}
+
+	private void reportPositions(Map<MarketName, List<OpenTrade>> openTrades, Time time) {
 		if (positionReporter == null) {
 			return;
 		}
-		for(Map.Entry<MarketName, List<OpenTrade>> trades: openTradeMap.entrySet()) {
-			for(OpenTrade trade: trades.getValue()) {
+		for (Map.Entry<MarketName, List<OpenTrade>> entry : openTrades.entrySet()) {
+			for (OpenTrade trade : entry.getValue()) {
 				if (trade.getTradeStatus().countProfit()) {
-					positionReporter.report(new PositionReport(sourceId, time, trades.getKey(), trade.getPositionSize()));
+					positionReporter.report(new PositionReport(sourceId, time, entry.getKey(),
+							trade.getRequestedAllocation()));
 				}
 			}
 		}
 	}
 
-	private void checkMarketOnTime(TimeMarketData market, TimeMarketDataSet marketDataSet) {
-        var openedTrades = openTradeMap.get(market.getMarketName());
-        closePending(market, openedTrades);
-        openPending(market, openedTrades);
-        clearNotOpened(openedTrades);
-        processOpenTrades(market, marketDataSet, openedTrades);
-        checkNewSignals(market, marketDataSet, openedTrades);
-    }
-
-    private void clearNotOpened(List<OpenTrade> openedTrades) {
-		openedTrades.removeIf(trade -> trade.getTradeStatus() != TradeStatus.OPEN);
-    }
-
-    private void closePending(TimeMarketData market, List<OpenTrade> openedTrades) {
-        Iterator<OpenTrade> iterator = openedTrades.iterator();
-        while (iterator.hasNext()) {
-            var trade = iterator.next();
-            if (trade.getTradeStatus() == PENDING_CLOSE) {
-                iterator.remove();
-				closeTrade(market.getMarketName(), trade, (float) (market.getData(OPEN, 0) * (1 - commissionRate)));
-            }
-        }
-    }
-
-    private void openPending(TimeMarketData market, List<OpenTrade> openedTrades) {
-		float openPrice = (float) (market.getData(OPEN, 0) * (1 + commissionRate));
-		for (OpenTrade trade : openedTrades) {
-			if (trade.getTradeStatus() == PENDING_OPEN) {
-				currentlyOpened += trade.getPositionSize();
-				if (currentlyOpened > maxOpenedPositions) {
-					currentlyOpened -= trade.getPositionSize();
-					return;
-				}
-				trade.setOpenPrice(openPrice);
-                log("Opening %s at %2f size %.1f", market.getMarketName(), openPrice, trade.getPositionSize());
+	private void closePending(DiscoveryState state, TimeMarketData market, int eventIndex) {
+		List<OpenTrade> trades = state.openTrades.get(market.getMarketName());
+		Iterator<OpenTrade> iterator = trades.iterator();
+		while (iterator.hasNext()) {
+			OpenTrade trade = iterator.next();
+			if (trade.getTradeStatus() == PENDING_CLOSE) {
+				iterator.remove();
+				float closePrice = (float) (market.getData(OPEN, 0) * (1.0 - commissionRate));
+				recordClose(state, market.getMarketName(), trade, market.getTime(), eventIndex, closePrice);
 			}
 		}
-    }
+	}
 
-    private void closeTrade(MarketName market, OpenTrade trade, float closePrice) {
-        scoreGenerator.afterTrade(trade, closePrice);
-        currentlyOpened -= trade.getPositionSize();
-        log("Closing %s at %.2f bought at %.2f profit %.2f",  market, closePrice, trade.getOpenPrice(), percentChange(trade.getOpenPrice(), closePrice));
-    }
+	private void openPending(List<OpenTrade> trades, TimeMarketData market, int eventIndex) {
+		float openPrice = (float) (market.getData(OPEN, 0) * (1.0 + commissionRate));
+		for (OpenTrade trade : trades) {
+			if (trade.getTradeStatus() == PENDING_OPEN) {
+				trade.open(openPrice, market.getTime(), eventIndex);
+				log("Opening %s at %.2f allocation %.3f", market.getMarketName(), openPrice,
+						trade.getRequestedAllocation());
+			}
+		}
+	}
 
-    private void processOpenTrades(TimeMarketData market, TimeMarketDataSet marketDataSet, List<OpenTrade> openTrades) {
-        for (OpenTrade openTrade : openTrades) {
-            if (openTrade.getTradeStatus() != TradeStatus.OPEN) {
-                continue;
-            }
-            openTrade.updateLastKnownPrice(market.getData(CLOSE, 0));
-            openTrade.incrementBars();
-            var tradeSignal = openTrade.getSignal();
-            tradeSignal.afterClose(market, marketDataSet);
-            if (tradeSignal.shouldSell(market, marketDataSet)) {
-                openTrade.setStatus(PENDING_CLOSE);
-            }
-        }
-    }
+	private void processOpenTrades(List<OpenTrade> trades, TimeMarketData market,
+			TimeMarketDataSet marketDataSet) {
+		for (OpenTrade trade : trades) {
+			if (trade.getTradeStatus() != TradeStatus.OPEN) {
+				continue;
+			}
+			trade.updateLastKnownPrice(market.getData(CLOSE, 0), market.getTime());
+			trade.incrementBars();
+			SignalGenerator signalGenerator = trade.getSignalGenerator();
+			signalGenerator.afterClose(market, marketDataSet);
+			if (signalGenerator.shouldSell(market, marketDataSet)) {
+				trade.setStatus(PENDING_CLOSE);
+			}
+		}
+	}
 
-    private void checkNewSignals(TimeMarketData market, TimeMarketDataSet marketDataSet, List<OpenTrade> openTrades) {
-        if (openTrades.isEmpty() || tradeSecondarySignals) {
-            var tradeSignal = signalSupplier.get();
-            var newPosition = tradeSignal.shouldBuy(market, marketDataSet);
-            if (newPosition > 0) {
-                openTrades.add(new OpenTrade(tradeSignal, newPosition));
-            }
-        }
-    }
+	private void checkNewSignals(Supplier<SignalGenerator> signalGeneratorSupplier, DiscoveryState state,
+			TimeMarketData market, TimeMarketDataSet marketDataSet) {
+		List<OpenTrade> trades = state.openTrades.get(market.getMarketName());
+		if (!trades.isEmpty() && !tradeSecondarySignals) {
+			return;
+		}
+		SignalGenerator signalGenerator = Objects.requireNonNull(signalGeneratorSupplier.get(),
+				"signalGeneratorSupplier result");
+		signalGenerator.shouldBuy(market, marketDataSet).ifPresent(buySignal -> trades.add(
+				new OpenTrade(signalGenerator, buySignal, market.getTime())));
+	}
 
+	private void closeLastTrades(DiscoveryState state, int finalEventIndex) {
+		for (Map.Entry<MarketName, List<OpenTrade>> entry : state.openTrades.entrySet()) {
+			for (OpenTrade trade : entry.getValue()) {
+				if (trade.getTradeStatus() == TradeStatus.OPEN || trade.getTradeStatus() == PENDING_CLOSE) {
+					float closePrice = (float) (trade.getLastKnownPrice() * (1.0 - commissionRate));
+					recordClose(state, entry.getKey(), trade, trade.getLastKnownTime(), finalEventIndex, closePrice);
+				}
+			}
+		}
+	}
+
+	private void recordClose(DiscoveryState state, MarketName market, OpenTrade trade, Time closeTime,
+			int closeEventIndex, float closePrice) {
+		state.opportunities.add(new TradeOpportunity(
+				market, trade.getSignalTime(), trade.getOpenTime(), closeTime,
+				trade.getOpenEventIndex(), closeEventIndex, trade.getEffectiveOpenPrice(), closePrice,
+				trade.getBars(), trade.getRequestedAllocation(), trade.getPriority()));
+		log("Closing %s at %.2f bought at %.2f profit %.2f", market, closePrice,
+				trade.getEffectiveOpenPrice(), percentChange(trade.getEffectiveOpenPrice(), closePrice));
+	}
 
 	private void log(String format, Object... args) {
 		if (verbose) {
-			System.out.printf((format) + "%n", args);
+			System.out.printf(format + "%n", args);
+		}
+	}
+
+	private static final class DiscoveryState {
+		private final Map<MarketName, List<OpenTrade>> openTrades;
+		private final List<TradeOpportunity> opportunities = new ArrayList<>();
+
+		private DiscoveryState(Map<MarketName, List<OpenTrade>> openTrades) {
+			this.openTrades = openTrades;
 		}
 	}
 }
