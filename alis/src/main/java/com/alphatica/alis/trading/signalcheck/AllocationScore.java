@@ -1,12 +1,12 @@
 package com.alphatica.alis.trading.signalcheck;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
 
 public record AllocationScore(
 		AllocationReplayResult replayResult,
 		double score
 ) {
 	public AllocationScore {
-		Objects.requireNonNull(replayResult, "replayResult");
+		requireNonNull(replayResult, "replayResult");
 	}
 }

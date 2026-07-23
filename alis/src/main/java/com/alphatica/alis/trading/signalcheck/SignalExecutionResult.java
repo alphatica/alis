@@ -4,8 +4,9 @@ import com.alphatica.alis.data.time.Time;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
+
+import static java.util.Objects.requireNonNull;
 
 public record SignalExecutionResult(
 		Time startTime,
@@ -14,8 +15,8 @@ public record SignalExecutionResult(
 		List<TradeOpportunity> opportunities
 ) {
 	public SignalExecutionResult {
-		Objects.requireNonNull(startTime, "startTime");
-		Objects.requireNonNull(endTime, "endTime");
+		requireNonNull(startTime, "startTime");
+		requireNonNull(endTime, "endTime");
 		if (endTime.isBefore(startTime)) {
 			throw new IllegalArgumentException("endTime must not be before startTime");
 		}

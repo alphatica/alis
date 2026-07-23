@@ -5,7 +5,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
 
 public final class AllocationReplayer {
 	public static final double EPSILON = 1.0e-9;
@@ -22,7 +23,7 @@ public final class AllocationReplayer {
 	public List<AllocationReplayResult> replayAll(SignalExecutionResult execution,
 			List<Double> maxAllocations, AllocationPolicy policy) {
 		PreparedEvents events = prepare(execution);
-		Objects.requireNonNull(maxAllocations, "maxAllocations");
+		requireNonNull(maxAllocations, "maxAllocations");
 		List<Double> limits = List.copyOf(maxAllocations);
 		List<AllocationReplayResult> results = new ArrayList<>(limits.size());
 		for (double limit : limits) {
@@ -38,7 +39,7 @@ public final class AllocationReplayer {
 	}
 
 	private PreparedEvents prepare(SignalExecutionResult execution) {
-		Objects.requireNonNull(execution, "execution");
+		requireNonNull(execution, "execution");
 		int eventCount = execution.executionTimes().size();
 		List<List<TradeOpportunity>> opens = createEventLists(eventCount);
 		List<List<TradeOpportunity>> closes = createEventLists(eventCount + 1);
@@ -63,7 +64,7 @@ public final class AllocationReplayer {
 	private AllocationReplayResult replayPrepared(PreparedEvents events, double maxAllocation,
 			AllocationPolicy policy) {
 		validateMaxAllocation(maxAllocation);
-		Objects.requireNonNull(policy, "policy");
+		requireNonNull(policy, "policy");
 		Map<TradeOpportunity, Double> activeAllocations = new HashMap<>();
 		List<SelectedTrade> selectedTrades = new ArrayList<>();
 		double usedAllocation = 0.0;

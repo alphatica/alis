@@ -1,10 +1,10 @@
 package com.alphatica.alis.trading.signalcheck;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
 
 public record SelectedTrade(TradeOpportunity opportunity, double actualAllocation) {
 	public SelectedTrade {
-		Objects.requireNonNull(opportunity, "opportunity");
+		requireNonNull(opportunity, "opportunity");
 		if (!Double.isFinite(actualAllocation) || actualAllocation <= 0.0) {
 			throw new IllegalArgumentException("actualAllocation must be finite and positive");
 		}

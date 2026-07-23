@@ -3,7 +3,7 @@ package com.alphatica.alis.trading.signalcheck;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
 
 public record TradeOpportunity(
 		MarketName market,
@@ -19,10 +19,10 @@ public record TradeOpportunity(
 		double priority
 ) {
 	public TradeOpportunity {
-		Objects.requireNonNull(market, "market");
-		Objects.requireNonNull(signalTime, "signalTime");
-		Objects.requireNonNull(openTime, "openTime");
-		Objects.requireNonNull(closeTime, "closeTime");
+		requireNonNull(market, "market");
+		requireNonNull(signalTime, "signalTime");
+		requireNonNull(openTime, "openTime");
+		requireNonNull(closeTime, "closeTime");
 		if (openEventIndex < 0 || closeEventIndex <= openEventIndex) {
 			throw new IllegalArgumentException("closeEventIndex must be greater than openEventIndex");
 		}

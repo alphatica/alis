@@ -14,10 +14,11 @@ import com.alphatica.alis.trading.signalcheck.tradesignal.SignalGenerator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+
+import static java.util.Objects.requireNonNull;
 
 public class SignalOptimizer extends Optimizer {
 
@@ -41,17 +42,17 @@ public class SignalOptimizer extends Optimizer {
 						   Predicate<TimeMarketData> marketFilter, float commissionRate, boolean tradeSecondarySignals,
 						   ParametersSelection parametersSelection, double maxAllocation,
 						   AllocationPolicy allocationPolicy, ScoreCalculator scoreCalculator) throws OptimizerException {
-		this.signalGeneratorSupplier = Objects.requireNonNull(signalGeneratorSupplier, "signalGeneratorSupplier");
-		this.marketData = Objects.requireNonNull(marketData, "marketData");
-		this.startTime = Objects.requireNonNull(startTime, "startTime");
-		this.endTime = Objects.requireNonNull(endTime, "endTime");
-		this.marketFilter = Objects.requireNonNull(marketFilter, "marketFilter");
+		this.signalGeneratorSupplier = requireNonNull(signalGeneratorSupplier, "signalGeneratorSupplier");
+		this.marketData = requireNonNull(marketData, "marketData");
+		this.startTime = requireNonNull(startTime, "startTime");
+		this.endTime = requireNonNull(endTime, "endTime");
+		this.marketFilter = requireNonNull(marketFilter, "marketFilter");
 		this.commissionRate = commissionRate;
 		this.tradeSecondarySignals = tradeSecondarySignals;
 		this.maxAllocation = maxAllocation;
 		AllocationReplayer.validateMaxAllocation(maxAllocation);
-		this.allocationPolicy = Objects.requireNonNull(allocationPolicy, "allocationPolicy");
-		this.scoreCalculator = Objects.requireNonNull(scoreCalculator, "scoreCalculator");
+		this.allocationPolicy = requireNonNull(allocationPolicy, "allocationPolicy");
+		this.scoreCalculator = requireNonNull(scoreCalculator, "scoreCalculator");
 		var fields = signalGeneratorSupplier.get().getClass().getDeclaredFields();
 		Validator.validate(fields);
 		ParamsStepsSet paramsStepsSet = buildParamsStepsSet(fields);

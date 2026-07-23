@@ -10,14 +10,14 @@ import com.alphatica.alis.trading.order.Direction;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 public record Trade(MarketName marketName, Direction direction, double price, int quantity, double commission) implements AccountActionType {
 	@Override
 	public void doOnAccount(Time time, Account account) throws AccountActionException {
-		if (Objects.requireNonNull(direction) == Direction.BUY) {
+		if (requireNonNull(direction) == Direction.BUY) {
 			account.addPosition(marketName, new PositionEntry(time, quantity, price), commission);
 		} else if (direction == Direction.SELL) {
 			account.reducePosition(marketName, new PositionExit(time, quantity, price), commission);

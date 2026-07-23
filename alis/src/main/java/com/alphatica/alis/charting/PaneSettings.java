@@ -1,7 +1,8 @@
 package com.alphatica.alis.charting;
 
 import java.util.List;
-import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
 
 public record PaneSettings(
 		double heightWeight,
@@ -12,7 +13,7 @@ public record PaneSettings(
 		if (!Double.isFinite(heightWeight) || heightWeight <= 0.0) {
 			throw new IllegalArgumentException("heightWeight must be finite and greater than zero");
 		}
-		horizontalLines = List.copyOf(Objects.requireNonNull(horizontalLines, "horizontalLines"));
+		horizontalLines = List.copyOf(requireNonNull(horizontalLines, "horizontalLines"));
 	}
 
 	public static PaneSettings defaults() {

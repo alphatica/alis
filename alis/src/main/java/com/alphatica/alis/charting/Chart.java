@@ -24,9 +24,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+
+import static java.util.Objects.requireNonNull;
 
 public class Chart<X extends Comparable<X>> {
 
@@ -41,10 +42,10 @@ public class Chart<X extends Comparable<X>> {
 			List<LineChartData<X>> lines,
 			PaneSettings settings) {
 		panes.add(new ChartPane<>(
-				Objects.requireNonNull(scale, "scale"),
+				requireNonNull(scale, "scale"),
 				title,
-				List.copyOf(Objects.requireNonNull(lines, "lines")),
-				Objects.requireNonNull(settings, "settings")));
+				List.copyOf(requireNonNull(lines, "lines")),
+				requireNonNull(settings, "settings")));
 	}
 
 	public void setXName(String xName) {

@@ -16,7 +16,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -26,6 +25,7 @@ import static com.alphatica.alis.data.market.MarketFilters.ALL;
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_CLOSE;
 import static com.alphatica.alis.trading.signalcheck.TradeStatus.PENDING_OPEN;
+import static java.util.Objects.requireNonNull;
 
 public class SignalExecutor {
 	private Time timeFrom = new Time(0);
@@ -39,8 +39,8 @@ public class SignalExecutor {
 	private boolean useCachedMarketData;
 
 	public SignalExecutor withTimeRange(Time timeFrom, Time timeTo) {
-		this.timeFrom = Objects.requireNonNull(timeFrom, "timeFrom");
-		this.timeTo = Objects.requireNonNull(timeTo, "timeTo");
+		this.timeFrom = requireNonNull(timeFrom, "timeFrom");
+		this.timeTo = requireNonNull(timeTo, "timeTo");
 		if (timeTo.isBefore(timeFrom)) {
 			throw new IllegalArgumentException("timeTo must not be before timeFrom");
 		}
@@ -48,7 +48,7 @@ public class SignalExecutor {
 	}
 
 	public SignalExecutor withMarketFilter(Predicate<TimeMarketData> marketFilter) {
-		this.marketFilter = Objects.requireNonNull(marketFilter, "marketFilter");
+		this.marketFilter = requireNonNull(marketFilter, "marketFilter");
 		return this;
 	}
 
@@ -66,8 +66,8 @@ public class SignalExecutor {
 	}
 
 	public SignalExecutor withPositionReporter(PositionReporter positionReporter, String sourceId) {
-		this.positionReporter = Objects.requireNonNull(positionReporter, "positionReporter");
-		this.sourceId = Objects.requireNonNull(sourceId, "sourceId");
+		this.positionReporter = requireNonNull(positionReporter, "positionReporter");
+		this.sourceId = requireNonNull(sourceId, "sourceId");
 		return this;
 	}
 
@@ -82,8 +82,8 @@ public class SignalExecutor {
 	}
 
 	public SignalExecutionResult execute(MarketData marketData, Supplier<SignalGenerator> signalGeneratorSupplier) {
-		Objects.requireNonNull(marketData, "marketData");
-		Objects.requireNonNull(signalGeneratorSupplier, "signalGeneratorSupplier");
+		requireNonNull(marketData, "marketData");
+		requireNonNull(signalGeneratorSupplier, "signalGeneratorSupplier");
 		List<Time> executionTimes = marketData.getTimes().stream()
 				.filter(time -> !time.isBefore(timeFrom) && !time.isAfter(timeTo))
 				.sorted()
@@ -194,7 +194,7 @@ public class SignalExecutor {
 		if (!trades.isEmpty() && !tradeSecondarySignals) {
 			return;
 		}
-		SignalGenerator signalGenerator = Objects.requireNonNull(signalGeneratorSupplier.get(),
+		SignalGenerator signalGenerator = requireNonNull(signalGeneratorSupplier.get(),
 				"signalGeneratorSupplier result");
 		signalGenerator.shouldBuy(market, marketDataSet).ifPresent(buySignal -> trades.add(
 				new OpenTrade(signalGenerator, buySignal, market.getTime())));

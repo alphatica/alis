@@ -1,7 +1,8 @@
 package com.alphatica.alis.trading.signalcheck;
 
 import java.util.List;
-import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
 
 public record AllocationReplayResult(
 		double maxAllocation,
@@ -13,7 +14,7 @@ public record AllocationReplayResult(
 ) {
 	public AllocationReplayResult {
 		AllocationReplayer.validateMaxAllocation(maxAllocation);
-		Objects.requireNonNull(policy, "policy");
+		requireNonNull(policy, "policy");
 		acceptedTrades = List.copyOf(acceptedTrades);
 		if (rejectedTrades < 0) {
 			throw new IllegalArgumentException("rejectedTrades must not be negative");
