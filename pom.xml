@@ -33,7 +33,6 @@
                     <rulesets>
                         <ruleset>${maven.multiModuleProjectDirectory}/config/pmd/ruleset.xml</ruleset>
                     </rulesets>
-                    <includeTests>true</includeTests>
                     <minimumTokens>80</minimumTokens>
                     <failOnViolation>true</failOnViolation>
                     <printFailingErrors>true</printFailingErrors>
@@ -41,10 +40,19 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <id>code-quality</id>
+                        <id>pmd-quality</id>
                         <phase>verify</phase>
+                        <configuration>
+                            <includeTests>true</includeTests>
+                        </configuration>
                         <goals>
                             <goal>check</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>cpd-quality</id>
+                        <phase>verify</phase>
+                        <goals>
                             <goal>cpd-check</goal>
                         </goals>
                     </execution>

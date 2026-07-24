@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="ALIS quality rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        High-confidence PMD rules for production and test code. The ruleset deliberately
+        avoids subjective formatting rules, so it can be enabled for the whole multi-module
+        build without requiring a repository-wide style migration.
+    </description>
+
+    <!-- Defects that are likely to cause incorrect behaviour at runtime. -->
+    <rule ref="category/java/errorprone.xml/AvoidCallingFinalize"/>
+    <rule ref="category/java/errorprone.xml/AvoidEnumAsIdentifier"/>
+    <rule ref="category/java/errorprone.xml/AvoidInstanceofChecksInCatchClause"/>
+    <rule ref="category/java/errorprone.xml/AvoidMultipleUnaryOperators"/>
+    <rule ref="category/java/errorprone.xml/AvoidUsingOctalValues"/>
+    <rule ref="category/java/errorprone.xml/BrokenNullCheck"/>
+    <rule ref="category/java/errorprone.xml/CloneMethodMustImplementCloneable"/>
+    <rule ref="category/java/errorprone.xml/ComparisonWithNaN"/>
+    <rule ref="category/java/errorprone.xml/DoNotExtendJavaLangThrowable"/>
+    <rule ref="category/java/errorprone.xml/DontImportSun"/>
+    <rule ref="category/java/errorprone.xml/EqualsNull"/>
+    <rule ref="category/java/errorprone.xml/IdempotentOperations"/>
+    <rule ref="category/java/errorprone.xml/JumbledIncrementer"/>
+    <rule ref="category/java/errorprone.xml/ImplicitSwitchFallThrough"/>
+    <rule ref="category/java/errorprone.xml/NonCaseLabelInSwitchStatement"/>
+    <rule ref="category/java/errorprone.xml/UnnecessaryCaseChange"/>
+    <rule ref="category/java/errorprone.xml/UseEqualsToCompareStrings"/>
+
+    <!-- Security regressions that should never be introduced accidentally. -->
+    <rule ref="category/java/security.xml/HardCodedCryptoKey"/>
+    <rule ref="category/java/security.xml/InsecureCryptoIv"/>
+
+    <!-- Avoid a few common, objectively inefficient operations. -->
+    <rule ref="category/java/performance.xml/AddEmptyString"/>
+    <rule ref="category/java/performance.xml/BigIntegerInstantiation"/>
+    <rule ref="category/java/performance.xml/InefficientStringBuffering"/>
+    <rule ref="category/java/performance.xml/StringInstantiation"/>
+</ruleset>
