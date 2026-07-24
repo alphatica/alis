@@ -8,6 +8,7 @@ public class CollectionsTools {
 	private CollectionsTools() {
 	}
 
+	@SafeVarargs
 	public static <T> List<T> arrayList(T... elements) {
 		List<T> list = new ArrayList<>();
 		Collections.addAll(list, elements);
