@@ -1,6 +1,4 @@
-package com.alphatica.alis.studio.tools;
-
-import com.alphatica.alis.studio.view.tools.ErrorDialog;
+package com.alphatica.alis.studio.view.tools;
 
 import java.util.function.Supplier;
 

@@ -32,8 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
 import static com.alphatica.alis.studio.state.StateChange.DATA_LOADED;
+import static com.alphatica.alis.studio.view.tools.SwingChangeListeners.addUiListener;
 import static com.alphatica.alis.trading.optimizer.ParametersSelection.FULL_PERMUTATION;
 
 public class OptimizationPane extends JPanel {
@@ -72,7 +72,7 @@ public class OptimizationPane extends JPanel {
 		mainSplitPane.setRightComponent(createRightPane());
 
 		add(mainSplitPane, BorderLayout.CENTER);
-		addListener(DATA_LOADED, this::updateDefaults);
+		addUiListener(DATA_LOADED, this::updateDefaults);
 
 		// Initialize button states and listeners
 		startButton.addActionListener(e -> startOptimization());

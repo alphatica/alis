@@ -1,4 +1,4 @@
-package com.alphatica.alis.studio.tools;
+package com.alphatica.alis.studio.dao;
 
 import com.alphatica.alis.trading.account.actions.AccountAction;
 import com.alphatica.alis.trading.account.actions.AccountActionParser;

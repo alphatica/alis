@@ -1,7 +1,7 @@
 package com.alphatica.alis.trading.account.actions;
 
 import com.alphatica.alis.data.time.Time;
-import com.alphatica.alis.tools.java.MarketAttributes;
+import com.alphatica.alis.data.market.MarketAttributes;
 import com.alphatica.alis.trading.account.Account;
 
 import java.util.List;

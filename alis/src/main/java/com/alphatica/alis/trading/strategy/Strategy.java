@@ -2,7 +2,7 @@ package com.alphatica.alis.trading.strategy;
 
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.java.MarketAttributes;
+import com.alphatica.alis.data.market.MarketAttributes;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.optimizer.Optimizable;
 import com.alphatica.alis.trading.order.Order;

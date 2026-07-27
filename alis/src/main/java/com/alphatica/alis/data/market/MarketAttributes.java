@@ -1,6 +1,4 @@
-package com.alphatica.alis.tools.java;
-
-import com.alphatica.alis.data.market.MarketName;
+package com.alphatica.alis.data.market;
 
 import java.util.Arrays;
 import java.util.HashSet;

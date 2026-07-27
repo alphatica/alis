@@ -7,7 +7,7 @@ import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.indicators.Indicator;
 import com.alphatica.alis.indicators.trend.MinMax;
-import com.alphatica.alis.tools.math.Regressions;
+import com.alphatica.alis.indicators.Regressions;
 
 import java.io.File;
 import java.io.IOException;

@@ -25,7 +25,7 @@
     <rule ref="category/java/errorprone.xml/IdempotentOperations"/>
     <rule ref="category/java/errorprone.xml/JumbledIncrementer"/>
     <rule ref="category/java/errorprone.xml/ImplicitSwitchFallThrough"/>
-    <rule ref="category/java/errorprone.xml/NonCaseLabelInSwitchStatement"/>
+    <rule ref="category/java/errorprone.xml/NonCaseLabelInSwitch"/>
     <rule ref="category/java/errorprone.xml/UnnecessaryCaseChange"/>
     <rule ref="category/java/errorprone.xml/UseEqualsToCompareStrings"/>
 
@@ -38,4 +38,45 @@
     <rule ref="category/java/performance.xml/BigIntegerInstantiation"/>
     <rule ref="category/java/performance.xml/InefficientStringBuffering"/>
     <rule ref="category/java/performance.xml/StringInstantiation"/>
+
+    <!-- Keep methods and classes small enough to understand and test. NCSS counts
+         statements, ignoring comments and blank lines. -->
+    <rule ref="category/java/design.xml/NcssCount">
+        <properties>
+            <property name="methodReportLevel" value="40"/>
+            <property name="classReportLevel" value="500"/>
+        </properties>
+    </rule>
+
+    <!-- Flag deeply nested and hard-to-follow control flow. -->
+    <rule ref="category/java/design.xml/AvoidDeeplyNestedIfStmts">
+        <properties>
+            <property name="problemDepth" value="3"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/CognitiveComplexity">
+        <properties>
+            <property name="reportLevel" value="15"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/CyclomaticComplexity">
+        <properties>
+            <property name="methodReportLevel" value="10"/>
+            <property name="classReportLevel" value="80"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/NPathComplexity">
+        <properties>
+            <property name="reportLevel" value="200"/>
+        </properties>
+    </rule>
+
+    <!-- Detect classes with too many collaborators or responsibilities. -->
+    <rule ref="category/java/design.xml/CouplingBetweenObjects">
+        <properties>
+            <property name="threshold" value="20"/>
+        </properties>
+    </rule>
+    <rule ref="category/java/design.xml/ExcessiveParameterList"/>
+    <rule ref="category/java/design.xml/GodClass"/>
 </ruleset>

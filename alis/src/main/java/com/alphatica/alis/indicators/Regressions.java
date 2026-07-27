@@ -1,8 +1,8 @@
-package com.alphatica.alis.tools.math;
+package com.alphatica.alis.indicators;
 
+import com.alphatica.alis.data.FloatArraySlice;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.tools.data.FloatArraySlice;
 
 public class Regressions {
 	private Regressions() {

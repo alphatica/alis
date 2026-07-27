@@ -8,7 +8,7 @@ import com.alphatica.alis.data.market.MarketType;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.FloatArraySlice;
+import com.alphatica.alis.data.FloatArraySlice;
 import com.alphatica.alis.tools.data.TestData;
 import com.alphatica.alis.tools.data.TestMarket;
 import com.alphatica.alis.trading.ranking.PositionReporter;

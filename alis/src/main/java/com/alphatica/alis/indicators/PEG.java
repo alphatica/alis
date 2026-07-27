@@ -2,7 +2,7 @@ package com.alphatica.alis.indicators;
 
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.tools.data.FloatArraySlice;
+import com.alphatica.alis.data.FloatArraySlice;
 
 import java.util.ArrayList;
 import java.util.List;

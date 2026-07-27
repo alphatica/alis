@@ -1,10 +1,10 @@
 package com.alphatica.alis.studio.logic.data.stooq;
 
+import com.alphatica.alis.data.loader.DataProcessingException;
 import com.alphatica.alis.data.loader.ThrowingMarketDataSupplier;
 import com.alphatica.alis.data.loader.stooq.StooqLoader;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.studio.state.AppState;
-import com.alphatica.alis.studio.view.tools.ErrorDialog;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +12,10 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static com.alphatica.alis.data.market.MarketFilters.ALL;
+import static com.alphatica.alis.data.loader.DataProcessingException.Reason.DATA_NOT_FOUND;
+import static com.alphatica.alis.data.loader.DataProcessingException.Reason.LOAD_FAILED;
+import static com.alphatica.alis.data.loader.DataProcessingException.Reason.NO_DATA;
+import static com.alphatica.alis.data.loader.DataProcessingException.Reason.UNZIP_FAILED;
 import static com.alphatica.alis.studio.Constants.STUDIO_WORK_DIR;
 
 public class StooqDataProvider {
@@ -33,20 +37,20 @@ public class StooqDataProvider {
 	}
 
 	private static void handleDataLoading(ThrowingMarketDataSupplier loader) {
+		AppState.setDataStatus("Loading data...");
+		MarketData marketData;
 		try {
-			AppState.setDataStatus("Loading data...");
-			MarketData marketData = loader.get();
-			if (marketData.listMarkets(ALL).isEmpty()) {
-				AppState.setDataStatus("No data found");
-				ErrorDialog.showError("No data", "Empty data", null);
-			} else {
-				AppState.setMarketData(marketData);
-				AppState.setDataStatus("Data loaded");
-			}
+			marketData = loader.get();
 		} catch (Exception ex) {
 			AppState.setDataStatus("Unable to load data");
-			ErrorDialog.showError("Unable to load new data", ex.toString(), ex);
+			throw new DataProcessingException(LOAD_FAILED, ex);
 		}
+		if (marketData.listMarkets(ALL).isEmpty()) {
+			AppState.setDataStatus("No data found");
+			throw new DataProcessingException(NO_DATA);
+		}
+		AppState.setMarketData(marketData);
+		AppState.setDataStatus("Data loaded");
 	}
 
 	public static void unzipNewData() {
@@ -59,7 +63,7 @@ public class StooqDataProvider {
 			}
 		}
 		AppState.setDataStatus("Data not found");
-		ErrorDialog.showError("Data not found", "Download data from Stooq.pl first", null);
+		throw new DataProcessingException(DATA_NOT_FOUND);
 	}
 
 	private static boolean tryDir(String dir) {
@@ -69,9 +73,8 @@ public class StooqDataProvider {
 			return okPl || okUS;
 		} catch (IOException e) {
 			AppState.setDataStatus("Unzip failed");
-			ErrorDialog.showError("Unable to unzip", e.toString(), e);
+			throw new DataProcessingException(UNZIP_FAILED, e);
 		}
-		return false;
 	}
 
 	private StooqDataProvider() {

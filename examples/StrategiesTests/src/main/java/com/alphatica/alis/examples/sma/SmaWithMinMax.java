@@ -5,7 +5,7 @@ import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.indicators.trend.MinMax;
 import com.alphatica.alis.indicators.trend.Sma;
-import com.alphatica.alis.tools.data.FloatArraySlice;
+import com.alphatica.alis.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.strategy.Strategy;

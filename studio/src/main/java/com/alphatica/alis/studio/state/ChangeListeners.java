@@ -1,13 +1,9 @@
 package com.alphatica.alis.studio.state;
 
-import com.alphatica.alis.studio.view.tools.SwingHelper;
-
-import javax.swing.JLabel;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 public class ChangeListeners {
 	private static final Map<StateChange, List<Runnable>> listeners = new EnumMap<>(StateChange.class);
@@ -22,11 +18,7 @@ public class ChangeListeners {
 	public static void publish(StateChange stateChange) {
 		List<Runnable> eventListeners = listeners.get(stateChange);
 		if (eventListeners != null) {
-			eventListeners.forEach(SwingHelper::runUiThread);
+			eventListeners.forEach(Runnable::run);
 		}
-	}
-
-	public static void bindLabelToEvent(JLabel label, StateChange stateChange, Supplier<String> supplier) {
-		addListener(stateChange, () -> label.setText(supplier.get()));
 	}
 }

@@ -1,4 +1,4 @@
-package com.alphatica.alis.tools.data;
+package com.alphatica.alis.data;
 
 import org.junit.jupiter.api.Test;
 

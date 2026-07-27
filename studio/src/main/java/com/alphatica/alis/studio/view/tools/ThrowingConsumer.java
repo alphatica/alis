@@ -1,4 +1,4 @@
-package com.alphatica.alis.studio.tools;
+package com.alphatica.alis.studio.view.tools;
 
 @FunctionalInterface
 public interface ThrowingConsumer<T> {

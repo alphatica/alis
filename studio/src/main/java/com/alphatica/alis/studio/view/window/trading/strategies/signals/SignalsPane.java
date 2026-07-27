@@ -8,7 +8,7 @@ import com.alphatica.alis.studio.view.tools.ErrorDialog;
 import com.alphatica.alis.studio.view.tools.components.StrategySelector;
 import com.alphatica.alis.studio.view.tools.components.TimeTextField;
 import com.alphatica.alis.studio.view.tools.models.ReadOnlyTableModel;
-import com.alphatica.alis.tools.java.MarketAttributes;
+import com.alphatica.alis.data.market.MarketAttributes;
 import com.alphatica.alis.tools.java.StringHelper;
 import com.alphatica.alis.trading.strategy.Strategy;
 
@@ -22,11 +22,11 @@ import java.util.List;
 import java.util.Map;
 
 import static com.alphatica.alis.studio.logic.trading.signals.SignalsProvider.getOrdersTableData;
-import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
 import static com.alphatica.alis.studio.state.StateChange.DATA_LOADED;
+import static com.alphatica.alis.studio.view.tools.SwingChangeListeners.addUiListener;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.runUiThread;
-import static com.alphatica.alis.tools.java.MarketAttributes.getAttributeNames;
+import static com.alphatica.alis.data.market.MarketAttributes.getAttributeNames;
 
 public class SignalsPane extends JPanel {
 	private final TimeTextField startTimeTextField = new TimeTextField("time", 8);
@@ -58,7 +58,7 @@ public class SignalsPane extends JPanel {
 	}
 
 	private void setupListeners() {
-		addListener(DATA_LOADED, this::updateStartTimeTextField);
+		addUiListener(DATA_LOADED, this::updateStartTimeTextField);
 		applySignalsToPortfolio.addActionListener(e -> applySignalsToPortfolioAction());
 	}
 

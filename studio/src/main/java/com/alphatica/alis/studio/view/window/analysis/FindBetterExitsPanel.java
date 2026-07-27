@@ -4,7 +4,7 @@ import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.studio.state.AppState;
-import com.alphatica.alis.studio.tools.AccountActionCSVFacade;
+import com.alphatica.alis.studio.dao.AccountActionCSVFacade;
 import com.alphatica.alis.studio.view.tools.ErrorDialog;
 import com.alphatica.alis.studio.view.tools.components.SmartComboBox;
 import com.alphatica.alis.studio.view.window.analysis.resultable.ResultTable;

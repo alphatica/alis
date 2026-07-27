@@ -2,7 +2,7 @@ package com.alphatica.alis.condition;
 
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.tools.data.FloatArraySlice;
+import com.alphatica.alis.data.FloatArraySlice;
 
 import static com.alphatica.alis.data.layer.Layer.CLOSE;
 

@@ -3,7 +3,7 @@ package com.alphatica.alis.data.time;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
-import com.alphatica.alis.tools.data.FloatArraySlice;
+import com.alphatica.alis.data.FloatArraySlice;
 
 import java.util.List;
 

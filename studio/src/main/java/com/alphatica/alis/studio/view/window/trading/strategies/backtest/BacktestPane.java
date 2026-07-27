@@ -3,7 +3,7 @@ package com.alphatica.alis.studio.view.window.trading.strategies.backtest;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.studio.state.AppState;
-import com.alphatica.alis.studio.tools.AccountActionCSVFacade;
+import com.alphatica.alis.studio.dao.AccountActionCSVFacade;
 import com.alphatica.alis.studio.view.tools.ErrorDialog;
 import com.alphatica.alis.studio.view.tools.components.ComponentValidationException;
 import com.alphatica.alis.studio.view.tools.components.DoubleTextField;
@@ -30,9 +30,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
 import static com.alphatica.alis.studio.state.ChangeListeners.publish;
 import static com.alphatica.alis.studio.state.StateChange.*;
+import static com.alphatica.alis.studio.view.tools.SwingChangeListeners.addUiListener;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.runUiThread;
 import static com.alphatica.alis.tools.java.StringHelper.emptyOnNull;
@@ -78,7 +78,7 @@ public class BacktestPane extends JPanel {
 		add(mainSplitPane, BorderLayout.CENTER);
 
 		// Add listener for data loaded
-		addListener(DATA_LOADED, this::updateDefaults);
+		addUiListener(DATA_LOADED, this::updateDefaults);
 	}
 
 	private JPanel createLeftPane() {

@@ -1,12 +1,14 @@
 package com.alphatica.alis.studio.view.window.data;
 
 import com.alphatica.alis.data.layer.Layer;
+import com.alphatica.alis.data.loader.DataProcessingException;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.studio.logic.data.stooq.StooqDataProvider;
 import com.alphatica.alis.studio.state.AppState;
+import com.alphatica.alis.studio.view.tools.ErrorDialog;
 
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
@@ -25,10 +27,10 @@ import java.util.Comparator;
 import java.util.List;
 
 import static com.alphatica.alis.data.market.MarketFilters.ALL;
-import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
-import static com.alphatica.alis.studio.state.ChangeListeners.bindLabelToEvent;
 import static com.alphatica.alis.studio.state.StateChange.DATA_LOADED;
 import static com.alphatica.alis.studio.state.StateChange.DATA_STATUS_CHANGED;
+import static com.alphatica.alis.studio.view.tools.SwingChangeListeners.addUiListener;
+import static com.alphatica.alis.studio.view.tools.SwingChangeListeners.bindLabelToEvent;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.createHtmlLinkLabel;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.runUiThread;
@@ -65,7 +67,7 @@ public class StooqPane {
 	}
 
 	private static void addUpdateListener(DefaultTableModel tableModel) {
-		addListener(DATA_LOADED, () -> runInBackground(() -> {
+		addUiListener(DATA_LOADED, () -> runInBackground(() -> {
 			Object[][] data = buildTableData();
 			if (data != null) {
 				runUiThread(() -> updateTable(tableModel, data));
@@ -126,7 +128,7 @@ public class StooqPane {
 
 	private static JButton createLoadPLButton() {
 		JButton load = new JButton("Load PL");
-		load.addActionListener(e -> runInBackground(StooqDataProvider::loadPLData));
+		load.addActionListener(e -> runDataOperation(StooqDataProvider::loadPLData));
 		return load;
 	}
 
@@ -138,7 +140,7 @@ public class StooqPane {
 				return;
 			}
 			Path dataDirectory = chooser.getSelectedFile().toPath();
-			runInBackground(() -> StooqDataProvider.loadPLData(dataDirectory));
+			runDataOperation(() -> StooqDataProvider.loadPLData(dataDirectory));
 		});
 		return load;
 	}
@@ -153,14 +155,35 @@ public class StooqPane {
 
 	private static JButton createLoadUSButton() {
 		JButton load = new JButton("Load US");
-		load.addActionListener(e -> runInBackground(StooqDataProvider::loadUSData));
+		load.addActionListener(e -> runDataOperation(StooqDataProvider::loadUSData));
 		return load;
 	}
 
 	private static JButton createUnzipButton() {
 		JButton unzip = new JButton("Unzip");
-		unzip.addActionListener(e -> runInBackground(StooqDataProvider::unzipNewData));
+		unzip.addActionListener(e -> runDataOperation(StooqDataProvider::unzipNewData));
 		return unzip;
+	}
+
+	private static void runDataOperation(Runnable operation) {
+		runInBackground(() -> {
+			try {
+				operation.run();
+			} catch (DataProcessingException exception) {
+				showDataError(exception);
+			}
+		});
+	}
+
+	private static void showDataError(DataProcessingException error) {
+		Exception cause = error.getException();
+		switch (error.getReason()) {
+			case NO_DATA -> ErrorDialog.showError("No data", "Empty data", null);
+			case DATA_NOT_FOUND -> ErrorDialog.showError("Data not found", "Download data from Stooq.pl first", null);
+			case LOAD_FAILED -> ErrorDialog.showError("Unable to load new data", cause.toString(), cause);
+			case UNZIP_FAILED -> ErrorDialog.showError("Unable to unzip", cause.toString(), cause);
+			case PROCESSING_FAILED -> ErrorDialog.showError("Unable to process data", cause.toString(), cause);
+		}
 	}
 
 }

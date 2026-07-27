@@ -5,7 +5,7 @@ import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.tools.data.FloatArraySlice;
+import com.alphatica.alis.data.FloatArraySlice;
 
 import java.util.List;
 import java.util.Map;

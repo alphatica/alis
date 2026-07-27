@@ -3,7 +3,7 @@ package com.alphatica.alis.studio.view.window.trading.portfolio;
 import com.alphatica.alis.studio.dao.DaoException;
 import com.alphatica.alis.studio.logic.trading.account.AccountProvider;
 import com.alphatica.alis.studio.state.AppState;
-import com.alphatica.alis.studio.tools.AccountActionCSVFacade;
+import com.alphatica.alis.studio.dao.AccountActionCSVFacade;
 import com.alphatica.alis.studio.view.tools.ErrorDialog;
 import com.alphatica.alis.studio.view.tools.models.ReadOnlyTableModel;
 import com.alphatica.alis.trading.account.Account;
@@ -22,9 +22,9 @@ import java.util.List;
 import java.util.Map;
 
 import static com.alphatica.alis.studio.logic.trading.portfolio.PortfolioProvider.getPricesRecords;
-import static com.alphatica.alis.studio.state.ChangeListeners.addListener;
 import static com.alphatica.alis.studio.state.StateChange.DATA_LOADED;
 import static com.alphatica.alis.studio.state.StateChange.PORTFOLIO_CHANGED;
+import static com.alphatica.alis.studio.view.tools.SwingChangeListeners.addUiListener;
 import static com.alphatica.alis.tools.java.StringHelper.emptyOnNull;
 import static java.lang.String.format;
 
@@ -190,8 +190,8 @@ public class PortfolioPane extends JPanel {
 		ReadOnlyTableModel tableModel = new ReadOnlyTableModel(new Object[][]{}, historyColumns);
 		JTable historyTable = new JTable(tableModel);
 		tryUpdateHistoryTable(tableModel);
-		addListener(PORTFOLIO_CHANGED, () -> tryUpdateHistoryTable(tableModel));
-		addListener(DATA_LOADED, () -> tryUpdateHistoryTable(tableModel));
+		addUiListener(PORTFOLIO_CHANGED, () -> tryUpdateHistoryTable(tableModel));
+		addUiListener(DATA_LOADED, () -> tryUpdateHistoryTable(tableModel));
 		return new JScrollPane(historyTable);
 	}
 
@@ -279,7 +279,7 @@ public class PortfolioPane extends JPanel {
 	private JScrollPane createActionsTable() {
 		ReadOnlyTableModel tableModel = new ReadOnlyTableModel(new Object[][]{}, actionsColumns);
 		JTable actionsTable = new JTable(tableModel);
-		addListener(PORTFOLIO_CHANGED, () -> tryUpdateActionsTable(tableModel));
+		addUiListener(PORTFOLIO_CHANGED, () -> tryUpdateActionsTable(tableModel));
 		tryUpdateActionsTable(tableModel);
 		return new JScrollPane(actionsTable);
 	}

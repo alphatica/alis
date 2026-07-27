@@ -3,7 +3,7 @@ package com.alphatica.alis.indicators.range;
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.indicators.Indicator;
-import com.alphatica.alis.tools.data.FloatArraySlice;
+import com.alphatica.alis.data.FloatArraySlice;
 
 public class Highest extends Indicator {
 

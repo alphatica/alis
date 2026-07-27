@@ -1,7 +1,7 @@
 package com.alphatica.alis.trading.order;
 
 import com.alphatica.alis.data.market.MarketName;
-import com.alphatica.alis.tools.java.MarketAttributes;
+import com.alphatica.alis.data.market.MarketAttributes;
 
 import java.util.HashMap;
 import java.util.Map;
