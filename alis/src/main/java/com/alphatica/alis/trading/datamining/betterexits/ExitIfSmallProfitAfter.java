@@ -1,13 +1,12 @@
 package com.alphatica.alis.trading.datamining.betterexits;
 
-import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
 
 import java.util.concurrent.ThreadLocalRandom;
 
+import static com.alphatica.alis.data.layer.Layer.CLOSE;
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static java.lang.String.format;
 
@@ -22,7 +21,7 @@ public class ExitIfSmallProfitAfter implements BetterExitFinder {
 		);
 	}
 
-	private ExitIfSmallProfitAfter(int change, int bars) {
+	ExitIfSmallProfitAfter(int change, int bars) {
 		this.change = change;
 		this.bars = bars;
 	}
@@ -31,9 +30,9 @@ public class ExitIfSmallProfitAfter implements BetterExitFinder {
 	public boolean shouldExit(Account account, TimeMarketData marketData, TimeMarketDataSet allData, MarketStateSet marketStateSet) {
 		DoubleValueState state = marketStateSet.get(marketData.getMarketName());
 		state.value++;
-		if (state.value > this.bars) {
-			FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);
-			double changeNow = percentChange(closes.get((int)Math.round(state.value)), closes.get(0));
+		if (state.value >= this.bars) {
+			double entryPrice = account.getPosition(marketData.getMarketName()).getEntryPrice();
+			double changeNow = percentChange(entryPrice, marketData.getData(CLOSE, 0));
 			return changeNow < change;
 		} else {
 			return false;

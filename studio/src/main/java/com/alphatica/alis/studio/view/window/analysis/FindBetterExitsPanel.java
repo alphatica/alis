@@ -1,8 +1,6 @@
 package com.alphatica.alis.studio.view.window.analysis;
 
 import com.alphatica.alis.data.market.MarketData;
-import com.alphatica.alis.data.time.Time;
-import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.studio.state.AppState;
 import com.alphatica.alis.studio.dao.AccountActionCSVFacade;
 import com.alphatica.alis.studio.view.tools.ErrorDialog;
@@ -32,7 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-import static com.alphatica.alis.trading.account.actions.AccountAction.performActionsForTime;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.runInBackground;
 import static com.alphatica.alis.studio.view.tools.SwingHelper.runUiThread;
 
@@ -91,16 +88,24 @@ public class FindBetterExitsPanel extends JPanel {
 	}
 
 	private void startRunners() {
+		MarketData marketData = AppState.getMarketData();
+		double commissionRate;
+		try {
+			commissionRate = settingsPanel.getCommissionRate();
+			refreshOriginalScore(marketData, commissionRate);
+		} catch (Exception exception) {
+			ErrorDialog.showError("Invalid settings", exception.getMessage(), exception);
+			return;
+		}
 		isStarted.set(true);
 		setSettingsInputs(false);
 		resultsTable.clear();
 		settingsPanel.setIterations(0);
         iterationsDone.set(0);
 		int processors = Runtime.getRuntime().availableProcessors();
-		MarketData marketData = AppState.getMarketData();
 		Supplier<AccountScorer> scorerFactory = settingsPanel.getScorerFactory();
 		runInBackground(() -> {
-			CountDownLatch tasksFinished = startTasks(processors, marketData, scorerFactory);
+			CountDownLatch tasksFinished = startTasks(processors, marketData, scorerFactory, commissionRate);
 			waitForFinish(tasksFinished);
 		}, () -> setSettingsInputs(true));
 	}
@@ -114,10 +119,14 @@ public class FindBetterExitsPanel extends JPanel {
 		}
 	}
 
-	private CountDownLatch startTasks(int processors, MarketData marketData, Supplier<AccountScorer> scorerFactory) {
+	private CountDownLatch startTasks(
+			int processors,
+			MarketData marketData,
+			Supplier<AccountScorer> scorerFactory,
+			double commissionRate) {
 		CountDownLatch tasksFinished = new CountDownLatch(processors);
 		for (int i = 0; i < processors; i++) {
-			Runnable runnable = buildTask(marketData, scorerFactory);
+			Runnable runnable = buildTask(marketData, scorerFactory, commissionRate);
 			runInBackground(() -> {
 				try {
 					runnable.run();
@@ -129,10 +138,13 @@ public class FindBetterExitsPanel extends JPanel {
 		return tasksFinished;
 	}
 
-	private Runnable buildTask(MarketData marketData, Supplier<AccountScorer> scorerFactory) {
+	private Runnable buildTask(
+			MarketData marketData,
+			Supplier<AccountScorer> scorerFactory,
+			double commissionRate) {
 		return () -> {
 			while (isStarted.get()) {
-				Runner runner = new Runner();
+				Runner runner = new Runner(commissionRate);
 				try {
 					runner.run(marketData, accountActions, exitFinders, scorerFactory, this::resultCallback);
 				} catch (AccountActionException e) {
@@ -184,35 +196,32 @@ public class FindBetterExitsPanel extends JPanel {
 	private void applyActions(MarketData marketData, File selectedFile, List<AccountAction> loadedActions) throws AccountActionException {
 		accountActions.clear();
 		accountActions.addAll(loadedActions);
-		List<Time> times = getTimes(loadedActions, marketData);
-		account = new Account(0.0);
-		for (Time time : times) {
-			performActionsForTime(time, loadedActions, account);
-			if (marketData != null) {
-				TimeMarketDataSet timeMarketDataSet = marketData.snapshotAt(time);
-				account.updateLastKnown(timeMarketDataSet);
-			}
-		}
 		settingsPanel.setLoadedFileName(selectedFile.getName());
-		updateScore();
+		refreshOriginalScore(marketData, settingsPanel.getCommissionRate());
 		setSettingsInputs(true);
 	}
 
 	private void updateScore() {
+		if (accountActions.isEmpty()) {
+			return;
+		}
+		try {
+			refreshOriginalScore(AppState.getMarketData(), settingsPanel.getCommissionRate());
+		} catch (Exception exception) {
+			ErrorDialog.showError("Unable to update score", exception.getMessage(), exception);
+		}
+	}
+
+	private void refreshOriginalScore(MarketData marketData, double commissionRate) throws AccountActionException {
+		if (accountActions.isEmpty()) {
+			return;
+		}
+		account = OriginalAccountReplayer.replay(marketData, accountActions, commissionRate);
 		AccountScorer scorer = settingsPanel.getScorer();
-		double score = scorer.score(account, null);
-		settingsPanel.setOriginalScore(score);
+		settingsPanel.setOriginalScore(scorer.score(account, null));
 	}
 
 	private void setSettingsInputs(boolean enabled) {
 		settingsPanel.setInputsEnabled(enabled);
-	}
-
-	private static List<Time> getTimes(List<AccountAction> accountActions, MarketData marketData) {
-		if (marketData != null && !accountActions.isEmpty()) {
-			return marketData.getTimes().stream().filter(t -> !t.isBefore(accountActions.getFirst().time())).toList();
-		} else {
-			return accountActions.stream().map(AccountAction::time).toList();
-		}
 	}
 }

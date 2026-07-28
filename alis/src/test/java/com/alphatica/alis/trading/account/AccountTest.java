@@ -37,4 +37,18 @@ class AccountTest {
 		assertEquals(1250, account.getPositionValue(market));
 	}
 
+	@Test
+	void shouldIncludeCommissionsInClosedPositionStats() throws AccountActionException {
+		MarketName market = new MarketName("market");
+		Account account = new Account(2000);
+		account.addPosition(market, new PositionEntry(new Time(1), 100, 10), 10);
+		account.reducePosition(market, new PositionExit(new Time(2), 100, 10.1), 10);
+
+		TradeStats stats = account.getAccountHistory().getStats();
+
+		assertEquals(-10, account.calcCashProfit(), 0.000_001);
+		assertEquals(-100.0 / 101.0, stats.profitPerTrade(), 0.000_001);
+		assertEquals(-1, stats.expectancy(), 0.000_001);
+	}
+
 }

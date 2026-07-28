@@ -1,5 +1,7 @@
 package com.alphatica.alis.studio.view.window.analysis;
 
+import com.alphatica.alis.studio.view.tools.components.ComponentValidationException;
+import com.alphatica.alis.studio.view.tools.components.DoubleTextField;
 import com.alphatica.alis.studio.view.tools.components.SmartComboBox;
 import com.alphatica.alis.trading.account.scorer.AccountScorer;
 import com.alphatica.alis.trading.account.scorer.Expectancy;
@@ -14,6 +16,7 @@ import java.util.function.Supplier;
 final class FindBetterExitsSettingsPanel extends JPanel {
 
 	private final SmartComboBox<AccountScorer> scorerComboBox = new SmartComboBox<>();
+	private final DoubleTextField commissionRateField = new DoubleTextField("commission rate", 4);
 	private final JButton loadFileButton = new JButton("Load file");
 	private final JLabel loadedFileNameLabel = new JLabel();
 	private final JLabel originalScoreLabel = new JLabel();
@@ -30,6 +33,8 @@ final class FindBetterExitsSettingsPanel extends JPanel {
 		startButton.addActionListener(event -> start.run());
 		stopButton.addActionListener(event -> stop.run());
 		scorerComboBox.addActionListener(event -> updateScore.run());
+		commissionRateField.addActionListener(event -> updateScore.run());
+		commissionRateField.setText("0.01");
 	}
 
 	private JPanel createSettingsPanel() {
@@ -37,6 +42,7 @@ final class FindBetterExitsSettingsPanel extends JPanel {
 		GridBagConstraints constraints = constraints();
 		addRow(panel, constraints, "File:", loadFileButton);
 		addRow(panel, constraints, "Loaded file:", loadedFileNameLabel);
+		addRow(panel, constraints, "Commission rate:", commissionRateField);
 		configureScorers();
 		addRow(panel, constraints, "Result scorer:", scorerComboBox);
 		addRow(panel, constraints, "Original score:", originalScoreLabel);
@@ -93,6 +99,14 @@ final class FindBetterExitsSettingsPanel extends JPanel {
 		return scorerComboBox.getValue();
 	}
 
+	double getCommissionRate() {
+		double commissionRate = commissionRateField.getDoubleValue();
+		if (!Double.isFinite(commissionRate) || commissionRate >= 1) {
+			throw new ComponentValidationException("Field `commission rate` must be finite and lower than 1");
+		}
+		return commissionRate;
+	}
+
 	void setLoadedFileName(String fileName) {
 		loadedFileNameLabel.setText(fileName);
 	}
@@ -107,6 +121,7 @@ final class FindBetterExitsSettingsPanel extends JPanel {
 
 	void setInputsEnabled(boolean enabled) {
 		scorerComboBox.setEnabled(enabled);
+		commissionRateField.setEnabled(enabled);
 		startButton.setEnabled(enabled);
 		stopButton.setEnabled(!enabled);
 	}

@@ -14,13 +14,20 @@ public class Position {
 	private final List<PositionEntry> entries;
 	private final List<PositionExit> exits;
 	private final MarketName marketName;
+	private double entryCommissions;
+	private double exitCommissions;
 	private double lastClose;
 	private int tradeLength;
 
 	public Position(MarketName marketName, PositionEntry entry) {
+		this(marketName, entry, 0);
+	}
+
+	Position(MarketName marketName, PositionEntry entry, double commission) {
 		this.entries = new ArrayList<>();
 		this.exits = new ArrayList<>();
 		this.entries.add(entry);
+		this.entryCommissions = commission;
 		this.lastClose = entry.price;
 		this.marketName = marketName;
 		this.tradeLength = 0;
@@ -33,8 +40,10 @@ public class Position {
 	}
 
 	public PositionStats getStats() {
-		double entryValue = entries.stream().map(p -> p.initialQuantity * p.price).reduce(0.0, Double::sum);
-		double exitValue = exits.stream().map(p -> p.quantity * p.price).reduce(0.0, Double::sum);
+		double entryValue = entries.stream().map(p -> p.initialQuantity * p.price).reduce(0.0, Double::sum)
+				+ entryCommissions;
+		double exitValue = exits.stream().map(p -> p.quantity * p.price).reduce(0.0, Double::sum)
+				- exitCommissions;
 		double profitValue = exitValue - entryValue;
 		return new PositionStats(profitValue, percentChange(entryValue, exitValue), tradeLength);
 	}
@@ -44,15 +53,25 @@ public class Position {
 	}
 
 	public void add(PositionEntry entry) {
+		add(entry, 0);
+	}
+
+	void add(PositionEntry entry, double commission) {
 		this.entries.add(entry);
+		entryCommissions += commission;
 	}
 
 	public List<PositionPricesRecord> reduce(PositionExit exit) throws AccountActionException {
+		return reduce(exit, 0);
+	}
+
+	List<PositionPricesRecord> reduce(PositionExit exit, double commission) throws AccountActionException {
 		if (exit.quantity > getQuantity()) {
 			throw new AccountActionException("Not enough quantity to reduce ");
 		}
 		List<PositionPricesRecord> positionPricesRecords = new ArrayList<>();
 		exits.add(exit);
+		exitCommissions += commission;
 		int toRemove = exit.quantity;
 		int checkIndex = 0;
 		while (toRemove > 0 && checkIndex < entries.size()) {

@@ -71,9 +71,12 @@ public class Account {
 		}
 		Position position = positions.get(market);
 		if (position != null) {
-			position.add(new PositionEntry(entry.time, entry.quantity, entry.price));
+			position.add(new PositionEntry(entry.time, entry.quantity, entry.price), commission);
 		} else {
-			positions.put(market, new Position(market, new PositionEntry(entry.time, entry.quantity, entry.price)));
+			positions.put(market, new Position(
+					market,
+					new PositionEntry(entry.time, entry.quantity, entry.price),
+					commission));
 		}
 		accountHistory.addCommission(commission);
 		cash -= cashNeeded;
@@ -84,7 +87,7 @@ public class Account {
 		if (position == null || position.getQuantity() < exit.quantity) {
 			throw new AccountActionException(format("Unable to sell %d of %s on %s", exit.quantity, market, exit.time));
 		}
-		List<PositionPricesRecord> positionPricesRecords = position.reduce(exit);
+		List<PositionPricesRecord> positionPricesRecords = position.reduce(exit, commission);
 		accountHistory.addRecords(positionPricesRecords);
 		accountHistory.addCommission(commission);
 		double value = exit.price * exit.quantity;

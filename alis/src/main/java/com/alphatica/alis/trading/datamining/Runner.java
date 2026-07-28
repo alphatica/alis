@@ -18,7 +18,14 @@ import java.util.function.Supplier;
 
 public class Runner {
 
-	private static final double COMMISSION_RATE = 0.01;
+	private final double commissionRate;
+
+	public Runner(double commissionRate) {
+		if (!Double.isFinite(commissionRate) || commissionRate < 0 || commissionRate >= 1) {
+			throw new IllegalArgumentException("commissionRate must be finite and in [0, 1)");
+		}
+		this.commissionRate = commissionRate;
+	}
 
 	public void run(
 			MarketData marketData,
@@ -28,7 +35,7 @@ public class Runner {
 			Consumer<ExitFinderResult> resultCallback) throws AccountActionException {
 		BetterExitFinder betterExitFinder = selectFinder(exitFinderSuppliers);
 		BetterExitSimulation simulation = new BetterExitSimulation(
-				marketData, actions, betterExitFinder, COMMISSION_RATE);
+				marketData, actions, betterExitFinder, commissionRate);
 		simulation.run().ifPresent(result -> scoreAccount(
 				result, scorerSupplier.get(), resultCallback, betterExitFinder));
 	}

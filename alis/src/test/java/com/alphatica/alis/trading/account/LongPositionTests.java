@@ -97,6 +97,17 @@ class LongPositionTests {
 	}
 
 	@Test
+	void shouldCalculateStatsAfterEntryAndExitCommissions() throws AccountActionException {
+		Position position = new Position(marketName, new PositionEntry(time, 100, 10), 10);
+		position.reduce(new PositionExit(time, 100, 20), 20);
+
+		PositionStats stats = position.getStats();
+
+		assertEquals(970, stats.profitValue(), 0.000_001);
+		assertEquals(96.039_603_96, stats.profitPercent(), 0.000_001);
+	}
+
+	@Test
 	void shouldGivePriceRecordSimple() throws AccountActionException {
 		Position position = new Position(marketName, new PositionEntry(time, 100, 10));
 		position.updatePrices(20, 25, 7);

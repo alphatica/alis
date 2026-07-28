@@ -37,7 +37,7 @@ public final class BetterExitSimulation {
 	public Optional<BetterExitSimulationResult> run() throws AccountActionException {
 		for (Time time : times) {
 			simulatedAccount.executePendingSells(time, marketData);
-			simulatedAccount.performActionsForTime(time);
+			simulatedAccount.performActionsForTime(time).forEach(marketStateSet::delete);
 			simulatedAccount.reduceExtraCash(time);
 			TimeMarketDataSet currentData = marketData.snapshotAt(time);
 			simulatedAccount.account().updateLastKnown(currentData);
@@ -50,14 +50,17 @@ public final class BetterExitSimulation {
 	private void evaluateOpenPositions(TimeMarketDataSet currentData) {
 		Account account = simulatedAccount.account();
 		for (Map.Entry<MarketName, Position> position : account.getPositions().entrySet()) {
-			TimeMarketData marketDataAtTime = currentData.get(position.getKey());
-			if (marketDataAtTime == null) {
+			MarketName market = position.getKey();
+			TimeMarketData marketDataAtTime = currentData.get(market);
+			if (marketDataAtTime == null
+					|| !marketDataAtTime.getTime().equals(currentData.getTime())
+					|| simulatedAccount.hasPendingExit(market)) {
 				continue;
 			}
 			if (betterExitFinder.shouldExit(account, marketDataAtTime, currentData, marketStateSet)) {
 				trades++;
-				simulatedAccount.scheduleExit(position.getKey(), position.getValue().getQuantity());
-				marketStateSet.delete(position.getKey());
+				simulatedAccount.scheduleExit(market, position.getValue().getQuantity());
+				marketStateSet.delete(market);
 			}
 		}
 	}

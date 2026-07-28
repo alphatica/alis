@@ -24,14 +24,14 @@ class AccountActionTest {
 					// Spent 2000 cash on size
 					new AccountAction(new Time(4), new Trade(new MarketName("2"), BUY, 10, 200, 2)),
 					new AccountAction(new Time(4), new Trade(new MarketName("3"), BUY, 10, 200, 2)),
-					// Position 1 closed with profit 100%, 1000 cash
+					// Position 1 closed with 99.5% profit after commissions
 					new AccountAction(new Time(5), new Trade(new MarketName("1"), SELL, 20, 100, 3)),
-					// Position 3 closed with loss 50%, 1000 cash
+					// Position 3 closed with 50.2% loss after commissions
 					new AccountAction(new Time(5), new Trade(new MarketName("3"), SELL, 5, 200, 3)),
 					// Position 2 partially closed with 2000 cash back
 					new AccountAction(new Time(5), new Trade(new MarketName("2"), SELL, 20, 100, 4)),
 					// Position 2 closed completely with 1000 cash back
-					// Total cash back from size 2 = 3000, 50% profit
+					// Total cash back from size 2 = 3000, 49.45% profit after commissions
 					new AccountAction(new Time(6), new Trade(new MarketName("2"), SELL, 10, 100, 4))
 				));
 		Account account = new Account(0);
@@ -55,10 +55,10 @@ class AccountActionTest {
 		assertEquals(10000, history.getCashPayments());
 		TradeStats stats = history.getStats();
 		assertEquals(66.6, stats.accuracy(), 0.1);
-		assertEquals(75.0, stats.averageWinPercent(), 0.1);
-		assertEquals(-50.0, stats.averageLossPercent(), 0.1);
-		assertEquals(3.0, stats.profitFactor(), 0.1);
-		assertEquals(0.6, stats.expectancy(), 0.1);
+		assertEquals(74.475_524, stats.averageWinPercent(), 0.000_001);
+		assertEquals(-50.199_800, stats.averageLossPercent(), 0.000_001);
+		assertEquals(2.967_164, stats.profitFactor(), 0.000_001);
+		assertEquals(0.655_721, stats.expectancy(), 0.000_001);
 		assertEquals(3, stats.trades());
 	}
 

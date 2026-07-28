@@ -38,6 +38,10 @@ final class SimulatedAccount {
 		return account;
 	}
 
+	boolean hasPendingExit(MarketName market) {
+		return pendingSells.stream().anyMatch(sell -> sell.marketName().equals(market));
+	}
+
 	void executePendingSells(Time time, MarketData marketData) throws AccountActionException {
 		Iterator<SellInfo> iterator = pendingSells.iterator();
 		while (iterator.hasNext()) {
@@ -54,12 +58,15 @@ final class SimulatedAccount {
 		}
 	}
 
-	void performActionsForTime(Time time) throws AccountActionException {
+	Set<MarketName> performActionsForTime(Time time) throws AccountActionException {
+		Set<MarketName> closedMarkets = new HashSet<>();
 		while (!actions.isEmpty() && !actions.getFirst().time().isAfter(time)) {
 			AccountAction accountAction = actions.removeFirst();
 			ensureCashForBuy(time, accountAction);
 			accountAction.actionType().doOnAccount(time, account);
+			recordClosedPosition(accountAction, closedMarkets);
 		}
+		return closedMarkets;
 	}
 
 	void reduceExtraCash(Time time) throws AccountActionException {
@@ -96,6 +103,14 @@ final class SimulatedAccount {
 				extraCash += missing;
 				new Deposit(missing).doOnAccount(time, account);
 			}
+		}
+	}
+
+	private void recordClosedPosition(AccountAction accountAction, Set<MarketName> closedMarkets) {
+		if (accountAction.actionType() instanceof Trade trade
+				&& trade.direction() == SELL
+				&& account.getPosition(trade.marketName()) == null) {
+			closedMarkets.add(trade.marketName());
 		}
 	}
 
