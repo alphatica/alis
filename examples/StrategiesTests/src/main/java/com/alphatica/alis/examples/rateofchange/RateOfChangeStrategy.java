@@ -13,6 +13,7 @@ import com.alphatica.alis.trading.strategy.Strategy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.alphatica.alis.data.time.TimeMarketDataFilters.STOCKS;
@@ -37,30 +38,34 @@ public class RateOfChangeStrategy extends Strategy {
 
 	@Override
 	public List<Order> afterClose(TimeMarketDataSet data, Account account) {
-
 		List<Order> orders = new ArrayList<>(1024);
 		for (TimeMarketData marketData : data.listUpToDateMarkets(STOCKS)) {
 			if (!allowedMarkets.contains(marketData.getMarketName())) {
 				continue;
 			}
-			FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);
-			if (closes.size() <= requiredLength) {
-				continue;
-			}
-			double buyChangeNow = (closes.get(0) / closes.get(buyPeriod) - 1) * 100;
-			boolean buySignal = buyChangeNow > buyChange;
-			boolean sellSignal = (closes.get(0) / closes.get(sellPeriod) - 1) * 100 < sellChange;
-
-			if (account.getPosition(marketData.getMarketName()) != null) {
-				if (sellSignal && !buySignal) {
-					orders.add(new Order(marketData.getMarketName(), Direction.SELL, OrderSize.PERCENTAGE, 100, 0.0));
-				}
-			} else {
-				if (buySignal && !sellSignal) {
-					orders.add(new Order(marketData.getMarketName(), Direction.BUY, OrderSize.PERCENTAGE, 5, buyChange));
-				}
-			}
+			orderFor(marketData, account).ifPresent(orders::add);
 		}
 		return orders;
+	}
+
+	private Optional<Order> orderFor(TimeMarketData marketData, Account account) {
+		FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);
+		if (closes.size() <= requiredLength) {
+			return Optional.empty();
+		}
+		boolean buySignal = change(closes, buyPeriod) > buyChange;
+		boolean sellSignal = change(closes, sellPeriod) < sellChange;
+		boolean hasPosition = account.getPosition(marketData.getMarketName()) != null;
+		if (hasPosition && sellSignal && !buySignal) {
+			return Optional.of(new Order(marketData.getMarketName(), Direction.SELL, OrderSize.PERCENTAGE, 100, 0.0));
+		}
+		if (!hasPosition && buySignal && !sellSignal) {
+			return Optional.of(new Order(marketData.getMarketName(), Direction.BUY, OrderSize.PERCENTAGE, 5, buyChange));
+		}
+		return Optional.empty();
+	}
+
+	private static double change(FloatArraySlice closes, int period) {
+		return (closes.get(0) / closes.get(period) - 1) * 100;
 	}
 }

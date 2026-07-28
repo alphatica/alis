@@ -6,27 +6,16 @@ import com.alphatica.alis.studio.state.AppState;
 import com.alphatica.alis.studio.view.tools.ErrorDialog;
 import com.alphatica.alis.studio.view.tools.SwingHelper;
 import com.alphatica.alis.studio.view.tools.components.ComponentValidationException;
-import com.alphatica.alis.studio.view.tools.components.DoubleTextField;
-import com.alphatica.alis.studio.view.tools.components.LongTextField;
-import com.alphatica.alis.studio.view.tools.components.SmartComboBox;
-import com.alphatica.alis.studio.view.tools.components.StrategySelector;
-import com.alphatica.alis.studio.view.tools.components.TimeTextField;
 import com.alphatica.alis.studio.view.window.trading.strategies.optimize.resulttable.ResultTable;
 import com.alphatica.alis.trading.account.Account;
-import com.alphatica.alis.trading.account.scorer.ProfitableMarkets;
 import com.alphatica.alis.trading.optimizer.*;
 import com.alphatica.alis.trading.strategy.Strategy;
 import com.alphatica.alis.trading.strategy.StrategyExecutor;
 import com.alphatica.alis.trading.account.scorer.AccountScorer;
-import com.alphatica.alis.trading.account.scorer.Expectancy;
-import com.alphatica.alis.trading.account.scorer.NavAdjustedForMaxDD;
-import com.alphatica.alis.trading.account.scorer.NetAssetValue;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,39 +23,23 @@ import java.util.function.Supplier;
 
 import static com.alphatica.alis.studio.state.StateChange.DATA_LOADED;
 import static com.alphatica.alis.studio.view.tools.SwingChangeListeners.addUiListener;
-import static com.alphatica.alis.trading.optimizer.ParametersSelection.FULL_PERMUTATION;
-
 public class OptimizationPane extends JPanel {
-	private static final String ITERATIONS_LABEL_PREFIX = "Iterations: ";
-
-	private final StrategySelector strategySelector = new StrategySelector();
-	private final TimeTextField timeStartField = new TimeTextField("time start", 8);
-	private final TimeTextField timeEndField = new TimeTextField("time end", 8);
-	private final DoubleTextField commissionRateField = new DoubleTextField("commission rate", 4);
-	private final DoubleTextField initialCapitalField = new DoubleTextField("initial capital", 6);
-	private final SmartComboBox<ResultVerifier> resultVerifierComboBox = new SmartComboBox<>();
-	private final SmartComboBox<ParametersSelection> parametersSelectionComboBox = new SmartComboBox<>();
-	private final SmartComboBox<AccountScorer> backtestScorerComboBox = new SmartComboBox<>();
-	private final LongTextField maxPermutationsField = new LongTextField("max permutations", 10);
-	private final JButton startButton = new JButton("Start");
-	private final JButton stopButton = new JButton("Stop");
-	private final JLabel iterationCounterLabel = new JLabel(ITERATIONS_LABEL_PREFIX);
-	private final JPanel settingsPanel = new JPanel(new GridBagLayout());
+	private final OptimizationSettingsPanel settingsPanel;
 	private final ResultTable resultTable = new ResultTable();
 	private final AtomicBoolean stopRequested = new AtomicBoolean(false);
 	private final AtomicReference<StrategyOptimizer> strategyOptimizer = new AtomicReference<>();
 
 	public OptimizationPane() {
 		setLayout(new BorderLayout());
+		settingsPanel = new OptimizationSettingsPanel(this::startOptimization, this::stopOptimization);
 
 		// Create main split pane (left: settings, right: table)
 		JSplitPane mainSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 		mainSplitPane.setDividerSize(5);
 
 		// Left pane: settings (inputs and buttons)
-		JPanel leftPane = createLeftPane();
 		// Set minimum size after layout to ensure content width is respected
-		mainSplitPane.setLeftComponent(leftPane);
+		mainSplitPane.setLeftComponent(settingsPanel);
 
 		// Right pane: single result table
 		mainSplitPane.setRightComponent(createRightPane());
@@ -74,132 +47,9 @@ public class OptimizationPane extends JPanel {
 		add(mainSplitPane, BorderLayout.CENTER);
 		addUiListener(DATA_LOADED, this::updateDefaults);
 
-		// Initialize button states and listeners
-		startButton.addActionListener(e -> startOptimization());
-		stopButton.setEnabled(false);
-		stopButton.addActionListener(e -> stopOptimization());
-		maxPermutationsField.setText("10000");
-		updateMaxPermutationsField();
-
 		// Set minimum size of left pane after components are added
-		leftPane.setMinimumSize(new Dimension(leftPane.getPreferredSize().width, leftPane.getMinimumSize().height));
-	}
-
-	private JPanel createLeftPane() {
-		JPanel leftPane = new JPanel(new BorderLayout());
-		leftPane.setBorder(new EmptyBorder(10, 10, 10, 10));
-
-		// Settings panel with GridBagLayout for two-column layout
-		GridBagConstraints gbc = new GridBagConstraints();
-		gbc.insets = new Insets(5, 5, 5, 5);
-		gbc.anchor = GridBagConstraints.WEST;
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-
-		// Strategy
-		gbc.gridx = 0;
-		gbc.gridy = 0;
-		settingsPanel.add(new JLabel("Strategy:"), gbc);
-		gbc.gridx = 1;
-		strategySelector.addActionListener(this::strategySelectionChanged);
-		settingsPanel.add(strategySelector, gbc);
-
-		// Time start
-		gbc.gridx = 0;
-		gbc.gridy++;
-		settingsPanel.add(new JLabel("Start time:"), gbc);
-		gbc.gridx = 1;
-		settingsPanel.add(timeStartField, gbc);
-
-		// Time end
-		gbc.gridx = 0;
-		gbc.gridy++;
-		settingsPanel.add(new JLabel("End time:"), gbc);
-		gbc.gridx = 1;
-		settingsPanel.add(timeEndField, gbc);
-
-		// Commission rate
-		gbc.gridx = 0;
-		gbc.gridy++;
-		settingsPanel.add(new JLabel("Commission rate:"), gbc);
-		gbc.gridx = 1;
-		settingsPanel.add(commissionRateField, gbc);
-
-		// Initial capital
-		gbc.gridx = 0;
-		gbc.gridy++;
-		settingsPanel.add(new JLabel("Initial capital:"), gbc);
-		gbc.gridx = 1;
-		settingsPanel.add(initialCapitalField, gbc);
-
-		// Result verifier
-		gbc.gridx = 0;
-		gbc.gridy++;
-		settingsPanel.add(new JLabel("Result verifier:"), gbc);
-		gbc.gridx = 1;
-		resultVerifierComboBox.addOption("None", () -> ResultVerifier.NONE);
-		resultVerifierComboBox.addOption("Remove markets", () -> ResultVerifier.REMOVE_MARKETS);
-		resultVerifierComboBox.addOption("Remove orders", () -> ResultVerifier.REMOVE_ORDERS);
-		resultVerifierComboBox.addOption("Fuzzy start time", () -> ResultVerifier.FUZZY_START_TIME);
-		settingsPanel.add(resultVerifierComboBox, gbc);
-
-		// Parameters selection
-		gbc.gridx = 0;
-		gbc.gridy++;
-		settingsPanel.add(new JLabel("Parameters selection:"), gbc);
-		gbc.gridx = 1;
-		for (ParametersSelection parametersSelection : ParametersSelection.values()) {
-			parametersSelectionComboBox.addOption(parametersSelection.getText(), () -> parametersSelection);
-		}
-		parametersSelectionComboBox.addActionListener(this::parameterSelectionChanged);
-		settingsPanel.add(parametersSelectionComboBox, gbc);
-
-		// Result scorer
-		gbc.gridx = 0;
-		gbc.gridy++;
-		settingsPanel.add(new JLabel("Result scorer:"), gbc);
-		gbc.gridx = 1;
-		backtestScorerComboBox.addOption("Net asset value", NetAssetValue::new);
-		backtestScorerComboBox.addOption("Trade expectancy", Expectancy::new);
-		backtestScorerComboBox.addOption("NAV / max drawdown", NavAdjustedForMaxDD::new);
-		backtestScorerComboBox.addOption("Max profitable markets", ProfitableMarkets::new);
-		settingsPanel.add(backtestScorerComboBox, gbc);
-
-		// Max permutations
-		gbc.gridx = 0;
-		gbc.gridy++;
-		settingsPanel.add(new JLabel("Max permutations:"), gbc);
-		gbc.gridx = 1;
-		settingsPanel.add(maxPermutationsField, gbc);
-
-		// Iteration counter
-		gbc.gridx = 0;
-		gbc.gridy++;
-		gbc.gridwidth = 2; // Span both columns
-		settingsPanel.add(iterationCounterLabel, gbc);
-
-		leftPane.add(settingsPanel, BorderLayout.NORTH);
-
-		// Button panel with BoxLayout for vertical stacking
-		JPanel buttonPanel = new JPanel();
-		buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
-		buttonPanel.setBorder(new EmptyBorder(10, 0, 0, 0));
-
-		configureButton(startButton);
-		buttonPanel.add(startButton);
-		buttonPanel.add(Box.createVerticalStrut(5));
-
-		configureButton(stopButton);
-		buttonPanel.add(stopButton);
-
-		leftPane.add(buttonPanel, BorderLayout.CENTER);
-
-		return leftPane;
-	}
-
-	private void configureButton(JButton button) {
-		button.setAlignmentX(Component.CENTER_ALIGNMENT);
-		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, button.getPreferredSize().height));
-		button.setMinimumSize(new Dimension(80, button.getPreferredSize().height));
+		settingsPanel.setMinimumSize(
+				new Dimension(settingsPanel.getPreferredSize().width, settingsPanel.getMinimumSize().height));
 	}
 
 	private JScrollPane createRightPane() {
@@ -209,27 +59,6 @@ public class OptimizationPane extends JPanel {
 		return resultScrollPane;
 	}
 
-	private void strategySelectionChanged(ActionEvent actionEvent) {
-		updateMaxPermutationsField();
-	}
-
-	private void parameterSelectionChanged(ActionEvent e) {
-		updateMaxPermutationsField();
-	}
-
-	private void updateMaxPermutationsField() {
-		long count = getPermutationsCount();
-		maxPermutationsField.setValue(count);
-		maxPermutationsField.setEnabled(parametersSelectionComboBox.getValue() != FULL_PERMUTATION);
-	}
-
-	private long getPermutationsCount() {
-		return switch (parametersSelectionComboBox.getValue()) {
-			case FULL_PERMUTATION -> Optimizer.computeAllPermutations(strategySelector.getValue());
-			case GENETIC, RANDOM -> 10_000L;
-		};
-	}
-
 	private void updateDefaults() {
 		final int DEFAULT_BARS = 250 * 10;
 		MarketData marketData = AppState.getMarketData();
@@ -237,10 +66,7 @@ public class OptimizationPane extends JPanel {
 			return;
 		}
 		List<Time> times = marketData.getTimes();
-		timeEndField.setText(times.getLast().toString());
-		timeStartField.setText(times.size() > DEFAULT_BARS ? times.get(times.size() - DEFAULT_BARS).toString() : times.getFirst().toString());
-		commissionRateField.setText("0.01");
-		initialCapitalField.setText("100000");
+		settingsPanel.updateDefaults(times, DEFAULT_BARS);
 	}
 
 	private void stopOptimization() {
@@ -249,17 +75,11 @@ public class OptimizationPane extends JPanel {
 		if (optimizer != null) {
 			optimizer.stop();
 		}
-		stopButton.setEnabled(false);
+		settingsPanel.setStopEnabled(false);
 	}
 
 	private void setSettingsInputs(boolean enabled) {
-		for (Component component : settingsPanel.getComponents()) {
-			if (component instanceof JTextField || component instanceof JComboBox<?>) {
-				component.setEnabled(enabled);
-			}
-		}
-		stopButton.setEnabled(!enabled);
-		startButton.setEnabled(enabled);
+		settingsPanel.setInputsEnabled(enabled);
 	}
 
 	private void startOptimization() {
@@ -277,25 +97,25 @@ public class OptimizationPane extends JPanel {
 
 		stopRequested.set(false);
 		resultTable.clearResults();
-		iterationCounterLabel.setText(ITERATIONS_LABEL_PREFIX);
+		settingsPanel.resetIterations();
 		setSettingsInputs(false);
 		SwingHelper.runInBackground(() -> tryOptimize(request), this::optimizationFinished);
 	}
 
 	private OptimizationRequest readOptimizationRequest() {
 		MarketData marketData = AppState.getMarketData();
-		Supplier<Strategy> strategyFactory = strategySelector.getValueSupplier();
-		Time startTime = timeStartField.getTime();
-		Time endTime = timeEndField.getTime();
-		double initialCapital = initialCapitalField.getDoubleValue();
-		double commissionRate = commissionRateField.getDoubleValue();
+		Supplier<Strategy> strategyFactory = settingsPanel.getStrategyFactory();
+		Time startTime = settingsPanel.getStartTime();
+		Time endTime = settingsPanel.getEndTime();
+		double initialCapital = settingsPanel.getInitialCapital();
+		double commissionRate = settingsPanel.getCommissionRate();
 		Supplier<StrategyExecutor> executorFactory = () -> new StrategyExecutor().withInitialCash(initialCapital)
 				.withCommissionRate(commissionRate)
 				.withTimeRange(startTime, endTime)
 				.useCachedMarketData();
-		Supplier<AccountScorer> scorerFactory = backtestScorerComboBox.getValueSupplier();
+		Supplier<AccountScorer> scorerFactory = settingsPanel.getScorerFactory();
 		return new OptimizationRequest(strategyFactory, marketData, executorFactory, scorerFactory,
-				resultVerifierComboBox.getValue(), parametersSelectionComboBox.getValue(), maxPermutationsField.getValue());
+				settingsPanel.getResultVerifier(), settingsPanel.getParametersSelection(), settingsPanel.getMaxPermutations());
 	}
 
 	private void tryOptimize(OptimizationRequest request) {
@@ -327,7 +147,7 @@ public class OptimizationPane extends JPanel {
 	private void scoreCallback(StrategyOptimizer optimizer, OptimizerScore newScore, Account account) {
 		int count = optimizer.getLoopCount();
 		resultTable.scoreCallback(newScore, account);
-		SwingHelper.runUiThread(() -> iterationCounterLabel.setText(ITERATIONS_LABEL_PREFIX + " " + count));
+		SwingHelper.runUiThread(() -> settingsPanel.setIterations(count));
 	}
 
 	private record OptimizationRequest(Supplier<Strategy> strategyFactory, MarketData marketData,

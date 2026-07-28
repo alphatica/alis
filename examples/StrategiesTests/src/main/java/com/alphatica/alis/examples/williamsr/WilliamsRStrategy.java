@@ -65,25 +65,28 @@ public class WilliamsRStrategy extends Strategy {
 	}
 
 	private void checkBuys(TimeMarketDataSet data, Account account, List<Order> orders) {
-		if (account.getCash() >= account.getNAV() * position || !orders.isEmpty()) {
-			for (TimeMarketData market : data.listUpToDateMarkets(STOCKS)) {
-				if (account.getPosition(market.getMarketName()) == null) {
-					double wr = williamsRNow.calculate(market);
-					if (wr >= level) {
-						orders.add(new Order(market.getMarketName(), BUY, PERCENTAGE, position, wr));
-					}
-				}
+		if (account.getCash() < account.getNAV() * position && orders.isEmpty()) {
+			return;
+		}
+		for (TimeMarketData market : data.listUpToDateMarkets(STOCKS)) {
+			if (account.getPosition(market.getMarketName()) != null) {
+				continue;
+			}
+			double wr = williamsRNow.calculate(market);
+			if (wr >= level) {
+				orders.add(new Order(market.getMarketName(), BUY, PERCENTAGE, position, wr));
 			}
 		}
 	}
 
 	private void checkSells(TimeMarketDataSet data, Account account, List<Order> orders) {
 		for (TimeMarketData market : data.listUpToDateMarkets(STOCKS)) {
-			if (account.getPosition(market.getMarketName()) != null) {
-				double wr = williamsRNow.calculate(market);
-				if (wr < level) {
-					orders.add(new Order(market.getMarketName(), SELL, PERCENTAGE, 100, 0.0));
-				}
+			if (account.getPosition(market.getMarketName()) == null) {
+				continue;
+			}
+			double wr = williamsRNow.calculate(market);
+			if (wr < level) {
+				orders.add(new Order(market.getMarketName(), SELL, PERCENTAGE, 100, 0.0));
 			}
 		}
 	}

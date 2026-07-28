@@ -16,7 +16,7 @@ public class LineChartData<X extends Comparable<X>> {
 
 	public LineChartData(String name) {
 		this.data = new TreeMap<>();
-		this.name = name;
+		this.name = normalizeName(name);
 	}
 
 	public boolean isConnectPoints() {
@@ -40,6 +40,10 @@ public class LineChartData<X extends Comparable<X>> {
 	}
 
 	public void setName(String name) {
-		this.name = name;
+		this.name = normalizeName(name);
+	}
+
+	private static String normalizeName(String name) {
+		return name == null ? null : name.strip();
 	}
 }

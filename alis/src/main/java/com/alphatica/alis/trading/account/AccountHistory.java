@@ -13,8 +13,6 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 
 public class AccountHistory {
-	private static final TradeStats EMPTY_STATS = new TradeStats(0, 0, 0, 0, 0, 0, 0, 0);
-
 	private final Map<MarketName, List<PositionResult>> results;
 	private final List<PositionPricesRecord> pricesRecords;
 	private final List<AccountAction> accountActions;
@@ -41,11 +39,14 @@ public class AccountHistory {
 	}
 
 	public TradeStats getStats() {
-		return calcStats(results.values().stream().flatMap(Collection::stream).toList());
+		return TradeStatsCalculator.calculate(
+				results.values().stream().flatMap(Collection::stream).toList());
 	}
 
 	public Map<MarketName, TradeStats> getAllStats() {
-		return results.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> calcStats(entry.getValue())));
+		return results.entrySet().stream().collect(Collectors.toMap(
+				Map.Entry::getKey,
+				entry -> TradeStatsCalculator.calculate(entry.getValue())));
 	}
 
 	public long countProfitableMarkets() {
@@ -112,52 +113,4 @@ public class AccountHistory {
 		return new ArrayList<>(accountActions);
 	}
 
-	private TradeStats calcStats(List<PositionResult> list) {
-		if (list.isEmpty()) {
-			return EMPTY_STATS;
-		}
-		double sumWinPercent = 0;
-		int winCount = 0;
-		double sumLossPercent = 0;
-		int lossCount = 0;
-		int totalTradesLength = 0;
-		for (PositionResult result : list) {
-			if (result.profitValue() > 0) {
-				winCount++;
-				sumWinPercent += result.profitPercent();
-			}
-			if (result.profitValue() < 0) {
-				lossCount++;
-				sumLossPercent += result.profitPercent();
-			}
-			totalTradesLength += result.tradeLength();
-		}
-		int trades = list.size();
-		double accuracy;
-		if (lossCount > 0) {
-			accuracy = ((double) winCount / (double) (winCount + lossCount)) * 100.0;
-		} else {
-			accuracy = 100.0;
-		}
-		double averageWinPercent = 0;
-		if (winCount > 0) {
-			averageWinPercent = sumWinPercent / winCount;
-		}
-		double averageLossPercent = 0;
-		if (lossCount > 0) {
-			averageLossPercent = sumLossPercent / lossCount;
-		}
-
-		double profitFactor = Double.NaN;
-		double overallProfitPercent = sumWinPercent + sumLossPercent;
-		if (sumLossPercent < 0.0) {
-			profitFactor = sumWinPercent / -sumLossPercent;
-		}
-		double expectancy = 0;
-		if (winCount + lossCount > 0 && averageLossPercent < 0) {
-			double winProbability = (double) winCount / trades;
-			expectancy = ((1 + averageWinPercent / -averageLossPercent) * winProbability) - 1;
-		}
-		return new TradeStats(overallProfitPercent / trades, accuracy, averageWinPercent, averageLossPercent, profitFactor, expectancy, trades, (double) totalTradesLength / trades);
-	}
 }

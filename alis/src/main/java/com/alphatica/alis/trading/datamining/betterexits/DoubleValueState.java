@@ -1,7 +1,6 @@
 package com.alphatica.alis.trading.datamining.betterexits;
 
-import com.alphatica.alis.trading.datamining.MarketState;
 
-class DoubleValueState implements MarketState {
+class DoubleValueState {
 	double value = 0;
 }

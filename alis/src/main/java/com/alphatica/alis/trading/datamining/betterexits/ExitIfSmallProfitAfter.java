@@ -5,7 +5,6 @@ import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.data.FloatArraySlice;
 import com.alphatica.alis.trading.account.Account;
-import com.alphatica.alis.trading.datamining.MarketStateSet;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -30,7 +29,7 @@ public class ExitIfSmallProfitAfter implements BetterExitFinder {
 
 	@Override
 	public boolean shouldExit(Account account, TimeMarketData marketData, TimeMarketDataSet allData, MarketStateSet marketStateSet) {
-		DoubleValueState state = (DoubleValueState) marketStateSet.get(marketData.getMarketName(), DoubleValueState::new);
+		DoubleValueState state = marketStateSet.get(marketData.getMarketName());
 		state.value++;
 		if (state.value > this.bars) {
 			FloatArraySlice closes = marketData.getLayer(Layer.CLOSE);

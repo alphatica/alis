@@ -146,6 +146,30 @@ class ChartTest {
 	}
 
 	@Test
+	void shouldNormalizeLegendNames() {
+		LineChartData<String> line = new LineChartData<>("\t  Series name  \t");
+		assertEquals("Series name", line.getName());
+
+		line.setName("\t  Updated name  \t");
+		assertEquals("Updated name", line.getName());
+		assertEquals("Level name", new HorizontalLine("\t  Level name  \t", 1.0).name());
+	}
+
+	@Test
+	void shouldMeasureCrLfAndLfLegendLabelsEqually() {
+		LineChartData<String> crlfLine = connectedLine("Wide label\r\nNarrow", "A", 1.0, "B", 2.0);
+		LineChartData<String> lfLine = connectedLine("Wide label\nNarrow", "A", 1.0, "B", 2.0);
+		ChartPane<String> crlfPane = new ChartPane<>(
+				Scale.ARITHMETIC, null, List.of(crlfLine), PaneSettings.defaults());
+		ChartPane<String> lfPane = new ChartPane<>(
+				Scale.ARITHMETIC, null, List.of(lfLine), PaneSettings.defaults());
+
+		assertEquals(
+				PaneLayoutCalculator.calculateRightReservation(lfPane),
+				PaneLayoutCalculator.calculateRightReservation(crlfPane));
+	}
+
+	@Test
 	void shouldRenderXAxisOnlyOnLowestPane() throws IOException {
 		LineChartData<String> first = connectedLine(null, "A", 1.0, "B", 2.0);
 		LineChartData<String> second = connectedLine(null, "A", 2.0, "B", 1.0);

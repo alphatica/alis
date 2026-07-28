@@ -4,7 +4,6 @@ import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.Account;
-import com.alphatica.alis.trading.datamining.MarketStateSet;
 
 import java.util.concurrent.ThreadLocalRandom;
 

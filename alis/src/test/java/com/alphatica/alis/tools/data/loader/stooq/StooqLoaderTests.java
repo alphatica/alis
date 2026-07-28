@@ -11,6 +11,9 @@ import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.FloatArraySlice;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -92,6 +95,28 @@ class StooqLoaderTests {
 				() -> StooqLoader.loadPL(missingDirectory.toString()));
 
 		assertTrue(exception.getMessage().contains("does not exist"));
+	}
+
+	@ParameterizedTest
+	@NullAndEmptySource
+	@ValueSource(strings = {" ", "\t\r\n"})
+	void shouldRejectUnspecifiedDirectory(String directory) {
+		IllegalArgumentException exception = assertThrows(
+				IllegalArgumentException.class,
+				() -> StooqLoader.loadPL(directory));
+
+		assertEquals("Stooq data directory must be specified", exception.getMessage());
+	}
+
+	@Test
+	void shouldRejectPathToFile(@TempDir Path temporaryDirectory) throws IOException {
+		Path file = Files.createFile(temporaryDirectory.resolve("stooq.txt"));
+
+		IllegalArgumentException exception = assertThrows(
+				IllegalArgumentException.class,
+				() -> StooqLoader.loadPL(file.toString()));
+
+		assertTrue(exception.getMessage().contains("does not exist or is not a directory"));
 	}
 
 	@Test

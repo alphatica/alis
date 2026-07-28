@@ -32,7 +32,7 @@ public abstract class Optimizer {
 	}
 
 	@SuppressWarnings("java:S3011")
-	protected void copyParameters(Map<String, Object> params, Optimizable optimizable) throws IllegalAccessException {
+	protected static void copyParameters(Map<String, Object> params, Optimizable optimizable) throws IllegalAccessException {
 		Field[] fields = optimizable.getClass().getDeclaredFields();
 		for (Field field : fields) {
 			if (isParameterField(field)) {

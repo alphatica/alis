@@ -14,21 +14,21 @@ class StrategyOptimizerTest {
 
 	@Test
 	void shouldSelectFuzzyStartTimesAtBeginning() {
-		List<Time> selected = StrategyOptimizer.selectFuzzyStartTimes(times(1, 100), new Time(1), MAX_OPTIMIZATIONS);
+		List<Time> selected = FuzzyStartTimeSelector.select(times(1, 100), new Time(1), MAX_OPTIMIZATIONS);
 
 		assertEquals(times(1, 49), selected);
 	}
 
 	@Test
 	void shouldSelectFuzzyStartTimesInMiddle() {
-		List<Time> selected = StrategyOptimizer.selectFuzzyStartTimes(times(1, 100), new Time(50), MAX_OPTIMIZATIONS);
+		List<Time> selected = FuzzyStartTimeSelector.select(times(1, 100), new Time(50), MAX_OPTIMIZATIONS);
 
 		assertEquals(times(26, 74), selected);
 	}
 
 	@Test
 	void shouldSelectFuzzyStartTimesAtEnd() {
-		List<Time> selected = StrategyOptimizer.selectFuzzyStartTimes(times(1, 100), new Time(100), MAX_OPTIMIZATIONS);
+		List<Time> selected = FuzzyStartTimeSelector.select(times(1, 100), new Time(100), MAX_OPTIMIZATIONS);
 
 		assertEquals(times(52, 100), selected);
 	}
@@ -37,14 +37,14 @@ class StrategyOptimizerTest {
 	void shouldUseAllTimesForShortDataSet() {
 		List<Time> availableTimes = times(1, 5);
 
-		List<Time> selected = StrategyOptimizer.selectFuzzyStartTimes(availableTimes, new Time(3), MAX_OPTIMIZATIONS);
+		List<Time> selected = FuzzyStartTimeSelector.select(availableTimes, new Time(3), MAX_OPTIMIZATIONS);
 
 		assertEquals(availableTimes, selected);
 	}
 
 	@Test
 	void shouldHandleEmptyDataSet() {
-		List<Time> selected = StrategyOptimizer.selectFuzzyStartTimes(List.of(), new Time(1), MAX_OPTIMIZATIONS);
+		List<Time> selected = FuzzyStartTimeSelector.select(List.of(), new Time(1), MAX_OPTIMIZATIONS);
 
 		assertEquals(List.of(), selected);
 	}

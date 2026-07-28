@@ -3,7 +3,6 @@ package com.alphatica.alis.trading.datamining.betterexits;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.Account;
-import com.alphatica.alis.trading.datamining.MarketStateSet;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -16,7 +15,7 @@ public class DaysInPosition implements BetterExitFinder {
 
 	@Override
     public boolean shouldExit(Account account, TimeMarketData marketData, TimeMarketDataSet allData, MarketStateSet marketStateSet) {
-        DoubleValueState now = (DoubleValueState) marketStateSet.get(marketData.getMarketName(), DoubleValueState::new);
+        DoubleValueState now = marketStateSet.get(marketData.getMarketName());
         now.value++;
 		return now.value > days;
     }

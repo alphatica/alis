@@ -33,8 +33,6 @@ import static java.io.File.separator;
 
 public class StooqLoader {
 
-	private static final String STOOQ_DATA_DIR = "stooq_data";
-
 	public static StandardMarketData loadUS(String workDir) {
 		List<File> files = getStockFiles(workDir);
 		return loadFiles(files, new Time(0));
@@ -47,42 +45,21 @@ public class StooqLoader {
 
 	@SuppressWarnings("java:S106") // Suppress warning about 'System.out.println'
 	public static StandardMarketData loadPL(String workDir) throws ExecutionException, InterruptedException {
-		String dataDir = resolvePLDataDirectory(workDir).toString();
+		Path dataDirectory = StooqPLDataDirectoryResolver.resolve(workDir);
 		StandardMarketData standardMarketData = new StandardMarketData();
 
-		Map<MarketName, Market> markets = loadFiles(dataDir, "wse stocks", "wse stocks indicators", STOCK, new Time(0));
+		Map<MarketName, Market> markets = loadFiles(
+				dataDirectory, "wse stocks", "wse stocks indicators", STOCK, new Time(0));
 		standardMarketData.addMarkets(markets);
 
-		Map<MarketName, Market> indices = loadFiles(dataDir, "wse indices", "wse indices indicators", INDEX, new Time(0));
+		Map<MarketName, Market> indices = loadFiles(
+				dataDirectory, "wse indices", "wse indices indicators", INDEX, new Time(0));
 		standardMarketData.addMarkets(indices);
 
-		Map<MarketName, Market> futures = loadFiles(dataDir, "wse futures", null, FUTURE, new Time(0));
+		Map<MarketName, Market> futures = loadFiles(
+				dataDirectory, "wse futures", null, FUTURE, new Time(0));
 		standardMarketData.addMarkets(futures);
 		return standardMarketData;
-	}
-
-	private static Path resolvePLDataDirectory(String directory) {
-		if (directory == null || directory.isBlank()) {
-			throw new IllegalArgumentException("Stooq data directory must be specified");
-		}
-
-		Path selectedDirectory = Path.of(directory).toAbsolutePath().normalize();
-		if (!Files.isDirectory(selectedDirectory)) {
-			throw new IllegalArgumentException("Stooq data directory does not exist or is not a directory: " + selectedDirectory);
-		}
-
-		List<Path> candidates = List.of(
-				selectedDirectory.resolve(Path.of(STOOQ_DATA_DIR, "data", "daily", "pl")),
-				selectedDirectory.resolve(Path.of("data", "daily", "pl")),
-				selectedDirectory
-		);
-		for (Path candidate : candidates) {
-			if (Files.isDirectory(candidate) && candidate.getFileName() != null && "pl".equals(candidate.getFileName().toString())) {
-				return candidate;
-			}
-		}
-
-		throw new IllegalArgumentException("Directory does not contain unpacked Stooq PL data: " + selectedDirectory);
 	}
 
 	public static boolean unzipNewPL(String workDir, String downloadDir) throws IOException {
@@ -117,7 +94,7 @@ public class StooqLoader {
 		String newPath = System.getProperty("user.home") + separator + downloadDir + separator + file;
 		File newData = new File(newPath);
 		if (newData.exists() && newData.isFile()) {
-			Zipper.unzip(newPath, workDir + separator + STOOQ_DATA_DIR);
+			Zipper.unzip(newPath, workDir + separator + StooqPLDataDirectoryResolver.STOOQ_DATA_DIR);
 			Files.delete(newData.toPath());
 			return true;
 		} else {
@@ -146,10 +123,14 @@ public class StooqLoader {
 		return marketData;
 	}
 
-	private static Map<MarketName, Market> loadFiles(String dataDir, String filesPath, String indicatorsPath, MarketType marketType, Time startTime)
+	private static Map<MarketName, Market> loadFiles(
+			Path dataDirectory,
+			String filesDirectory,
+			String indicatorsDirectory,
+			MarketType marketType,
+			Time startTime)
 			throws ExecutionException, InterruptedException {
-		File ohlcvDir = new File(dataDir + separator + filesPath);
-		File[] files = ohlcvDir.listFiles();
+		File[] files = dataDirectory.resolve(filesDirectory).toFile().listFiles();
 
 		TreeMap<MarketName, Market> markets = new TreeMap<>();
 		if (files == null) {
@@ -157,21 +138,28 @@ public class StooqLoader {
 		}
 		TaskExecutor<Market> executor = new TaskExecutor<>();
 		for (File file : files) {
-			executor.submit(() -> processFile(dataDir, file, indicatorsPath, marketType, startTime));
+			executor.submit(() -> processFile(
+					dataDirectory, file, indicatorsDirectory, marketType, startTime));
 		}
 		executor.getResults().forEach(market -> markets.put(market.getName(), market));
 		return markets;
 	}
 
-	private static Market processFile(String dataDir, File file, String indicatorsPath, MarketType marketType, Time startTime) {
+	private static Market processFile(
+			Path dataDirectory,
+			File file,
+			String indicatorsDirectory,
+			MarketType marketType,
+			Time startTime) {
 		try {
 			OHLCVData ohlcv = OHLCVData.load(file, 2, 4, 5, 6, 7, 8, startTime);
-			if (indicatorsPath != null) {
-				ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_pe.txt", 2, 7, (q, s) -> q.parseAndSet(s,
+			if (indicatorsDirectory != null) {
+				Path indicatorsPath = dataDirectory.resolve(indicatorsDirectory);
+				ohlcv.updateData(indicatorsPath.resolve(ohlcv.getName() + "_pe.txt").toString(), 2, 7, (q, s) -> q.parseAndSet(s,
 						PE));
-				ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_pb.txt", 2, 7, (q, s) -> q.parseAndSet(s,
+				ohlcv.updateData(indicatorsPath.resolve(ohlcv.getName() + "_pb.txt").toString(), 2, 7, (q, s) -> q.parseAndSet(s,
 						PB));
-				ohlcv.updateData(dataDir + File.separator + indicatorsPath + separator + ohlcv.getName() + "_mv.txt", 2, 7, (q, s) -> q.parseAndSet(s,
+				ohlcv.updateData(indicatorsPath.resolve(ohlcv.getName() + "_mv.txt").toString(), 2, 7, (q, s) -> q.parseAndSet(s,
 						MV));
 			}
 			return ohlcv.toMarket(marketType);

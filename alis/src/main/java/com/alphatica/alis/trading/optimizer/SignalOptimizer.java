@@ -1,8 +1,6 @@
 package com.alphatica.alis.trading.optimizer;
 
 import com.alphatica.alis.data.market.MarketData;
-import com.alphatica.alis.data.time.Time;
-import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.trading.optimizer.params.Validator;
 import com.alphatica.alis.trading.optimizer.paramsselector.ParamsSelector;
 import com.alphatica.alis.trading.signalcheck.AllocationPolicy;
@@ -15,45 +13,36 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
 public class SignalOptimizer extends Optimizer {
 
-	private final Supplier<SignalGenerator> signalGeneratorSupplier;
+	private final Supplier<SignalGenerator> signalGeneratorFactory;
 	private final MarketData marketData;
-	private final Time startTime;
-	private final Time endTime;
-	private final Predicate<TimeMarketData> marketFilter;
-	private final float commissionRate;
-	private final boolean tradeSecondarySignals;
+	private final Supplier<SignalExecutor> executorFactory;
+	private final Supplier<ScoreCalculator> scorerFactory;
 	private final double maxAllocation;
 	private final AllocationPolicy allocationPolicy;
-	private final ScoreCalculator scoreCalculator;
 	private final ParamsSelector paramsSelector;
 	private final AtomicBoolean isStopped = new AtomicBoolean(false);
 
 	private double bestScore;
 
-	public SignalOptimizer(Supplier<SignalGenerator> signalGeneratorSupplier, MarketData marketData,
-						   Time startTime, Time endTime,
-						   Predicate<TimeMarketData> marketFilter, float commissionRate, boolean tradeSecondarySignals,
-						   ParametersSelection parametersSelection, double maxAllocation,
-						   AllocationPolicy allocationPolicy, ScoreCalculator scoreCalculator) throws OptimizerException {
-		this.signalGeneratorSupplier = requireNonNull(signalGeneratorSupplier, "signalGeneratorSupplier");
+	public SignalOptimizer(Supplier<SignalGenerator> signalGeneratorFactory, MarketData marketData,
+						   Supplier<SignalExecutor> executorFactory, Supplier<ScoreCalculator> scorerFactory,
+						   AllocationPolicy allocationPolicy, ParametersSelection parametersSelection,
+						   double maxAllocation) throws OptimizerException {
+		this.signalGeneratorFactory = requireNonNull(signalGeneratorFactory, "signalGeneratorFactory");
 		this.marketData = requireNonNull(marketData, "marketData");
-		this.startTime = requireNonNull(startTime, "startTime");
-		this.endTime = requireNonNull(endTime, "endTime");
-		this.marketFilter = requireNonNull(marketFilter, "marketFilter");
-		this.commissionRate = commissionRate;
-		this.tradeSecondarySignals = tradeSecondarySignals;
+		this.executorFactory = requireNonNull(executorFactory, "executorFactory");
+		this.scorerFactory = requireNonNull(scorerFactory, "scorerFactory");
 		this.maxAllocation = maxAllocation;
 		AllocationReplayer.validateMaxAllocation(maxAllocation);
 		this.allocationPolicy = requireNonNull(allocationPolicy, "allocationPolicy");
-		this.scoreCalculator = requireNonNull(scoreCalculator, "scoreCalculator");
-		var fields = signalGeneratorSupplier.get().getClass().getDeclaredFields();
+		requireNonNull(parametersSelection, "parametersSelection");
+		var fields = signalGeneratorFactory.get().getClass().getDeclaredFields();
 		Validator.validate(fields);
 		ParamsStepsSet paramsStepsSet = buildParamsStepsSet(fields);
 		this.paramsSelector = ParamsSelector.get(parametersSelection, paramsStepsSet);
@@ -87,7 +76,7 @@ public class SignalOptimizer extends Optimizer {
 			return;
 		}
 		Supplier<SignalGenerator> optimizedSignalGeneratorSupplier = () -> {
-			var signalGenerator = signalGeneratorSupplier.get();
+			var signalGenerator = signalGeneratorFactory.get();
 			try {
 				copyParameters(nextParams, signalGenerator);
 				return signalGenerator;
@@ -96,14 +85,10 @@ public class SignalOptimizer extends Optimizer {
 				return null;
 			}
 		};
-		var signalExecutor = new SignalExecutor()
-				.withTimeRange(startTime, endTime)
-				.withMarketFilter(marketFilter)
-				.withCommissionRate(commissionRate)
-				.withSecondarySignals(tradeSecondarySignals)
-				.useCachedMarketData();
+		var signalExecutor = requireNonNull(executorFactory.get(), "executorFactory result");
 		var execution = signalExecutor.execute(marketData, optimizedSignalGeneratorSupplier);
 		var replay = new AllocationReplayer().replay(execution, maxAllocation, allocationPolicy);
+		var scoreCalculator = requireNonNull(scorerFactory.get(), "scorerFactory result");
 		var score = scoreCalculator.calculate(execution, replay);
 		var optimizerScore = new OptimizerScore(score, nextParams);
 		paramsSelector.registerScore(optimizerScore);
