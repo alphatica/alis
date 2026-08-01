@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
+@SuppressWarnings({"PMD.GodClass"})
 public final class Statistics {
 
 	private static final int MONTE_CARLO_TRIALS = 1_000_000;
