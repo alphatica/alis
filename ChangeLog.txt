@@ -1,3 +1,4 @@
+1 Aug 2026: Add VOLUME Layer
 23 July 2026: Separate SignalExecutor discovery from allocation replay and scoring
 23 July 2026: Change Chart api to allow multiple panes
 22 July 2026: Change SignalExecutor api to similar to StrategyExecutor

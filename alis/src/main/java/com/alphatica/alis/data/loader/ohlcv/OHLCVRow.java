@@ -20,11 +20,13 @@ public class OHLCVRow {
 		OHLCVRow quote = new OHLCVRow();
 		quote.data = new ArrayList<>();
 		quote.time = new Time(Integer.parseInt(date.replace(" ", "").replace("-", "")));
+		float parsedVolume = Float.parseFloat(volume);
 		quote.data.add(Float.parseFloat(open));
 		quote.data.add(Float.parseFloat(high));
 		quote.data.add(Float.parseFloat(low));
 		quote.data.add(Float.parseFloat(close));
-		quote.data.add(Float.parseFloat(volume) * (quote.get(OPEN) + quote.get(HIGH) + quote.get(LOW) + quote.get(CLOSE)) / 4.0f);
+		quote.data.add(parsedVolume);
+		quote.data.add(parsedVolume * (quote.get(OPEN) + quote.get(HIGH) + quote.get(LOW) + quote.get(CLOSE)) / 4.0f);
 		quote.data.add(Float.NaN);
 		quote.data.add(Float.NaN);
 		quote.data.add(Float.NaN);

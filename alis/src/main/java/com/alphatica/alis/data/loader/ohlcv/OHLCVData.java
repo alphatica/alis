@@ -27,6 +27,7 @@ import static com.alphatica.alis.data.layer.Layer.OPEN;
 import static com.alphatica.alis.data.layer.Layer.PB;
 import static com.alphatica.alis.data.layer.Layer.PE;
 import static com.alphatica.alis.data.layer.Layer.TURNOVER;
+import static com.alphatica.alis.data.layer.Layer.VOLUME;
 import static java.lang.String.format;
 
 public class OHLCVData {
@@ -69,6 +70,7 @@ public class OHLCVData {
 		float[] high = new float[size];
 		float[] low = new float[size];
 		float[] close = new float[size];
+		float[] volume = new float[size];
 		float[] turnover = new float[size];
 		float[] pe = new float[size];
 		float[] pb = new float[size];
@@ -80,15 +82,17 @@ public class OHLCVData {
 			high[index] = row.get(HIGH);
 			low[index] = row.get(LOW);
 			close[index] = row.get(CLOSE);
+			volume[index] = row.get(VOLUME);
 			turnover[index] = row.get(TURNOVER);
 			pe[index] = row.get(PE);
 			pb[index] = row.get(PB);
 			mv[index] = row.get(MV);
-			List<FloatArraySlice> sub = new ArrayList<>(8);
+			List<FloatArraySlice> sub = new ArrayList<>(9);
 			sub.add(new FloatArraySlice(open, index));
 			sub.add(new FloatArraySlice(high, index));
 			sub.add(new FloatArraySlice(low, index));
 			sub.add(new FloatArraySlice(close, index));
+			sub.add(new FloatArraySlice(volume, index));
 			sub.add(new FloatArraySlice(turnover, index));
 			sub.add(new FloatArraySlice(pe, index));
 			sub.add(new FloatArraySlice(pb, index));

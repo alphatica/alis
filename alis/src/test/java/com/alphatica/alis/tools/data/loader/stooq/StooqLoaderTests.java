@@ -44,6 +44,8 @@ class StooqLoaderTests {
 		assertEquals(timeFirst, firstTimeMarketData.getTime());
 		double open = firstTimeMarketData.getData(Layer.OPEN, 0);
 		assertEquals(1.1, open, 0.001);
+		assertEquals(1_000.0, firstTimeMarketData.getData(Layer.VOLUME, 0), 0.001);
+		assertEquals(1_200.0, firstTimeMarketData.getData(Layer.TURNOVER, 0), 0.001);
 
 		Time middleTime = new Time(20100110);
 
@@ -54,6 +56,19 @@ class StooqLoaderTests {
 		TimeMarketData afterMiddleTimeMarketData = market.getAtOrNext(middleTime);
 		assertTrue(afterMiddleTimeMarketData.getTime().isAfter(middleTime));
 		assertEquals(6.5, afterMiddleTimeMarketData.getData(Layer.HIGH, 0), 0.001);
+	}
+
+	@Test
+	void shouldAppendVolumeWithoutChangingExistingLayerIndexes() {
+		assertEquals(0, Layer.OPEN.getIndex());
+		assertEquals(1, Layer.HIGH.getIndex());
+		assertEquals(2, Layer.LOW.getIndex());
+		assertEquals(3, Layer.CLOSE.getIndex());
+		assertEquals(4, Layer.VOLUME.getIndex());
+		assertEquals(5, Layer.TURNOVER.getIndex());
+		assertEquals(6, Layer.PE.getIndex());
+		assertEquals(7, Layer.PB.getIndex());
+		assertEquals(8, Layer.MV.getIndex());
 	}
 
 	@Test

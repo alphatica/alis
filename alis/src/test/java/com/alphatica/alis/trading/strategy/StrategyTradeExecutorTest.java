@@ -79,9 +79,10 @@ class StrategyTradeExecutorTest {
 
 	private static TimeMarketDataSet marketDataSet(float price, float turnover) {
 		FloatArraySlice priceData = new FloatArraySlice(new float[]{price}, 0);
+		FloatArraySlice volumeData = new FloatArraySlice(new float[]{turnover / price}, 0);
 		FloatArraySlice turnoverData = new FloatArraySlice(new float[]{turnover}, 0);
 		TimeMarketData marketData = new TimeMarketData(MARKET, MarketType.STOCK, TIME,
-				List.of(priceData, priceData, priceData, priceData, turnoverData));
+				List.of(priceData, priceData, priceData, priceData, volumeData, turnoverData));
 		return new TimeMarketDataSet(Map.of(MARKET, marketData), TIME);
 	}
 }
