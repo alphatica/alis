@@ -15,7 +15,7 @@ deploy_target="${DEPLOY_SSH_TARGET:-ubuntu@alphatica.com}"
 deploy_port="${DEPLOY_SSH_PORT:-23}"
 site_copy="../alphatica.com/web/src/public/downloads/alis.zip"
 
-mvn clean package
+COPY_TO_DESKTOP=0 ./build-gui.sh
 git push
 cp studio/target/*-jar-with-dependencies.jar alis-studio/studio.jar
 rm -f alis.zip

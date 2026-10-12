@@ -9,12 +9,9 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 
 public class TaskExecutor<T> {
-	private List<Callable<T>> tasks;
+	private final List<Callable<T>> tasks = new ArrayList<>();
 
 	public void submit(Callable<T> task) {
-		if (tasks == null) {
-			tasks = new ArrayList<>();
-		}
 		tasks.add(task);
 	}
 

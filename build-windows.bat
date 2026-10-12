@@ -13,6 +13,21 @@ if not exist "%ICON%" (
     exit /b 1
 )
 
+pushd studio\frontend
+if exist package-lock.json (
+    call npm ci --no-audit --no-fund
+) else (
+    call npm install --no-audit --no-fund
+)
+if errorlevel 1 (popd & exit /b 1)
+call npm run build
+if errorlevel 1 (popd & exit /b 1)
+popd
+if not exist studio\frontend\dist\index.html (
+    echo Nie zbudowano GUI: brak studio\frontend\dist\index.html
+    exit /b 1
+)
+
 call mvn -pl studio -am clean package
 if errorlevel 1 exit /b %errorlevel%
 
@@ -30,7 +45,7 @@ jpackage ^
     --name "%APP_NAME%" ^
     --input studio\target ^
     --main-jar "%MAIN_JAR%" ^
-    --main-class com.alphatica.alis.studio.StudioStart ^
+    --main-class com.alphatica.alis.studio.web.WebStart ^
     --icon "%ICON%" ^
     --dest "%OUTPUT_DIR%"
 

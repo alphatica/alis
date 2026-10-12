@@ -7,9 +7,7 @@ import com.alphatica.alis.trading.account.PositionEntry;
 import com.alphatica.alis.trading.account.PositionExit;
 import com.alphatica.alis.trading.order.Direction;
 
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -32,23 +30,5 @@ public record Trade(MarketName marketName, Direction direction, double price, in
 	@Override
 	public String toString() {
 		return "Executing trade: " + direction + " " + quantity + " x " + marketName + " @ " + price;
-	}
-
-	@Override
-	public Map<String, String> toAttributes() {
-		Map<String, String> row = new HashMap<>();
-		double value = quantity * price;
-		if (direction == Direction.BUY) {
-			value += commission;
-		} else if (direction == Direction.SELL) {
-			value -= commission;
-		}
-		row.put("Value", format("%.2f", value));
-		row.put("Type", direction.toString());
-		row.put("Market", marketName.name());
-		row.put("Price", format("%.2f", price));
-		row.put("Quantity", format("%d", quantity));
-		row.put("Commission", format("%.2f", commission));
-		return row;
 	}
 }

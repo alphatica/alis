@@ -1,3 +1,4 @@
+24 Oct 2026: Web based modern GUI instead of Java Swing
 24 Oct 2026: Change downside drawdown calculations
 24 Oct 2026: Use round trip position instead of each buy/sell
 1 Aug 2026: Add VOLUME Layer

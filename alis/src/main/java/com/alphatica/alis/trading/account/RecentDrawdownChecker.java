@@ -3,22 +3,26 @@ package com.alphatica.alis.trading.account;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
 
 import static java.lang.String.format;
 
 public class RecentDrawdownChecker {
 
-	public static void checkDrawdown(List<Double> navHistory, Consumer<String> stringConsumer) {
+	/**
+	 * @return the analysis as lines of text
+	 */
+	public static List<String> checkDrawdown(List<Double> navHistory) {
+		List<String> lines = new ArrayList<>();
 		if (navHistory.size() < 10) {
-			stringConsumer.accept(format("Need at least 10 history points, got %d", navHistory.size()));
+			lines.add(format("Need at least 10 history points, got %d", navHistory.size()));
 		} else {
-			doAnalysis(navHistory, stringConsumer);
+			doAnalysis(navHistory, lines);
 		}
+		return lines;
 	}
 
-	private static void doAnalysis(List<Double> navHistory, Consumer<String> stringConsumer) {
-		stringConsumer.accept(format("Getting account history from %d data points", navHistory.size()));
+	private static void doAnalysis(List<Double> navHistory, List<String> lines) {
+		lines.add(format("Getting account history from %d data points", navHistory.size()));
 		DrawdownCalc drawdownCalc = new DrawdownCalc();
 		List<Double> ddLengths = new ArrayList<>();
 		List<Double> ddDepths = new ArrayList<>();
@@ -38,27 +42,27 @@ public class RecentDrawdownChecker {
 				maxCurrentDdDepth = drawdownCalc.getCurrentDD();
 			}
 		}
-		showAnalysis(stringConsumer, ddLengths, drawdownCalc, maxCurrentDdDepth, ddDepths, currentDDLen);
+		showAnalysis(lines, ddLengths, drawdownCalc, maxCurrentDdDepth, ddDepths, currentDDLen);
 	}
 
-	private static void showAnalysis(Consumer<String> stringConsumer, List<Double> ddLengths, DrawdownCalc drawdownCalc, double maxCurrentDdDepth, List<Double> ddDepths, double currentDDLen) {
+	private static void showAnalysis(List<String> lines, List<Double> ddLengths, DrawdownCalc drawdownCalc, double maxCurrentDdDepth, List<Double> ddDepths, double currentDDLen) {
 		if (ddLengths.size() < 10) {
-			stringConsumer.accept(format("Need at least 10 recovered drawdowns, got %d", ddLengths.size()));
+			lines.add(format("Need at least 10 recovered drawdowns, got %d", ddLengths.size()));
 			return;
 		}
 		double maxDd = drawdownCalc.getMaxDD();
 		if (maxCurrentDdDepth > maxDd) {
-			stringConsumer.accept(format("Maximum of current drawdown (%.1f %%) is smaller than the biggest (%.1f %%). No statistical analysis needed", maxCurrentDdDepth, maxDd));
+			lines.add(format("Maximum of current drawdown (%.1f %%) is smaller than the biggest (%.1f %%). No statistical analysis needed", maxCurrentDdDepth, maxDd));
 		} else {
 			double probability = analyze(ddDepths, maxCurrentDdDepth);
-			stringConsumer.accept(format("Maximum of current drawdown depth (%.1f%%) probability is %.2f", maxCurrentDdDepth, probability));
+			lines.add(format("Maximum of current drawdown depth (%.1f%%) probability is %.2f", maxCurrentDdDepth, probability));
 		}
 		double maxDdLength = ddLengths.stream().mapToDouble(x -> x).max().getAsDouble();
 		if (currentDDLen < maxDdLength) {
-			stringConsumer.accept(format("Current drawdown (%.0f bars) is shorter than the longest (%.0f bars). No statistical analysis needed", currentDDLen, maxDdLength));
+			lines.add(format("Current drawdown (%.0f bars) is shorter than the longest (%.0f bars). No statistical analysis needed", currentDDLen, maxDdLength));
 		} else {
 			double probability = analyze(ddLengths, currentDDLen);
-			stringConsumer.accept(format("Current drawdown length (%.0f bars) probability is %.2f", currentDDLen, probability));
+			lines.add(format("Current drawdown length (%.0f bars) probability is %.2f", currentDDLen, probability));
 		}
 	}
 

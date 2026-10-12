@@ -13,63 +13,58 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class StrategyOptimizer extends Optimizer {
 
 	private final AtomicInteger counter = new AtomicInteger(0);
 	private final AtomicBoolean isStopped = new AtomicBoolean(false);
+	private final AtomicReference<Exception> failure = new AtomicReference<>();
 	private final long maxCounter;
 	private final ResultVerifier resultVerifier;
 	private final StrategyResultVerifier verifier;
 	private final ParamsSelector paramsSelector;
 	private final AtomicInteger iterationsStarted = new AtomicInteger(0);
-	private final AtomicLong sumMillisElapsed = new AtomicLong(0);
-
-	private BiConsumer<OptimizerScore, Account> scoreCallback;
-	private Consumer<Exception> exceptionCallback;
 
 	public StrategyOptimizer(Supplier<Strategy> strategyFactory, MarketData marketData, Supplier<StrategyExecutor> executorFactory, Supplier<AccountScorer> scorerFactory, ResultVerifier resultVerifier, ParametersSelection parametersSelection, long maxCounter) throws OptimizerException {
 		this.maxCounter = maxCounter;
 		this.resultVerifier = resultVerifier;
-		this.verifier = new StrategyResultVerifier(strategyFactory, marketData, executorFactory, scorerFactory, this::passException);
+		this.verifier = new StrategyResultVerifier(strategyFactory, marketData, executorFactory, scorerFactory, this::fail);
 		var fields = strategyFactory.get().getClass().getDeclaredFields();
 		Validator.validate(fields);
 		ParamsStepsSet paramsStepsSet = buildParamsStepsSet(fields);
 		this.paramsSelector = ParamsSelector.get(parametersSelection, paramsStepsSet);
 	}
 
-	public StrategyOptimizer setExceptionCallback(Consumer<Exception> callback) {
-		this.exceptionCallback = callback;
-		return this;
-	}
-
-	public void startOptimizations() {
+	/**
+	 * Runs on all processors until {@code maxCounter} iterations are done or {@link #stop()} is called.
+	 * The first error stops the optimization and is thrown.
+	 *
+	 * @param onScore called for every scored set of parameters, one call at a time
+	 */
+	public void optimize(BiConsumer<OptimizerScore, Account> onScore) throws OptimizerException {
 		int processors = Runtime.getRuntime().availableProcessors();
 		List<Thread> threads = new ArrayList<>();
-		long start = System.nanoTime();
-		for(int i = 0; i < processors; i++) {
-			Thread thread = startWork();
-			threads.add(thread);
+		for (int i = 0; i < processors; i++) {
+			threads.add(startWork(onScore));
 		}
 		waitForThreads(threads);
-		System.out.println("Elapsed: " + (System.nanoTime() - start) / 1_000_000_000);
+		Exception exception = failure.get();
+		if (exception != null) {
+			throw new OptimizerException("Optimization failed: " + exception, exception);
+		}
 	}
 
-	private Thread startWork() {
+	private Thread startWork(BiConsumer<OptimizerScore, Account> onScore) {
 		Runnable task = () -> {
-			while(iterationsStarted.incrementAndGet() <= maxCounter && !isStopped.get()) {
+			while (iterationsStarted.incrementAndGet() <= maxCounter && !isStopped.get()) {
 				try {
-					long startTime = System.nanoTime();
-					optimizeOnce();
-					long endTime = System.nanoTime();
+					optimizeOnce(onScore);
 					counter.incrementAndGet();
-					updateAverageTime(startTime, endTime);
 				} catch (IllegalAccessException e) {
-					passException(e);
+					fail(e);
 				}
 			}
 		};
@@ -78,21 +73,9 @@ public class StrategyOptimizer extends Optimizer {
 		return thread;
 	}
 
-	private void updateAverageTime(long startTime, long endTime) {
-		long millis = (endTime - startTime) / 1_000_000;
-		var millisElapsed = sumMillisElapsed.addAndGet(millis);
-		double average = (double)millisElapsed / counter.get();
-		System.out.printf("Average time per optimization loop: %.1f ms%n", average);
-	}
-
-	private void passException(Exception e) {
-		if (exceptionCallback != null) {
-			exceptionCallback.accept(e);
-		}
-	}
-
-	public void registerScoreCallback(BiConsumer<OptimizerScore, Account> scoreCallback) {
-		this.scoreCallback = scoreCallback;
+	private void fail(Exception e) {
+		failure.compareAndSet(null, e);
+		stop();
 	}
 
 	private static void waitForThreads(List<Thread> handlers) {
@@ -106,21 +89,20 @@ public class StrategyOptimizer extends Optimizer {
 		}
 	}
 
-	private void optimizeOnce() throws IllegalAccessException {
+	private void optimizeOnce(BiConsumer<OptimizerScore, Account> onScore) throws IllegalAccessException {
 		Map<String, Object> nextParams = paramsSelector.next();
 		if (nextParams.isEmpty()) {
 			return;
 		}
 		verifier.verify(resultVerifier, nextParams)
-				.ifPresent(result -> registerScore(result.score(), result.account(), nextParams));
+				.ifPresent(result -> registerScore(result.score(), result.account(), nextParams, onScore));
 	}
 
-	private synchronized void registerScore(double score, Account account, Map<String, Object> parameters) {
+	private synchronized void registerScore(double score, Account account, Map<String, Object> parameters,
+											BiConsumer<OptimizerScore, Account> onScore) {
 		OptimizerScore newScore = new OptimizerScore(score, parameters);
 		paramsSelector.registerScore(newScore);
-		if (scoreCallback != null) {
-			scoreCallback.accept(newScore, account);
-		}
+		onScore.accept(newScore, account);
 	}
 
 	public void stop() {

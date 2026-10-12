@@ -16,7 +16,7 @@ if [[ ! -f "$ICON" ]]; then
     exit 1
 fi
 
-mvn -pl studio -am clean package
+COPY_TO_DESKTOP=0 ./build-gui.sh
 
 MAIN_JAR="$(find studio/target -maxdepth 1 -type f -name '*-jar-with-dependencies.jar' -printf '%f\n' | head -n 1)"
 if [[ -z "$MAIN_JAR" ]]; then
@@ -65,7 +65,7 @@ jpackage \
     --name "$LAUNCHER_NAME" \
     --input studio/target \
     --main-jar "$MAIN_JAR" \
-    --main-class com.alphatica.alis.studio.StudioStart \
+    --main-class com.alphatica.alis.studio.web.WebStart \
     --icon "$ICON" \
     --dest "$BUILD_DIR"
 
