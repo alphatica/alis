@@ -1,11 +1,14 @@
 package com.alphatica.alis.trading.account;
 
 import com.alphatica.alis.data.layer.Layer;
+import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.MarketName;
+import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
 import com.alphatica.alis.trading.account.actions.PositionStats;
+import com.alphatica.alis.trading.account.actions.Trade;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.alphatica.alis.tools.java.NumberTools.assertPositive;
+import static com.alphatica.alis.trading.order.Direction.SELL;
 import static java.lang.String.format;
 
 public class Account {
@@ -167,6 +171,30 @@ public class Account {
 			reducePosition(next.getKey(), exit, commissionValue);
 		}
 		downsideDrawdownCalc.updateState(cash, getNAV());
+	}
+
+	/**
+	 * Sells whole positions in delisted markets at delisting price, without commission.
+	 * Returns executed trades.
+	 */
+	public List<Trade> processDelistings(List<Delisting> delistings, Time session) throws AccountActionException {
+		List<Trade> trades = new ArrayList<>();
+		for (Delisting delisting : delistings) {
+			Position position = positions.get(delisting.market());
+			if (position == null) {
+				continue;
+			}
+			int quantity = position.getQuantity();
+			reducePosition(delisting.market(), new PositionExit(session, quantity, delisting.price()), 0.0);
+			// Recorded as a regular SELL. Consider a dedicated Delisting action type in the future.
+			trades.add(new Trade(delisting.market(), SELL, delisting.price(), quantity, 0.0));
+		}
+		if (!trades.isEmpty()) {
+			double nav = getNAV();
+			ddCalc.updateNav(nav);
+			downsideDrawdownCalc.updateState(cash, nav);
+		}
+		return trades;
 	}
 
 	public void afterSells() {

@@ -1,16 +1,18 @@
 package com.alphatica.alis.condition.changecheck;
 
+import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
-import com.alphatica.alis.data.time.TimeRangeMarketData;
 import com.alphatica.alis.tools.java.TaskExecutor;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
@@ -28,8 +30,9 @@ public class ChangeCheckExecutor {
 		List<Time> times = marketData.getTimes();
 		List<Market> markets = marketData.listMarkets(changeCheck.getMarketFilter()).stream().toList();
 		int benchmarkStartTimeIndex = getBenchmarkStartTimeIndex(changeCheck, times);
+		NavigableMap<Time, List<Delisting>> delistings = marketData.getDelistingsBySession();
 		TaskExecutor<List<SingleMatchResult>> executor = new TaskExecutor<>();
-		submitChecks(changeCheck, marketData, benchmarkStartTimeIndex, times, markets, executor);
+		submitChecks(changeCheck, marketData, benchmarkStartTimeIndex, times, markets, delistings, executor);
 		TreeMap<Time, List<SingleMatchResult>> results = collectResults(executor);
 		return new ChangeCheckResult(results, changeCheck.getMovesLevels());
 
@@ -48,7 +51,8 @@ public class ChangeCheckExecutor {
 
 	@SuppressWarnings("java:S135") // Allow multiple breaks
 	private static void submitChecks(ChangeCheck changeCheck, MarketData marketData, int benchmarkStartTimeIndex, List<Time> times,
-									 List<Market> markets, TaskExecutor<List<SingleMatchResult>> executor) {
+									 List<Market> markets, NavigableMap<Time, List<Delisting>> delistings,
+									 TaskExecutor<List<SingleMatchResult>> executor) {
 		for (int i = benchmarkStartTimeIndex; i < times.size(); i++) {
 			Time conditionTime = times.get(i);
 			if (conditionTime.isAfter(changeCheck.getTo())) {
@@ -62,7 +66,8 @@ public class ChangeCheckExecutor {
 			Time startTime = times.get(startTimeIndex);
 			Time endTime = times.get(endTimeIndex);
 			TimeMarketDataSet timeMarketDataSet = marketData.snapshotAt(conditionTime);
-			executor.submit(() -> checkCondition(new ChangeCheckTask(conditionTime, startTime, endTime, markets, timeMarketDataSet, changeCheck)));
+			executor.submit(() -> checkCondition(new ChangeCheckTask(conditionTime, startTime, endTime, markets, timeMarketDataSet, changeCheck,
+					delistings)));
 		}
 	}
 
@@ -85,21 +90,20 @@ public class ChangeCheckExecutor {
 			if (!task.changeCheck().getCondition().matches(marketData, task.marketDataSet())) {
 				continue;
 			}
-			Optional<TimeRangeMarketData> maybeTimeRangeMarketData = getTimeRangeMarketData(market, task.startTime(), task.endTime());
-			if (maybeTimeRangeMarketData.isEmpty()) {
+			Optional<PriceRange> maybePriceRange = getPriceRange(market, task);
+			if (maybePriceRange.isEmpty()) {
 				continue;
 			}
-			TimeRangeMarketData timeRangeMarketData = maybeTimeRangeMarketData.get();
-			double startPrice = timeRangeMarketData.start().getData(OPEN, 0);
-			double endPrice = timeRangeMarketData.end().getData(OPEN, 0);
+			PriceRange priceRange = maybePriceRange.get();
+			double startPrice = priceRange.startPrice();
+			double endPrice = priceRange.endPrice();
 			double change = ((endPrice / startPrice) - 1.0) * 100;
 			if (Double.isFinite(change)) {
 				List<LevelReachedStat> higherThanLevelsReached = getLevelsReached(task.changeCheck()
 																					  .getMovesLevels(), startPrice, market, task.startTime(),
-						task.endTime());
-				results.add(new SingleMatchResult(task.conditionTime(), market, timeRangeMarketData.start()
-																								   .getTime(), startPrice, timeRangeMarketData.end()
-																																			  .getTime(), endPrice, change, higherThanLevelsReached));
+						priceRange.endTime());
+				results.add(new SingleMatchResult(task.conditionTime(), market, task.startTime(), startPrice, priceRange.endTime(),
+						endPrice, change, higherThanLevelsReached));
 			}
 		}
 		return results;
@@ -153,16 +157,37 @@ public class ChangeCheckExecutor {
 		return higherThanLevelsReached;
 	}
 
-	private static Optional<TimeRangeMarketData> getTimeRangeMarketData(Market market, Time startTime, Time endTime) {
-		TimeMarketData startData = market.getAt(startTime);
+	private static Optional<PriceRange> getPriceRange(Market market, ChangeCheckTask task) {
+		TimeMarketData startData = market.getAt(task.startTime());
 		if (startData == null) {
 			return empty();
 		}
-
-		TimeMarketData endData = market.getAt(endTime);
+		double startPrice = startData.getData(OPEN, 0);
+		Optional<PriceRange> delisted = getDelistingPriceRange(market, task, startPrice);
+		if (delisted.isPresent()) {
+			return delisted;
+		}
+		TimeMarketData endData = market.getAt(task.endTime());
 		if (endData == null) {
 			return empty();
 		}
-		return of(new TimeRangeMarketData(startData, endData));
+		return of(new PriceRange(startPrice, endData.getTime(), endData.getData(OPEN, 0)));
+	}
+
+	// Delisting within [startTime, endTime] ends the window at delisting session and price
+	private static Optional<PriceRange> getDelistingPriceRange(Market market, ChangeCheckTask task, double startPrice) {
+		NavigableMap<Time, List<Delisting>> delistingsInWindow = task.delistings()
+				.subMap(task.startTime(), true, task.endTime(), true);
+		for (Map.Entry<Time, List<Delisting>> sessionDelistings : delistingsInWindow.entrySet()) {
+			for (Delisting delisting : sessionDelistings.getValue()) {
+				if (delisting.market().equals(market.getName())) {
+					return of(new PriceRange(startPrice, sessionDelistings.getKey(), delisting.price()));
+				}
+			}
+		}
+		return empty();
+	}
+
+	private record PriceRange(double startPrice, Time endTime, double endPrice) {
 	}
 }

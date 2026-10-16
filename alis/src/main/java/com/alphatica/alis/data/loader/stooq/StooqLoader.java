@@ -3,6 +3,7 @@ package com.alphatica.alis.data.loader.stooq;
 import com.alphatica.alis.data.StandardMarketData;
 import com.alphatica.alis.data.loader.DataProcessingException;
 import com.alphatica.alis.data.loader.ohlcv.OHLCVData;
+import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
@@ -59,6 +60,10 @@ public class StooqLoader {
 		Map<MarketName, Market> futures = loadFiles(
 				dataDirectory, "wse futures", null, FUTURE, new Time(0));
 		standardMarketData.addMarkets(futures);
+
+		List<Delisting> delistings = DelistingLoader.load(Path.of(workDir).resolve(DelistingLoader.DELISTED_FILE));
+		DelistingLoader.warnAboutInconsistencies(delistings, standardMarketData);
+		standardMarketData.setDelistings(delistings);
 		return standardMarketData;
 	}
 

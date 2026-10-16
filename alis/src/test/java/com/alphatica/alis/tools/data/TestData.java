@@ -1,6 +1,8 @@
 package com.alphatica.alis.tools.data;
 
 import com.alphatica.alis.data.FloatArraySlice;
+import com.alphatica.alis.data.market.Delisting;
+import com.alphatica.alis.data.market.Delistings;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
@@ -21,6 +23,7 @@ public class TestData implements MarketData {
 
 	private final Map<MarketName, Market> markets = new HashMap<>();
 	private final MarketType marketType = MarketType.STOCK;
+	private Delistings delistings = Delistings.empty();
 
 
 	public TestData(String... names) {
@@ -44,6 +47,21 @@ public class TestData implements MarketData {
 	public List<Time> getTimes() {
 		Set<Time> set = markets.values().stream().map(Market::getTimes).flatMap(Collection::stream).collect(Collectors.toSet());
 		return set.stream().sorted().toList();
+	}
+
+	public TestData withDelistings(Delisting... newDelistings) {
+		delistings = new Delistings(List.of(newDelistings), getTimes());
+		return this;
+	}
+
+	@Override
+	public List<Delisting> getDelistings() {
+		return delistings.all();
+	}
+
+	@Override
+	public List<Delisting> getDelistingsAt(Time session) {
+		return delistings.at(session);
 	}
 
 	@Override

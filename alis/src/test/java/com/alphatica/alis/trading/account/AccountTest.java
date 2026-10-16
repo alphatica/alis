@@ -1,5 +1,6 @@
 package com.alphatica.alis.trading.account;
 
+import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
@@ -8,9 +9,27 @@ import com.alphatica.alis.trading.account.actions.Trade;
 import com.alphatica.alis.trading.order.Direction;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class AccountTest {
+
+	@Test
+	void shouldSellWholePositionOnDelistingAtZeroPrice() throws AccountActionException {
+		MarketName market = new MarketName("a");
+		MarketName other = new MarketName("b");
+		Account account = new Account(1000);
+		account.addPosition(market, new PositionEntry(new Time(1), 10, 50), 0);
+
+		List<Trade> trades = account.processDelistings(List.of(new Delisting(market, new Time(2), 0.0),
+				new Delisting(other, new Time(2), 1.0)), new Time(2));
+
+		assertEquals(List.of(new Trade(market, Direction.SELL, 0.0, 10, 0.0)), trades);
+		assertNull(account.getPosition(market));
+		assertEquals(500, account.getCash(), 0.001);
+		assertEquals(500, account.getNAV(), 0.001);
+	}
 
 	@Test
 	void shouldApplySimpleActions() throws AccountActionException {

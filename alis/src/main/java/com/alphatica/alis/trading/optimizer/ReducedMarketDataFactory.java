@@ -18,6 +18,7 @@ final class ReducedMarketDataFactory {
 				.collect(Collectors.toMap(Market::getName, market -> market));
 		StandardMarketData reducedMarketData = new StandardMarketData();
 		reducedMarketData.addMarkets(markets);
+		reducedMarketData.setDelistings(marketData.getDelistings());
 		return reducedMarketData;
 	}
 

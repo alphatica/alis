@@ -10,7 +10,7 @@ public class PositionExit {
 	final double price;
 
 	public PositionExit(Time time, int quantity, double price) {
-		assertPositive(quantity, price);
+		assertPositive(quantity);
 		this.time = time;
 		this.quantity = quantity;
 		this.price = price;

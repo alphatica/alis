@@ -26,9 +26,12 @@ public record TradeOpportunity(
 		if (openEventIndex < 0 || closeEventIndex <= openEventIndex) {
 			throw new IllegalArgumentException("closeEventIndex must be greater than openEventIndex");
 		}
-		if (!Float.isFinite(effectiveOpenPrice) || effectiveOpenPrice <= 0.0f
-				|| !Float.isFinite(effectiveClosePrice) || effectiveClosePrice <= 0.0f) {
-			throw new IllegalArgumentException("effective prices must be finite and positive");
+		if (!Float.isFinite(effectiveOpenPrice) || effectiveOpenPrice <= 0.0f) {
+			throw new IllegalArgumentException("effective open price must be finite and positive");
+		}
+		// Zero close price is allowed for delisting with nothing paid out
+		if (!Float.isFinite(effectiveClosePrice) || effectiveClosePrice < 0.0f) {
+			throw new IllegalArgumentException("effective close price must be finite and not negative");
 		}
 		if (bars <= 0) {
 			throw new IllegalArgumentException("bars must be positive");

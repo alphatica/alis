@@ -1,5 +1,6 @@
 package com.alphatica.alis.trading.signalcheck;
 
+import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
@@ -61,6 +62,27 @@ final class SignalTradeDiscovery {
 		}
 		for (TimeMarketData market : currentMarkets) {
 			checkNewSignals(signalGeneratorFactory, market, marketDataSet);
+		}
+	}
+
+	/**
+	 * Delisting happens at the end of the session: open trades are closed at delisting price without commission
+	 * and pending opens are dropped. Closing is recorded at the next event, so allocation is released after this session.
+	 */
+	void processDelistings(List<Delisting> delistings, Time time, int eventIndex) {
+		for (Delisting delisting : delistings) {
+			List<OpenTrade> trades = openTrades.get(delisting.market());
+			if (trades == null) {
+				continue;
+			}
+			Iterator<OpenTrade> iterator = trades.iterator();
+			while (iterator.hasNext()) {
+				OpenTrade trade = iterator.next();
+				iterator.remove();
+				if (trade.getTradeStatus() != PENDING_OPEN) {
+					recordClose(delisting.market(), trade, time, eventIndex + 1, (float) delisting.price());
+				}
+			}
 		}
 	}
 

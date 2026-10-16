@@ -1,20 +1,25 @@
 package com.alphatica.alis.trading.strategy;
 
+import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.MarketData;
+import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.account.actions.AccountAction;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
 import com.alphatica.alis.trading.account.actions.Deposit;
+import com.alphatica.alis.trading.account.actions.Trade;
 import com.alphatica.alis.trading.order.Order;
 import com.alphatica.alis.trading.order.TradePrice;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static com.alphatica.alis.trading.order.Direction.BUY;
 
@@ -109,6 +114,7 @@ public class StrategyExecutor {
 			updateMissedTradesCounter(pendingOrders);
 			account.updateLastKnown(current);
 			pendingOrders = getNewPendingOrders(strategy, current, account, logger);
+			processDelistings(marketData.getDelistingsAt(time), time, account, pendingOrders, logger);
 			barExecutedConsumer.execute(time, account, pendingOrders);
 			logger.showPositions(account);
 			logger.log("Finished time %s: Net asset value: %.2f Cash: %.2f Drawdown: %.2f Downside drawdown: %.2f",
@@ -148,6 +154,18 @@ public class StrategyExecutor {
 					order.direction(), order.market(), order.sizeValue(), order.size().shortSign(), order.priority());
 		}
 		return pendingOrders;
+	}
+
+	private static void processDelistings(List<Delisting> delistings, Time time, Account account, List<Order> pendingOrders,
+										  StrategyExecutionLogger logger) throws AccountActionException {
+		if (delistings.isEmpty()) {
+			return;
+		}
+		for (Trade trade : account.processDelistings(delistings, time)) {
+			account.getAccountHistory().addAction(new AccountAction(time, trade));
+		}
+		Set<MarketName> delistedMarkets = delistings.stream().map(Delisting::market).collect(Collectors.toSet());
+		pendingOrders.removeIf(order -> delistedMarkets.contains(order.market()));
 	}
 
 	private void updateMissedTradesCounter(List<Order> pendingOrders) {

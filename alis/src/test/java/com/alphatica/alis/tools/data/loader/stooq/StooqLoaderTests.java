@@ -2,6 +2,7 @@ package com.alphatica.alis.tools.data.loader.stooq;
 
 import com.alphatica.alis.data.layer.Layer;
 import com.alphatica.alis.data.loader.stooq.StooqLoader;
+import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
@@ -18,6 +19,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -142,6 +144,24 @@ class StooqLoaderTests {
 				() -> StooqLoader.loadPL(temporaryDirectory.toString()));
 
 		assertTrue(exception.getMessage().contains("does not contain unpacked Stooq PL data"));
+	}
+
+	@Test
+	void shouldLoadDelistingsFromWorkDirectory(@TempDir Path temporaryDirectory) throws IOException, ExecutionException,
+			InterruptedException {
+		Files.createDirectories(temporaryDirectory.resolve(Path.of("stooq_data", "data", "daily", "pl")));
+		Files.writeString(temporaryDirectory.resolve("delisted.csv"), "date,ticker,price\n20190913,hld,0.986\n");
+
+		MarketData data = StooqLoader.loadPL(temporaryDirectory.toString());
+
+		assertEquals(List.of(new Delisting(new MarketName("hld"), new Time(20190913), 0.986)), data.getDelistings());
+	}
+
+	@Test
+	void shouldLoadWithoutDelistingsFile() throws ExecutionException, InterruptedException {
+		MarketData data = StooqLoader.loadPL(TEST_RESOURCES.toString());
+
+		assertTrue(data.getDelistings().isEmpty());
 	}
 
 	@Test

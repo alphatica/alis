@@ -1,5 +1,6 @@
 package com.alphatica.alis.trading.strategy;
 
+import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
@@ -15,6 +16,7 @@ import java.util.List;
 
 import static com.alphatica.alis.tools.java.CollectionsTools.arrayList;
 import static com.alphatica.alis.trading.order.Direction.BUY;
+import static com.alphatica.alis.trading.order.Direction.SELL;
 import static com.alphatica.alis.trading.order.OrderSize.PERCENTAGE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -37,6 +39,47 @@ class StrategyExecutorTests {
 		assertEquals(0, account.getPositions().size());
 		double nav = 131_780;
 		assertEquals(nav, account.getNAV());
+	}
+
+	@Test
+	void shouldSellPositionAtDelistingPriceWithoutCommission() throws AccountActionException {
+		/*
+			1. Start with 100k
+			2. Buy 454 shares at 100 for 45.4k and pay 4.54k commission
+			3. Delisting at 120 without commission: + 54.48k
+			4. Nav = 100 -45.4 -4.54 +54.48 = 104.54k
+		 */
+		MarketName market = new MarketName("test_market");
+		TestData data = new TestData("test_market").withDelistings(new Delisting(market, new Time(150), 120.0));
+		StrategyExecutor executor = new StrategyExecutor().withCommissionRate(0.1).withInitialCash(100_000)
+				.withTimeRange(new Time(1), new Time(160));
+
+		Account account = executor.execute(data, new TestStrategy());
+
+		assertEquals(0, account.getPositions().size());
+		assertEquals(104_540, account.getNAV(), 0.001);
+		List<AccountAction> actions = account.getAccountHistory().getActions();
+		assertEquals(new AccountAction(new Time(150), new Trade(market, SELL, 120.0, 454, 0.0)), actions.getLast());
+	}
+
+	@Test
+	void shouldDropPendingOrdersForDelistedMarket() throws AccountActionException {
+		MarketName market = new MarketName("test_market");
+		Strategy strategy = new Strategy() {
+			@Override
+			public List<Order> afterClose(TimeMarketDataSet data, Account account) {
+				if (data.getTime().equals(new Time(99))) {
+					return arrayList(new Order(market, BUY, PERCENTAGE, 50, 1.0));
+				}
+				return arrayList();
+			}
+		};
+		TestData data = new TestData("test_market").withDelistings(new Delisting(market, new Time(99), 99.0));
+
+		Account account = new StrategyExecutor().execute(data, strategy);
+
+		assertEquals(100_000, account.getNAV(), 0.001);
+		assertTrue(account.getAccountHistory().getActions().stream().noneMatch(a -> a.actionType() instanceof Trade));
 	}
 
 	@Test

@@ -91,6 +91,7 @@ public class SignalExecutor {
 				.sorted(Comparator.comparing(TimeMarketData::getMarketName))
 				.toList();
 		discovery.process(time, marketDataSet, currentMarkets, signalGeneratorFactory, eventIndex);
+		discovery.processDelistings(marketData.getDelistingsAt(time), time, eventIndex);
 	}
 
 	private TimeMarketDataSet getTimeMarketDataSet(MarketData marketData, Time time) {

@@ -1,6 +1,7 @@
 package com.alphatica.alis.trading.signalcheck;
 
 import com.alphatica.alis.data.StandardMarketData;
+import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
@@ -48,6 +49,43 @@ class SignalCheckTest {
 		assertEquals(7, trade.bars());
 		assertEquals(1.0, trade.requestedAllocation());
 		assertEquals(10.0, trade.priority());
+	}
+
+	@Test
+	void shouldCloseTradeAtDelistingPriceWithoutCommission() {
+		MarketData data = new TestData("market1").withDelistings(new Delisting(new MarketName("market1"), new Time(15), 7.0));
+
+		SignalExecutionResult result = configuredExecutor(false, 20).execute(data, TestSignalGenerator::new);
+
+		// Quotes after delisting are kept, so signal at 16 opens a new trade
+		assertEquals(2, result.opportunities().size());
+		TradeOpportunity trade = result.opportunities().getFirst();
+		assertEquals(new Time(13), trade.openTime());
+		assertEquals(new Time(15), trade.closeTime());
+		assertEquals(3, trade.openEventIndex());
+		assertEquals(6, trade.closeEventIndex());
+		assertEquals(7.0f, trade.effectiveClosePrice(), 0.0001f);
+		assertEquals(3, trade.bars());
+	}
+
+	@Test
+	void shouldAllowZeroDelistingPrice() {
+		MarketData data = new TestData("market1").withDelistings(new Delisting(new MarketName("market1"), new Time(14), 0.0));
+
+		SignalExecutionResult result = configuredExecutor(false, 20).execute(data, TestSignalGenerator::new);
+
+		assertEquals(0.0f, result.opportunities().getFirst().effectiveClosePrice());
+	}
+
+	@Test
+	void shouldDropPendingOpenOnDelisting() {
+		MarketData data = new TestData("market1").withDelistings(new Delisting(new MarketName("market1"), new Time(12), 7.0));
+
+		SignalExecutionResult result = configuredExecutor(false, 20).execute(data, TestSignalGenerator::new);
+
+		TradeOpportunity trade = result.opportunities().getFirst();
+		assertEquals(new Time(13), trade.signalTime());
+		assertEquals(new Time(14), trade.openTime());
 	}
 
 	@Test
