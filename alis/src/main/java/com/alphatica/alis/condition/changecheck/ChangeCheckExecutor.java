@@ -11,7 +11,6 @@ import com.alphatica.alis.tools.java.TaskExecutor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -178,10 +177,10 @@ public class ChangeCheckExecutor {
 	private static Optional<PriceRange> getDelistingPriceRange(Market market, ChangeCheckTask task, double startPrice) {
 		NavigableMap<Time, List<Delisting>> delistingsInWindow = task.delistings()
 				.subMap(task.startTime(), true, task.endTime(), true);
-		for (Map.Entry<Time, List<Delisting>> sessionDelistings : delistingsInWindow.entrySet()) {
-			for (Delisting delisting : sessionDelistings.getValue()) {
+		for (Time session : delistingsInWindow.keySet()) {
+			for (Delisting delisting : delistingsInWindow.get(session)) {
 				if (delisting.market().equals(market.getName())) {
-					return of(new PriceRange(startPrice, sessionDelistings.getKey(), delisting.price()));
+					return of(new PriceRange(startPrice, session, delisting.price()));
 				}
 			}
 		}

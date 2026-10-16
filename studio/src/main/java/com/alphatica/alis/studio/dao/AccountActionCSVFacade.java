@@ -27,10 +27,19 @@ public class AccountActionCSVFacade {
 		List<AccountAction> actions = new ArrayList<>(1024);
 		List<String> rows = FileUtils.readLines(file, Charset.defaultCharset());
 		for (String row : rows) {
-			AccountAction action = AccountActionParser.fromCsv(row);
-			actions.add(action);
+			String content = stripComment(row);
+			if (!content.isEmpty()) {
+				actions.add(AccountActionParser.fromCsv(content));
+			}
 		}
 		return actions;
+	}
+
+	// '#' starts a comment, either on its own line or after an action
+	private static String stripComment(String row) {
+		int commentStart = row.indexOf('#');
+		String content = commentStart >= 0 ? row.substring(0, commentStart) : row;
+		return content.trim();
 	}
 
 	public static void saveActions(List<AccountAction> actions, File file) throws IOException {
