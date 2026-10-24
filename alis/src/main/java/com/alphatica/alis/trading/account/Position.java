@@ -1,14 +1,13 @@
 package com.alphatica.alis.trading.account;
 
 import com.alphatica.alis.data.market.MarketName;
+import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
-import com.alphatica.alis.trading.account.actions.PositionStats;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
-import static com.alphatica.alis.tools.java.NumberTools.percentChange;
+import java.util.Optional;
 
 public class Position {
 	private final List<PositionEntry> entries;
@@ -18,6 +17,17 @@ public class Position {
 	private double exitCommissions;
 	private double lastClose;
 	private int tradeLength;
+	// Averaged history of this position cycle (see PositionHistoryRecord)
+	private int closedQuantity;
+	private double closedEntryValue;
+	private double closedExitValue;
+	private double firstExitPrice;
+	private Time lastExitTime;
+	private double lowestLow;
+	private double highestHigh;
+	private double closedLowestLow;
+	private double closedHighestHigh;
+	private int closedTradeLength;
 
 	public Position(MarketName marketName, PositionEntry entry) {
 		this(marketName, entry, 0);
@@ -31,21 +41,14 @@ public class Position {
 		this.lastClose = entry.price;
 		this.marketName = marketName;
 		this.tradeLength = 0;
+		this.lowestLow = entry.price;
+		this.highestHigh = entry.price;
 	}
 
 	public double getEntryPrice() {
 		double v = entries.stream().map(p -> p.quantity * p.price).reduce(0.0, Double::sum);
 		int q = entries.stream().map(p -> p.quantity).reduce(0, Integer::sum);
 		return v / q;
-	}
-
-	public PositionStats getStats() {
-		double entryValue = entries.stream().map(p -> p.initialQuantity * p.price).reduce(0.0, Double::sum)
-				+ entryCommissions;
-		double exitValue = exits.stream().map(p -> p.quantity * p.price).reduce(0.0, Double::sum)
-				- exitCommissions;
-		double profitValue = exitValue - entryValue;
-		return new PositionStats(profitValue, percentChange(entryValue, exitValue), tradeLength);
 	}
 
 	public int getQuantity() {
@@ -83,9 +86,11 @@ public class Position {
 			int removing = Math.min(toRemove, entry.quantity);
 			entry.quantity -= removing;
 			toRemove -= removing;
+			closedEntryValue += removing * entry.price;
 			positionPricesRecords.add(new PositionPricesRecord(marketName, entry.time, exit.time, entry.price, exit.price, removing, entry.lowestLow
 					, entry.highestHigh));
 		}
+		recordClosedPart(exit);
 		return positionPricesRecords;
 	}
 
@@ -103,8 +108,15 @@ public class Position {
 	public void updatePrices(double close, double high, double low) {
 		lastClose = close;
 		tradeLength++;
+		if (high > highestHigh) {
+			highestHigh = high;
+		}
+		if (low < lowestLow) {
+			lowestLow = low;
+		}
 		for (PositionEntry entry : entries) {
 			if (entry.quantity > 0) {
+				entry.sessions++;
 				if (high > entry.highestHigh) {
 					entry.highestHigh = high;
 				}
@@ -113,6 +125,57 @@ public class Position {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Closed part of this position: from the first buy to the last sell. Empty if nothing was sold yet.
+	 */
+	public Optional<PositionHistoryRecord> getClosedHistoryRecord() {
+		if (closedQuantity == 0) {
+			return Optional.empty();
+		}
+		PositionEntry firstEntry = entries.getFirst();
+		double entryCommission = entryCommissions * closedQuantity / totalBoughtQuantity();
+		return Optional.of(new PositionHistoryRecord(marketName, firstEntry.time, lastExitTime, closedEntryValue / closedQuantity,
+				closedExitValue / closedQuantity, closedQuantity, entryCommission, exitCommissions, closedTradeLength,
+				closedLowestLow / firstEntry.price, firstExitPrice / closedHighestHigh, false));
+	}
+
+	/**
+	 * Open part of this position: from the oldest remaining lot to the last close. Empty if position is fully closed.
+	 */
+	public Optional<PositionHistoryRecord> getOpenHistoryRecord() {
+		int quantity = getQuantity();
+		if (quantity == 0) {
+			return Optional.empty();
+		}
+		PositionEntry oldest = entries.stream().filter(e -> e.quantity > 0).findFirst().orElseThrow();
+		double entryCommission = entryCommissions * quantity / totalBoughtQuantity();
+		return Optional.of(new PositionHistoryRecord(marketName, oldest.time, null, getEntryPrice(), lastClose, quantity, entryCommission,
+				0, oldest.sessions, oldest.lowestLow / oldest.price, lastClose / oldest.highestHigh, true));
+	}
+
+	public List<PositionHistoryRecord> getHistoryRecords() {
+		List<PositionHistoryRecord> records = new ArrayList<>(2);
+		getClosedHistoryRecord().ifPresent(records::add);
+		getOpenHistoryRecord().ifPresent(records::add);
+		return records;
+	}
+
+	private void recordClosedPart(PositionExit exit) {
+		if (closedQuantity == 0) {
+			firstExitPrice = exit.price;
+		}
+		closedQuantity += exit.quantity;
+		closedExitValue += exit.quantity * exit.price;
+		lastExitTime = exit.time;
+		closedLowestLow = lowestLow;
+		closedHighestHigh = highestHigh;
+		closedTradeLength = tradeLength;
+	}
+
+	private double totalBoughtQuantity() {
+		return entries.stream().mapToDouble(e -> e.initialQuantity).sum();
 	}
 
 	public double getLastClose() {

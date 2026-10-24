@@ -1,33 +1,22 @@
 package com.alphatica.alis.trading.account;
 
-import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.trading.account.actions.AccountAction;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import static java.lang.String.format;
 
 public class AccountHistory {
-	private final Map<MarketName, List<PositionResult>> results;
 	private final List<PositionPricesRecord> pricesRecords;
 	private final List<AccountAction> accountActions;
+	private final List<PositionHistoryRecord> historyRecords;
 	private double paidCommissions;
 	private double cashPaymentsBalance;
 
 	public AccountHistory(double cash) {
-		this.results = HashMap.newHashMap(1024);
 		cashPaymentsBalance = cash;
 		pricesRecords = new ArrayList<>(1024);
 		accountActions = new ArrayList<>(1024);
-	}
-
-	public void add(MarketName marketName, PositionResult result) {
-		results.computeIfAbsent(marketName, k -> new ArrayList<>()).add(result);
+		historyRecords = new ArrayList<>(1024);
 	}
 
 	public void addCommission(double commission) {
@@ -36,57 +25,6 @@ public class AccountHistory {
 
 	public double getPaidCommissions() {
 		return paidCommissions;
-	}
-
-	public TradeStats getStats() {
-		return TradeStatsCalculator.calculate(
-				results.values().stream().flatMap(Collection::stream).toList());
-	}
-
-	public Map<MarketName, TradeStats> getAllStats() {
-		return results.entrySet().stream().collect(Collectors.toMap(
-				Map.Entry::getKey,
-				entry -> TradeStatsCalculator.calculate(entry.getValue())));
-	}
-
-	public long countProfitableMarkets() {
-		Map<MarketName, TradeStats> allStats = getAllStats();
-		return allStats.values().stream().map(s -> s.profitPerTrade() > 0).filter(v -> v).count();
-	}
-
-	public long countUnprofitableMarkets() {
-		Map<MarketName, TradeStats> allStats = getAllStats();
-		return allStats.values().stream().map(s -> s.profitPerTrade() < 0).filter(v -> v).count();
-	}
-
-	public String biggestWin() {
-		double biggestPercent = 0;
-		MarketName market = null;
-
-		for (Map.Entry<MarketName, List<PositionResult>> entry : results.entrySet()) {
-			for (PositionResult result : entry.getValue()) {
-				if (result.profitPercent() > biggestPercent) {
-					biggestPercent = result.profitPercent();
-					market = entry.getKey();
-				}
-			}
-		}
-		return format("%s %.0f %%", market, biggestPercent);
-	}
-
-	public String biggestLoss() {
-		double biggestPercent = 0;
-		MarketName market = null;
-
-		for (Map.Entry<MarketName, List<PositionResult>> entry : results.entrySet()) {
-			for (PositionResult result : entry.getValue()) {
-				if (result.profitPercent() < biggestPercent) {
-					biggestPercent = result.profitPercent();
-					market = entry.getKey();
-				}
-			}
-		}
-		return format("%s %.0f %%", market, biggestPercent);
 	}
 
 	public void recordCashPayment(double value) {
@@ -103,6 +41,17 @@ public class AccountHistory {
 
 	public void addRecords(List<PositionPricesRecord> positionPricesRecords) {
 		pricesRecords.addAll(positionPricesRecords);
+	}
+
+	public void addHistoryRecord(PositionHistoryRecord historyRecord) {
+		historyRecords.add(historyRecord);
+	}
+
+	/**
+	 * Fully closed positions, one record per position cycle.
+	 */
+	public List<PositionHistoryRecord> getHistoryRecords() {
+		return new ArrayList<>(historyRecords);
 	}
 
 	public void addAction(AccountAction accountAction) {

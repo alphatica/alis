@@ -22,7 +22,7 @@ public class DonchianSingle {
 		double initialCash = 65585.79;
 		StrategyExecutor executor = new StrategyExecutor().withInitialCash(initialCash).withTimeRange(new Time(2018_01_23), new Time(2025_01_01));
 		Account account = executor.execute(stooqData, new DonchianStrategy(47, 116, true, false));
-		System.out.println(account.getAccountHistory().getStats());
+		System.out.println(account.getStats());
 		System.out.printf("%.0f%n", account.getNAV());
 	}
 }

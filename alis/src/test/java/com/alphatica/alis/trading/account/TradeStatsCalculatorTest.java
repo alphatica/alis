@@ -1,82 +1,69 @@
 package com.alphatica.alis.trading.account;
 
 import com.alphatica.alis.data.market.MarketName;
+import com.alphatica.alis.data.time.Time;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class AccountHistoryTest {
+class TradeStatsCalculatorTest {
+	private final MarketName market = new MarketName("market");
 
 	@Test
 	void shouldReturnZeroStatsWhenThereAreNoTrades() {
-		AccountHistory history = new AccountHistory(100_000);
-
-		TradeStats stats = history.getStats();
+		TradeStats stats = TradeStatsCalculator.calculate(List.of());
 
 		assertEquals(new TradeStats(0, 0, 0, 0, 0, 0, 0, 0), stats);
 	}
 
 	@Test
 	void shouldCalculateStatsForWinningTrades() {
-		AccountHistory history = new AccountHistory(100_000);
-		history.add(new MarketName("WIN"), new PositionResult(100, 10, 4));
-		history.add(new MarketName("WIN"), new PositionResult(50, 20, 6));
-
-		TradeStats stats = history.getStats();
+		TradeStats stats = TradeStatsCalculator.calculate(List.of(record(10, 4), record(20, 6)));
 
 		assertStats(stats, new TradeStats(15, 100, 15, 0, Double.NaN, 0, 2, 5));
 	}
 
 	@Test
 	void shouldCalculateStatsForLosingTrades() {
-		AccountHistory history = new AccountHistory(100_000);
-		history.add(new MarketName("LOSS"), new PositionResult(-10, -10, 2));
-		history.add(new MarketName("LOSS"), new PositionResult(-20, -20, 4));
-
-		TradeStats stats = history.getStats();
+		TradeStats stats = TradeStatsCalculator.calculate(List.of(record(-10, 2), record(-20, 4)));
 
 		assertStats(stats, new TradeStats(-15, 0, 0, -15, 0, -1, 2, 3));
 	}
 
 	@Test
 	void shouldCalculateMixedStatsAndIncludeBreakEvenTradeInOverallAverages() {
-		AccountHistory history = new AccountHistory(100_000);
-		MarketName market = new MarketName("MIXED");
-		history.add(market, new PositionResult(10, 20, 5));
-		history.add(market, new PositionResult(5, 10, 3));
-		history.add(market, new PositionResult(-2, -5, 2));
-		history.add(market, new PositionResult(0, 99, 2));
-
-		TradeStats stats = history.getStats();
+		TradeStats stats = TradeStatsCalculator.calculate(List.of(record(20, 5), record(10, 3), record(-5, 2), record(0, 2)));
 
 		assertStats(stats, new TradeStats(6.25, 200.0 / 3.0, 15, -5, 6, 1, 4, 3));
 	}
 
 	@Test
 	void shouldTreatOnlyBreakEvenTradesAsPerfectAccuracyWithoutProfit() {
-		AccountHistory history = new AccountHistory(100_000);
-		history.add(new MarketName("FLAT"), new PositionResult(0, 50, 7));
-
-		TradeStats stats = history.getStats();
+		TradeStats stats = TradeStatsCalculator.calculate(List.of(record(0, 7)));
 
 		assertStats(stats, new TradeStats(0, 100, 0, 0, Double.NaN, 0, 1, 7));
 	}
 
 	@Test
-	void shouldCalculateStatsForEachMarketSeparately() {
-		AccountHistory history = new AccountHistory(100_000);
-		MarketName winningMarket = new MarketName("WIN");
-		MarketName losingMarket = new MarketName("LOSS");
-		history.add(winningMarket, new PositionResult(10, 25, 4));
-		history.add(losingMarket, new PositionResult(-10, -15, 8));
+	void shouldClassifyWinsAndLossesAfterCommissions() {
+		// 1% gross profit eaten by commissions
+		PositionHistoryRecord record = new PositionHistoryRecord(market, new Time(1), new Time(2), 100, 101, 10, 5, 6, 3, 1, 1, false);
 
-		Map<MarketName, TradeStats> allStats = history.getAllStats();
+		TradeStats stats = TradeStatsCalculator.calculate(List.of(record));
 
-		assertStats(allStats.get(winningMarket), new TradeStats(25, 100, 25, 0, Double.NaN, 0, 1, 4));
-		assertStats(allStats.get(losingMarket), new TradeStats(-15, 0, 0, -15, 0, -1, 1, 8));
+		assertEquals(-1, record.getNetProfitCash(), 0.000_001);
+		assertEquals(0, stats.accuracy(), 0.000_001);
+		assertEquals(record.getNetProfitPercent(), stats.averageLossPercent(), 0.000_001);
+	}
+
+	/**
+	 * Record with given profit percent and no commissions.
+	 */
+	private PositionHistoryRecord record(double profitPercent, int tradeLength) {
+		return new PositionHistoryRecord(market, new Time(1), new Time(2), 100, 100 + profitPercent, 1, 0, 0, tradeLength, 1, 1, false);
 	}
 
 	private static void assertStats(TradeStats stats, TradeStats expected) {

@@ -48,12 +48,12 @@ class AccountActionTest {
 		assertEquals(10981, account.getCash());
 		AccountHistory history = account.getAccountHistory();
 		assertEquals(19, history.getPaidCommissions());
-		assertEquals(2, history.countProfitableMarkets());
-		assertEquals(1, history.countUnprofitableMarkets());
-		assertEquals("1 100 %", history.biggestWin());
-		assertEquals("3 -50 %", history.biggestLoss());
+		assertEquals(2, account.countProfitableMarkets());
+		assertEquals(1, account.countUnprofitableMarkets());
+		assertEquals("1 100 %", account.biggestWin());
+		assertEquals("3 -50 %", account.biggestLoss());
 		assertEquals(10000, history.getCashPayments());
-		TradeStats stats = history.getStats();
+		TradeStats stats = account.getStats();
 		assertEquals(66.6, stats.accuracy(), 0.1);
 		assertEquals(74.475_524, stats.averageWinPercent(), 0.000_001);
 		assertEquals(-50.199_800, stats.averageLossPercent(), 0.000_001);

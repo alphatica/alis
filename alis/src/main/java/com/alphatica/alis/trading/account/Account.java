@@ -7,7 +7,6 @@ import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
-import com.alphatica.alis.trading.account.actions.PositionStats;
 import com.alphatica.alis.trading.account.actions.Trade;
 
 import java.util.ArrayList;
@@ -99,7 +98,7 @@ public class Account {
 		cash += cashReceived;
 		if (position.getQuantity() == 0) {
 			Position removed = positions.remove(market);
-			addToHistory(market, removed);
+			addToHistory(removed);
 		}
 	}
 
@@ -162,6 +161,16 @@ public class Account {
 		return records;
 	}
 
+	/**
+	 * Position history with averaged prices: one record per fully closed position, and for each open position
+	 * a record of its closed part (if anything was sold) followed by a record of its open part.
+	 */
+	public List<PositionHistoryRecord> getAllHistoryRecords() {
+		List<PositionHistoryRecord> records = new ArrayList<>(accountHistory.getHistoryRecords());
+		records.addAll(positions.values().stream().map(Position::getHistoryRecords).flatMap(Collection::stream).toList());
+		return records;
+	}
+
 	public void close(double commissionRate) throws AccountActionException {
 		for (Map.Entry<MarketName, Position> next : getPositions().entrySet()) {
 			double price = next.getValue().getLastClose();
@@ -201,9 +210,42 @@ public class Account {
 		downsideDrawdownCalc.updateState(cash, getNAV());
 	}
 
-	private void addToHistory(MarketName marketName, Position removed) {
-		PositionStats stats = removed.getStats();
-		PositionResult positionResult = new PositionResult(stats.profitValue(), stats.profitPercent(), stats.tradeLength());
-		accountHistory.add(marketName, positionResult);
+	private void addToHistory(Position removed) {
+		removed.getClosedHistoryRecord().ifPresent(accountHistory::addHistoryRecord);
+	}
+
+	/**
+	 * Records used for trade statistics: fully closed positions and closed parts of open positions.
+	 */
+	private List<PositionHistoryRecord> getStatsRecords() {
+		List<PositionHistoryRecord> records = new ArrayList<>(accountHistory.getHistoryRecords());
+		for (Position position : positions.values()) {
+			position.getClosedHistoryRecord().ifPresent(records::add);
+		}
+		return records;
+	}
+
+	public TradeStats getStats() {
+		return TradeStatsCalculator.calculate(getStatsRecords());
+	}
+
+	public Map<MarketName, TradeStats> getAllStats() {
+		return TradeStatsCalculator.calculateByMarket(getStatsRecords());
+	}
+
+	public long countProfitableMarkets() {
+		return getAllStats().values().stream().filter(s -> s.profitPerTrade() > 0).count();
+	}
+
+	public long countUnprofitableMarkets() {
+		return getAllStats().values().stream().filter(s -> s.profitPerTrade() < 0).count();
+	}
+
+	public String biggestWin() {
+		return TradeStatsCalculator.biggestWin(getStatsRecords());
+	}
+
+	public String biggestLoss() {
+		return TradeStatsCalculator.biggestLoss(getStatsRecords());
 	}
 }

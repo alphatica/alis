@@ -7,6 +7,6 @@ import java.util.Map;
 public class Expectancy implements AccountScorer {
 	@Override
 	public double score(Account account, Map<String, Double> customStats) {
-		return account.getAccountHistory().getStats().expectancy();
+		return account.getStats().expectancy();
 	}
 }

@@ -20,7 +20,7 @@ public class AthPlusTime {
 		StrategyExecutor executor = new StrategyExecutor().withInitialCash(100_000).withTimeRange(new Time(2004_01_01), new Time(2025_01_01)).withVerbose(true);
 		Account account = executor.execute(stooqData, new AthPlusTimeStrategy());
 		System.out.printf("Account value: %.0f%n", account.getNAV());
-		System.out.println(account.getAccountHistory().getStats());
+		System.out.println(account.getStats());
 		System.out.println(account.getMaxDD());
 	}
 }

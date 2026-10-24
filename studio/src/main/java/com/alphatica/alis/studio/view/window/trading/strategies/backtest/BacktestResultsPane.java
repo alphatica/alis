@@ -3,7 +3,6 @@ package com.alphatica.alis.studio.view.window.trading.strategies.backtest;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.studio.view.tools.models.ReadOnlyTableModel;
 import com.alphatica.alis.trading.account.Account;
-import com.alphatica.alis.trading.account.AccountHistory;
 import com.alphatica.alis.trading.account.PositionPricesRecord;
 import com.alphatica.alis.trading.account.TradeStats;
 import com.alphatica.alis.trading.order.Order;
@@ -95,10 +94,9 @@ final class BacktestResultsPane extends JSplitPane {
 		addStat("Current drawdown", "%.0f %%", account.getCurrentDD());
 		addStat("Max drawdown", "%.0f %%", account.getMaxDD());
 		addStat("Max downside drawdown", "%.0f %%", account.getMaxDownsideDD());
-		AccountHistory history = account.getAccountHistory();
-		TradeStats stats = history.getStats();
+		TradeStats stats = account.getStats();
 		addTradeStats(stats, executor);
-		addHistoryStats(history);
+		addHistoryStats(account);
 		statsModel.fireTableDataChanged();
 	}
 
@@ -114,12 +112,12 @@ final class BacktestResultsPane extends JSplitPane {
 		addStat("Accuracy", "%.1f %%", stats.accuracy());
 	}
 
-	private void addHistoryStats(AccountHistory history) {
-		addStat("Paid commissions", "%.0f", history.getPaidCommissions());
-		addStat("Profitable markets", "%d", history.countProfitableMarkets());
-		addStat("Unprofitable markets", "%d", history.countUnprofitableMarkets());
-		addStat("Biggest win", "%s", history.biggestWin());
-		addStat("Biggest loss", "%s", history.biggestLoss());
+	private void addHistoryStats(Account account) {
+		addStat("Paid commissions", "%.0f", account.getAccountHistory().getPaidCommissions());
+		addStat("Profitable markets", "%d", account.countProfitableMarkets());
+		addStat("Unprofitable markets", "%d", account.countUnprofitableMarkets());
+		addStat("Biggest win", "%s", account.biggestWin());
+		addStat("Biggest loss", "%s", account.biggestLoss());
 	}
 
 	private void addStat(String name, String pattern, Object value) {

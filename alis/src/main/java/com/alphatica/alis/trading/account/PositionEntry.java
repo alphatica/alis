@@ -11,6 +11,7 @@ public class PositionEntry {
 	int quantity;
 	double highestHigh;
 	double lowestLow;
+	int sessions;
 
 	public PositionEntry(Time time, int quantity, double price) {
 		assertPositive(quantity, price);

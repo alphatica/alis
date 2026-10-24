@@ -85,9 +85,9 @@ public class ResultTable extends JTable {
 	}
 
 	private ResultsTableRow createResultsRow(OptimizerScore score, Account account) {
-		TradeStats stats = account.getAccountHistory().getStats();
-		long profitableMarkets = account.getAccountHistory().countProfitableMarkets();
-		long unprofitableMarkets = account.getAccountHistory().countUnprofitableMarkets();
+		TradeStats stats = account.getStats();
+		long profitableMarkets = account.countProfitableMarkets();
+		long unprofitableMarkets = account.countUnprofitableMarkets();
 		double profitableMarketsPercent = 100 * ((double) profitableMarkets / (profitableMarkets + unprofitableMarkets));
 		return new ResultsTableRow(
 				account.getNAV(), account.getMaxDD(), stats.trades(), stats.accuracy(),

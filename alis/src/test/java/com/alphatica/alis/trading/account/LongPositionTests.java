@@ -3,7 +3,6 @@ package com.alphatica.alis.trading.account;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
-import com.alphatica.alis.trading.account.actions.PositionStats;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -69,9 +68,9 @@ class LongPositionTests {
 	void shouldCalculateStatsSimple() throws AccountActionException {
 		Position position = new Position(marketName, new PositionEntry(time, 100, 10));
 		position.reduce(new PositionExit(time, 100, 20));
-		PositionStats stats = position.getStats();
-		assertEquals(1000, stats.profitValue());
-		assertEquals(100, stats.profitPercent());
+		PositionHistoryRecord stats = position.getClosedHistoryRecord().orElseThrow();
+		assertEquals(1000, stats.getNetProfitCash(), 0.000_001);
+		assertEquals(100, stats.getNetProfitPercent(), 0.000_001);
 	}
 
 	@Test
@@ -80,9 +79,9 @@ class LongPositionTests {
 		position.add(new PositionEntry(time, 50, 20));
 		position.reduce(new PositionExit(time, 75, 32));
 		position.reduce(new PositionExit(time, 75, 20));
-		PositionStats stats = position.getStats();
-		assertEquals(1900, stats.profitValue());
-		assertEquals(95, stats.profitPercent());
+		PositionHistoryRecord stats = position.getClosedHistoryRecord().orElseThrow();
+		assertEquals(1900, stats.getNetProfitCash(), 0.000_001);
+		assertEquals(95, stats.getNetProfitPercent(), 0.000_001);
 	}
 
 	@Test
@@ -91,9 +90,9 @@ class LongPositionTests {
 		position.add(new PositionEntry(time, 50, 20));
 		position.reduce(new PositionExit(time, 75, 6));
 		position.reduce(new PositionExit(time, 75, 10));
-		PositionStats stats = position.getStats();
-		assertEquals(-800, stats.profitValue());
-		assertEquals(-40, stats.profitPercent());
+		PositionHistoryRecord stats = position.getClosedHistoryRecord().orElseThrow();
+		assertEquals(-800, stats.getNetProfitCash(), 0.000_001);
+		assertEquals(-40, stats.getNetProfitPercent(), 0.000_001);
 	}
 
 	@Test
@@ -101,10 +100,10 @@ class LongPositionTests {
 		Position position = new Position(marketName, new PositionEntry(time, 100, 10), 10);
 		position.reduce(new PositionExit(time, 100, 20), 20);
 
-		PositionStats stats = position.getStats();
+		PositionHistoryRecord stats = position.getClosedHistoryRecord().orElseThrow();
 
-		assertEquals(970, stats.profitValue(), 0.000_001);
-		assertEquals(96.039_603_96, stats.profitPercent(), 0.000_001);
+		assertEquals(970, stats.getNetProfitCash(), 0.000_001);
+		assertEquals(96.039_603_96, stats.getNetProfitPercent(), 0.000_001);
 	}
 
 	@Test

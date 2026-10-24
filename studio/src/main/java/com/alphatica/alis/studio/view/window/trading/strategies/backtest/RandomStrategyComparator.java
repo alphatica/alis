@@ -42,7 +42,7 @@ public class RandomStrategyComparator {
 	}
 
 	public void compare(Account baseAccount) {
-		TradeStats stats = baseAccount.getAccountHistory().getStats();
+		TradeStats stats = baseAccount.getStats();
 		int requiredTrades = stats.trades();
 		stringConsumer.accept("Required trades " + requiredTrades);
 
@@ -120,7 +120,7 @@ public class RandomStrategyComparator {
 		try(ExecutorService threadExecutor = Executors.newWorkStealingPool()) {
 			for (int i = 0; i < attempts; i++) {
 				threadExecutor.execute(() -> tryExecuteWithProbability(probability).ifPresent(testAccount ->
-						sumTrades.addAndGet(testAccount.getAccountHistory().getStats().trades())));
+						sumTrades.addAndGet(testAccount.getStats().trades())));
 			}
 		}
 		return (int)Math.round(sumTrades.get() / (double)attempts);

@@ -227,7 +227,7 @@ public class PortfolioPane extends JPanel {
 	private void updateStatsLabels(boolean haveMarketData) {
 		String oneDecimalPercentDigitFormat = "%.1f %%";
 		AccountHistory accountHistory = account.getAccountHistory();
-		TradeStats stats = accountHistory.getStats();
+		TradeStats stats = account.getStats();
 
 		String trades = format("%d", stats.trades());
 		tradesLabel.setText(TRADES_LABEL + trades);

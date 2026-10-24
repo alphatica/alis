@@ -1,6 +1,12 @@
 package com.alphatica.alis.trading.account;
 
+import com.alphatica.alis.data.market.MarketName;
+
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static java.lang.String.format;
 
 final class TradeStatsCalculator {
 
@@ -9,13 +15,42 @@ final class TradeStatsCalculator {
 	private TradeStatsCalculator() {
 	}
 
-	static TradeStats calculate(List<PositionResult> results) {
+	static TradeStats calculate(List<PositionHistoryRecord> results) {
 		if (results.isEmpty()) {
 			return EMPTY_STATS;
 		}
 		Accumulator accumulator = new Accumulator();
 		results.forEach(accumulator::add);
 		return accumulator.toTradeStats();
+	}
+
+	static Map<MarketName, TradeStats> calculateByMarket(List<PositionHistoryRecord> results) {
+		return results.stream().collect(Collectors.groupingBy(PositionHistoryRecord::marketName,
+				Collectors.collectingAndThen(Collectors.toList(), TradeStatsCalculator::calculate)));
+	}
+
+	static String biggestWin(List<PositionHistoryRecord> results) {
+		double biggestPercent = 0;
+		MarketName market = null;
+		for (PositionHistoryRecord result : results) {
+			if (result.getNetProfitPercent() > biggestPercent) {
+				biggestPercent = result.getNetProfitPercent();
+				market = result.marketName();
+			}
+		}
+		return format("%s %.0f %%", market, biggestPercent);
+	}
+
+	static String biggestLoss(List<PositionHistoryRecord> results) {
+		double biggestPercent = 0;
+		MarketName market = null;
+		for (PositionHistoryRecord result : results) {
+			if (result.getNetProfitPercent() < biggestPercent) {
+				biggestPercent = result.getNetProfitPercent();
+				market = result.marketName();
+			}
+		}
+		return format("%s %.0f %%", market, biggestPercent);
 	}
 
 	private static final class Accumulator {
@@ -27,13 +62,14 @@ final class TradeStatsCalculator {
 		private int trades;
 		private int totalTradesLength;
 
-		private void add(PositionResult result) {
-			if (result.profitValue() > 0) {
+		private void add(PositionHistoryRecord result) {
+			double profitValue = result.getNetProfitCash();
+			if (profitValue > 0) {
 				winCount++;
-				sumWinPercent += result.profitPercent();
-			} else if (result.profitValue() < 0) {
+				sumWinPercent += result.getNetProfitPercent();
+			} else if (profitValue < 0) {
 				lossCount++;
-				sumLossPercent += result.profitPercent();
+				sumLossPercent += result.getNetProfitPercent();
 			}
 			trades++;
 			totalTradesLength += result.tradeLength();

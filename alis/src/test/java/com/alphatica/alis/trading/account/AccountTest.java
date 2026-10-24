@@ -63,7 +63,7 @@ class AccountTest {
 		account.addPosition(market, new PositionEntry(new Time(1), 100, 10), 10);
 		account.reducePosition(market, new PositionExit(new Time(2), 100, 10.1), 10);
 
-		TradeStats stats = account.getAccountHistory().getStats();
+		TradeStats stats = account.getStats();
 
 		assertEquals(-10, account.calcCashProfit(), 0.000_001);
 		assertEquals(-100.0 / 101.0, stats.profitPerTrade(), 0.000_001);
