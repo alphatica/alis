@@ -91,6 +91,22 @@ class DownsideDrawdownCalculatorTest {
 		assertDrawdowns(c, -10, -10);
 	}
 
+	@Test
+	void measuresDrawdownForReferenceBelowOne() {
+		var c = new DownsideDrawdownCalc(0.5);
+		c.updateState(0.5, 0.4);
+		assertDrawdowns(c, -20, -20);
+	}
+
+	@Test
+	void cashChangeScalesReferenceForClosedEquityBelowOne() {
+		var c = new DownsideDrawdownCalc(2);
+		c.updateState(1, 1); // closed loss of 50%
+		c.changeCash(1, 1);
+		c.updateState(2, 2);
+		assertDrawdowns(c, -50, -50);
+	}
+
 	private void assertDrawdowns(DownsideDrawdownCalc drawdownCalc, double current, double max) {
 		assertEquals(current, drawdownCalc.getCurrentDownsideDrawdown(), 0.01);
 		assertEquals(max, drawdownCalc.getMaxDownsideDrawdown(), 0.01);

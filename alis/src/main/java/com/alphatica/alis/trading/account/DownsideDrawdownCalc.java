@@ -2,22 +2,45 @@ package com.alphatica.alis.trading.account;
 
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 
+/**
+ * Drawdown of NAV measured from the highest closed equity (cash + entry value of open positions).
+ * Giving back unrealized profit is not a drawdown, and unrealized profit of one position covers losses of others.
+ * Closed profits raise the reference, so later losses are not covered by them.
+ * Deposits and withdrawals are not drawdown: see {@link #changeCash}.
+ */
 public class DownsideDrawdownCalc {
-	private double maxCash;
+	private double maxClosedEquity;
 	private double maxDD = 0;
 	private double currentDD = 0;
 
 	public DownsideDrawdownCalc(double init) {
-		maxCash = init;
+		maxClosedEquity = init;
 	}
 
-	public void updateState(double cash, double nav) {
-		if (cash > maxCash) {
-			maxCash = cash;
+	public void updateState(double closedEquity, double nav) {
+		if (closedEquity > maxClosedEquity) {
+			maxClosedEquity = closedEquity;
 		}
-		currentDD = Math.min(0, percentChange(maxCash, nav));
+		if (maxClosedEquity <= 0) {
+			currentDD = 0;
+			return;
+		}
+		currentDD = Math.min(0, percentChange(maxClosedEquity, nav));
 		if (currentDD < maxDD) {
 			maxDD = currentDD;
+		}
+	}
+
+	/**
+	 * Call when cash is deposited (positive amount) or withdrawn (negative amount), then call {@link #updateState}.
+	 * Closed losses keep their percentage (reference scales with closed equity), open losses keep their amount.
+	 */
+	public void changeCash(double closedEquityBefore, double amount) {
+		double closedEquityAfter = closedEquityBefore + amount;
+		if (closedEquityBefore > 0) {
+			maxClosedEquity *= closedEquityAfter / closedEquityBefore;
+		} else {
+			maxClosedEquity = closedEquityAfter;
 		}
 	}
 

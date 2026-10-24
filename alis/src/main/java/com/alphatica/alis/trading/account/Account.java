@@ -104,7 +104,9 @@ public class Account {
 
 	public void addCash(double cash) {
 		assertPositive(cash);
+		downsideDrawdownCalc.changeCash(getClosedEquity(), cash);
 		this.cash += cash;
+		downsideDrawdownCalc.updateState(getClosedEquity(), getNAV());
 		ddCalc.changeCash(cash);
 		accountHistory.recordCashPayment(cash);
 	}
@@ -114,7 +116,9 @@ public class Account {
 		if (cash > this.cash) {
 			throw new AccountActionException(format("Unable to withdraw %.2f, only %.2f available", cash, this.cash));
 		}
+		downsideDrawdownCalc.changeCash(getClosedEquity(), -cash);
 		this.cash -= cash;
+		downsideDrawdownCalc.updateState(getClosedEquity(), getNAV());
 		ddCalc.changeCash(-cash);
 		accountHistory.recordCashPayment(-cash);
 	}
@@ -131,6 +135,17 @@ public class Account {
 		return nav;
 	}
 
+	/**
+	 * Cash plus entry value of open positions, i.e. NAV without unrealized profits and losses.
+	 */
+	public double getClosedEquity() {
+		double equity = cash;
+		for (Position position : positions.values()) {
+			equity += position.getOpenEntryValue();
+		}
+		return equity;
+	}
+
 	public double calcCashProfit() {
 		return getNAV() - accountHistory.getCashPayments();
 	}
@@ -144,7 +159,7 @@ public class Account {
 		});
 		var nav = getNAV();
 		ddCalc.updateNav(nav);
-		downsideDrawdownCalc.updateState(cash, nav);
+		downsideDrawdownCalc.updateState(getClosedEquity(), nav);
 	}
 
 	public AccountHistory getAccountHistory() {
@@ -179,7 +194,7 @@ public class Account {
 			double commissionValue = quantity * price * commissionRate;
 			reducePosition(next.getKey(), exit, commissionValue);
 		}
-		downsideDrawdownCalc.updateState(cash, getNAV());
+		downsideDrawdownCalc.updateState(getClosedEquity(), getNAV());
 	}
 
 	/**
@@ -201,13 +216,13 @@ public class Account {
 		if (!trades.isEmpty()) {
 			double nav = getNAV();
 			ddCalc.updateNav(nav);
-			downsideDrawdownCalc.updateState(cash, nav);
+			downsideDrawdownCalc.updateState(getClosedEquity(), nav);
 		}
 		return trades;
 	}
 
 	public void afterSells() {
-		downsideDrawdownCalc.updateState(cash, getNAV());
+		downsideDrawdownCalc.updateState(getClosedEquity(), getNAV());
 	}
 
 	private void addToHistory(Position removed) {

@@ -51,6 +51,13 @@ public class Position {
 		return v / q;
 	}
 
+	/**
+	 * Entry value (quantity * entry price, without commissions) of the still open part of this position.
+	 */
+	public double getOpenEntryValue() {
+		return entries.stream().mapToDouble(e -> e.quantity * e.price).sum();
+	}
+
 	public int getQuantity() {
 		return entries.stream().map(q -> q.quantity).reduce(0, Integer::sum);
 	}
