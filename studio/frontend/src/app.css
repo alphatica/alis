@@ -578,7 +578,7 @@ dialog::backdrop {
 	background: var(--bg);
 	border: 1px solid var(--border);
 	font: var(--text-sm) var(--font-mono);
-	white-space: pre;
+	white-space: pre-wrap;
 }
 
 /* ---------- Toasts ---------- */

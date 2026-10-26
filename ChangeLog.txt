@@ -1,3 +1,4 @@
+26 Oct 2026: Adjust trade length in RandomStrategy
 26 Oct 2026: Allow fractional shares for backtest
 24 Oct 2026: Web based modern GUI instead of Java Swing
 24 Oct 2026: Change downside drawdown calculations

@@ -123,6 +123,13 @@ public class Position {
 		return positionPricesRecords;
 	}
 
+	/**
+	 * Sessions with prices since the first buy of this position cycle.
+	 */
+	public int getTradeLength() {
+		return tradeLength;
+	}
+
 	public void updatePrices(double close, double high, double low) {
 		lastClose = close;
 		tradeLength++;
