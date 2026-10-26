@@ -5,6 +5,10 @@ import java.time.LocalDate;
 
 public record Time(int time) implements Comparable<Time> {
 
+	public static Time of(LocalDate date) {
+		return new Time(date.getYear() * 1_00_00 + date.getMonthValue() * 1_00 + date.getDayOfMonth());
+	}
+
 	public boolean isBefore(Time time) {
 		return this.time < time.time;
 	}
@@ -33,4 +37,9 @@ public record Time(int time) implements Comparable<Time> {
         int year = (time / 1_00_00);
         return LocalDate.of(year, month, day);
     }
+
+	/** Calendar days from 1970-01-01. */
+	public long epochDay() {
+		return toLocalDate().toEpochDay();
+	}
 }

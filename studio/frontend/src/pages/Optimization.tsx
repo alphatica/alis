@@ -250,7 +250,7 @@ function ParamsDialog(props: { result: Result | undefined; onClose: () => void }
     <Modal
       open={props.result !== undefined}
       onClose={props.onClose}
-      title={props.result ? `Score ${numberFormat(0).format(props.result.score)}` : ''}
+      title={props.result ? `Score ${numberFormat(0, 2).format(props.result.score)}` : ''}
     >
       <pre class="job-output">{text()}</pre>
       <div class="actions dialog-actions">

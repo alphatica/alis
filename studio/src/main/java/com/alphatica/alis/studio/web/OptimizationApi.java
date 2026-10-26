@@ -10,6 +10,7 @@ import com.alphatica.alis.studio.web.jobs.Job;
 import com.alphatica.alis.studio.web.jobs.JobRegistry;
 import com.alphatica.alis.tools.java.TopResults;
 import com.alphatica.alis.trading.account.Account;
+import com.alphatica.alis.trading.account.ReturnRatios;
 import com.alphatica.alis.trading.account.TradeStats;
 import com.alphatica.alis.trading.optimizer.OptimizerException;
 import com.alphatica.alis.trading.optimizer.OptimizerScore;
@@ -19,6 +20,7 @@ import com.alphatica.alis.trading.strategy.Strategy;
 import io.javalin.config.RoutesConfig;
 import io.javalin.http.Context;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,8 +40,9 @@ final class OptimizationApi {
 	private static final String JOB_TYPE = "optimization";
 	private static final int TOP_RESULTS = 100;
 
-	private static final List<Column> RESULTS = List.of(Column.number("Score", 0), Column.number("NAV", 0),
-			Column.percent("Max DD", 0), Column.number("Trades", 0), Column.percent("Accuracy", 1),
+	private static final List<Column> RESULTS = List.of(Column.score("Score"), Column.number("NAV", 0),
+			Column.percent("Max DD", 0), Column.number("Return / max downside DD", 2), Column.number("Trades", 0),
+			Column.percent("Accuracy", 1),
 			Column.number("Expectancy", 2), Column.number("Profit factor", 2), Column.number("Profit per trade", 2),
 			Column.percent("Profitable markets", 1));
 
@@ -76,7 +79,7 @@ final class OptimizationApi {
 				? MaxPermutations.defaultFor(settings.strategyFactory().get(), selection)
 				: Inputs.wholeNumber(request.maxPermutations(), "max permutations", 1, Long.MAX_VALUE);
 		OptimizationRequest optimization = new OptimizationRequest(settings, marketData,
-				Inputs.option(SCORERS, request.scorer(), "result scorer"),
+				Inputs.scorer(SCORERS, request.scorer(), marketData),
 				Inputs.option(RESULT_VERIFIERS, request.resultVerifier(), "result verifier"), selection, maxPermutations);
 		StrategyOptimizer optimizer;
 		try {
@@ -112,8 +115,11 @@ final class OptimizationApi {
 			TradeStats stats = account.getStats();
 			long profitableMarkets = account.countProfitableMarkets();
 			long allMarkets = profitableMarkets + account.countUnprofitableMarkets();
-			return new Result(score.score(), List.of(score.score(), account.getNAV(), account.getMaxDD(), stats.trades(),
-					stats.accuracy(), stats.expectancy(), stats.profitFactor(), stats.profitPerTrade(),
+			double returnToDownsideDD = ReturnRatios.returnToMaxDrawdown(
+					account.getAccountHistory().getSessions().totalReturnPercent(), account.getMaxDownsideDD());
+			return new Result(score.score(), Arrays.asList(score.score(), account.getNAV(), account.getMaxDD(),
+					Double.isFinite(returnToDownsideDD) ? returnToDownsideDD : null, stats.trades(), stats.accuracy(),
+					stats.expectancy(), stats.profitFactor(), stats.profitPerTrade(),
 					100.0 * profitableMarkets / allMarkets), score.formatParamsAsJavaCode());
 		}
 	}

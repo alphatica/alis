@@ -2,6 +2,7 @@ package com.alphatica.alis.studio.web;
 
 import com.alphatica.alis.studio.license.LicenseAcceptance;
 import com.alphatica.alis.studio.license.LicenseText;
+import com.alphatica.alis.studio.logic.riskfreerate.RiskFreeRatesProvider;
 import com.alphatica.alis.studio.web.live.LiveHub;
 import io.javalin.config.RoutesConfig;
 import io.javalin.http.Context;
@@ -49,8 +50,16 @@ final class LicenseGate {
 		ctx.skipRemainingHandlers();
 	}
 
+	/** The risk-free rates files are created after the acceptance; an invalid file stops the application. */
 	private void accept(Context ctx) throws IOException {
 		LicenseAcceptance.accept();
+		try {
+			RiskFreeRatesProvider.load();
+		} catch (IOException e) {
+			ctx.status(HttpStatus.INTERNAL_SERVER_ERROR).json(new ErrorMessage("Risk-free rates", e.getMessage(), null));
+			Shutdown.afterResponse();
+			return;
+		}
 		accepted.set(true);
 		ctx.status(HttpStatus.NO_CONTENT);
 	}

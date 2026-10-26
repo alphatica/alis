@@ -33,7 +33,7 @@ public final class AccountReplayer {
 			Account account,
 			MarketData marketData,
 			List<AccountAction> originalActions) throws AccountActionException {
-		replayInto(account, marketData, originalActions, (time, netDeposits) -> {
+		replayInto(account, marketData, originalActions, time -> {
 		});
 	}
 
@@ -48,11 +48,11 @@ public final class AccountReplayer {
 			AfterTime afterTime) throws AccountActionException {
 		List<AccountAction> actions = new ArrayList<>(originalActions);
 		for (Time time : simulationTimes(actions, marketData)) {
-			double netDeposits = performActionsForTime(time, actions, account);
+			performActionsForTime(time, actions, account);
 			if (marketData != null) {
 				account.updateLastKnown(marketData.snapshotAt(time));
 			}
-			afterTime.accept(time, netDeposits);
+			afterTime.accept(time);
 		}
 	}
 
@@ -71,9 +71,6 @@ public final class AccountReplayer {
 
 	@FunctionalInterface
 	public interface AfterTime {
-		/**
-		 * @param netDeposits deposits minus withdrawals applied at this time
-		 */
-		void accept(Time time, double netDeposits);
+		void accept(Time time);
 	}
 }

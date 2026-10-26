@@ -1,5 +1,6 @@
 package com.alphatica.alis.tools.data;
 
+import com.alphatica.alis.data.FloatArraySlice;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
@@ -11,6 +12,21 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public record TestMarket(MarketName name, TreeMap<Time, TimeMarketData> data) implements Market {
+
+	/** A market quoted at the times (yyyymmdd, increasing) with the closes, which also serve as open, high and low. */
+	public static TestMarket withCloses(MarketName name, int[] times, float[] closes) {
+		float[] newestFirst = new float[closes.length];
+		for (int i = 0; i < closes.length; i++) {
+			newestFirst[i] = closes[closes.length - 1 - i];
+		}
+		TreeMap<Time, TimeMarketData> data = new TreeMap<>();
+		for (int i = 0; i < times.length; i++) {
+			FloatArraySlice prices = new FloatArraySlice(newestFirst, closes.length - 1 - i);
+			Time time = new Time(times[i]);
+			data.put(time, new TimeMarketData(name, MarketType.INDEX, time, List.of(prices, prices, prices, prices)));
+		}
+		return new TestMarket(name, data);
+	}
 
 	@Override
 	public MarketName getName() {

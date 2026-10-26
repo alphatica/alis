@@ -1,5 +1,7 @@
 package com.alphatica.alis.studio.web;
 
+import com.alphatica.alis.studio.license.LicenseAcceptance;
+import com.alphatica.alis.studio.logic.riskfreerate.RiskFreeRatesProvider;
 import io.javalin.Javalin;
 
 import javax.swing.JOptionPane;
@@ -24,6 +26,7 @@ public final class WebStart {
 		String url = "http://" + HOST + ":" + port + "/";
 		switch (RunningInstance.probe(HOST, port)) {
 			case NONE -> {
+				loadRiskFreeRates();
 				Javalin app = WebApp.create(Set.of(HOST + ":" + port, "localhost:" + port), Splash::close);
 				app.start(HOST, port);
 				System.out.println("Alis Studio: " + url);
@@ -40,6 +43,21 @@ public final class WebStart {
 		} else {
 			openBrowser(url);
 			Splash.closeLater();
+		}
+	}
+
+	/**
+	 * Before the license is accepted the rates files must not be created: they are loaded after the acceptance then.
+	 * An invalid file stops the application.
+	 */
+	private static void loadRiskFreeRates() {
+		try {
+			if (LicenseAcceptance.isAccepted()) {
+				RiskFreeRatesProvider.load();
+			}
+		} catch (IOException e) {
+			showError(e.getMessage());
+			System.exit(1);
 		}
 	}
 

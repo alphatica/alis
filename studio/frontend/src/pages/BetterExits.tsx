@@ -205,7 +205,7 @@ function SettingsForm(props: { scorers: string[] }) {
           <For each={props.scorers}>{(name) => <option value={name}>{name}</option>}</For>
         </select>
       </div>
-      <span class="muted">Original score: {formatValue(originalScore(), 1) || '—'}</span>
+      <span class="muted">Original score: {formatValue(originalScore(), 0, '', 2) || '—'}</span>
       <span class="muted">
         Iterations: {iterations() === undefined ? (running() ? '…' : '—') : numberFormat(0).format(iterations()!)}
       </span>

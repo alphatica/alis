@@ -11,24 +11,24 @@ public class RecentDrawdownChecker {
 	/**
 	 * @return the analysis as lines of text
 	 */
-	public static List<String> checkDrawdown(List<Double> navHistory) {
+	public static List<String> checkDrawdown(double[] navHistory) {
 		List<String> lines = new ArrayList<>();
-		if (navHistory.size() < 10) {
-			lines.add(format("Need at least 10 history points, got %d", navHistory.size()));
+		if (navHistory.length < 10) {
+			lines.add(format("Need at least 10 history points, got %d", navHistory.length));
 		} else {
 			doAnalysis(navHistory, lines);
 		}
 		return lines;
 	}
 
-	private static void doAnalysis(List<Double> navHistory, List<String> lines) {
-		lines.add(format("Getting account history from %d data points", navHistory.size()));
+	private static void doAnalysis(double[] navHistory, List<String> lines) {
+		lines.add(format("Getting account history from %d data points", navHistory.length));
 		DrawdownCalc drawdownCalc = new DrawdownCalc();
 		List<Double> ddLengths = new ArrayList<>();
 		List<Double> ddDepths = new ArrayList<>();
 		double currentDDLen = 0;
 		double maxCurrentDdDepth = 0.0;
-		for (Double nav : navHistory) {
+		for (double nav : navHistory) {
 			drawdownCalc.updateNav(nav);
 			if (drawdownCalc.getCurrentDD() == 0 && currentDDLen > 0) {
 				ddLengths.add(currentDDLen);

@@ -20,4 +20,14 @@ public record Stat(String name, Object value, int decimals, String suffix) {
 	public static Stat text(String name, String value) {
 		return new Stat(name, value, 0, "");
 	}
+
+	/** Shown as unknown, e.g. when it needs market data or is undefined. */
+	public static Stat unknown(String name) {
+		return new Stat(name, null, 0, "");
+	}
+
+	/** A number, or unknown when it is NaN or infinite (e.g. a ratio without enough data). */
+	public static Stat finite(Stat stat) {
+		return stat.value() instanceof Double d && !Double.isFinite(d) ? unknown(stat.name()) : stat;
+	}
 }

@@ -39,7 +39,7 @@ final class BetterExitsApi {
 	private static final int TOP_RESULTS = 100;
 	private static final String DEFAULT_COMMISSION_RATE = "0.01";
 
-	private static final List<Column> RESULTS = List.of(Column.number("Score", 1), Column.number("Early exits", 0),
+	private static final List<Column> RESULTS = List.of(Column.score("Score"), Column.number("Early exits", 0),
 			Column.text("Name"), Column.text("Description"));
 
 	private final JobRegistry jobs;
@@ -109,7 +109,8 @@ final class BetterExitsApi {
 		job.onCancel(search::stop);
 		job.channel().replace("iterations", 0);
 		search.run((result, iterationsDone) -> {
-			if (topResults.add(Result.of(result))) {
+			// Without an early exit the result is the original log, not an alternative.
+			if (result.trades() > 0 && topResults.add(Result.of(result))) {
 				job.channel().replace("results", topResults.list());
 			}
 			job.channel().replace("iterations", iterationsDone);
@@ -126,7 +127,7 @@ final class BetterExitsApi {
 		if (commissionRate >= 1) {
 			throw new ValidationException("Commission rate must be lower than 1");
 		}
-		return new Settings(marketData, file, commissionRate, Inputs.option(EXIT_SCORERS, request.scorer(), "result scorer"));
+		return new Settings(marketData, file, commissionRate, Inputs.scorer(EXIT_SCORERS, request.scorer(), marketData));
 	}
 
 	private record Settings(MarketData marketData, LoadedFile file, double commissionRate,

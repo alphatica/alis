@@ -1,7 +1,12 @@
 package com.alphatica.alis.studio.logic.trading.backtest;
 
+import com.alphatica.alis.data.market.MarketData;
+import com.alphatica.alis.data.riskfreerate.RiskFreeRates;
+import com.alphatica.alis.studio.logic.riskfreerate.RiskFreeRatesProvider;
+import com.alphatica.alis.studio.logic.stats.RatioStats;
 import com.alphatica.alis.studio.logic.stats.Stat;
 import com.alphatica.alis.trading.account.Account;
+import com.alphatica.alis.trading.account.SessionHistory;
 import com.alphatica.alis.trading.account.TradeStats;
 
 import java.util.ArrayList;
@@ -14,45 +19,40 @@ public final class BacktestStats {
 	private BacktestStats() {
 	}
 
-	public static List<Stat> of(BacktestResult result) {
-		return of(result.account(), result.missedTrades(), true);
+	/** With the rates of {@link RiskFreeRatesProvider}; arguments as in {@link #of(BacktestResult, MarketData, RiskFreeRates)}. */
+	public static List<Stat> of(BacktestResult result, MarketData marketData) {
+		return of(result, marketData, RiskFreeRatesProvider.get());
 	}
 
 	/**
-	 * The same stats for the user's portfolio: without missed trades (there are no orders to miss); values that
-	 * need market data are empty when {@code haveMarketData} is false.
+	 * @param marketData market data of the run, with the benchmark of {@link RatioStats}
 	 */
-	public static List<Stat> ofPortfolio(Account account, boolean haveMarketData) {
-		return of(account, null, haveMarketData);
-	}
-
-	private static List<Stat> of(Account account, Integer missedTrades, boolean haveMarketData) {
+	public static List<Stat> of(BacktestResult result, MarketData marketData, RiskFreeRates rates) {
 		BacktestStats backtestStats = new BacktestStats();
-		backtestStats.addAccountStats(account, missedTrades == null, haveMarketData);
-		backtestStats.addTradeStats(account.getStats(), missedTrades, haveMarketData);
+		Account account = result.account();
+		SessionHistory sessions = account.getAccountHistory().getSessions();
+		backtestStats.stats.add(Stat.number("Final account value", account.getNAV(), 0));
+		backtestStats.stats.add(RatioStats.totalReturn(sessions));
+		backtestStats.stats.add(RatioStats.cagr(sessions));
+		backtestStats.stats.add(Stat.percent("Current drawdown", account.getCurrentDD(), 0));
+		backtestStats.stats.add(Stat.percent("Max drawdown", account.getMaxDD(), 0));
+		backtestStats.stats.add(Stat.percent("Max downside drawdown", account.getMaxDownsideDD(), 0));
+		backtestStats.stats.addAll(RatioStats.of(sessions, account.getMaxDD(), account.getMaxDownsideDD(), marketData,
+				rates));
+		backtestStats.addTradeStats(account.getStats(), result.missedTrades(), true);
 		backtestStats.addHistoryStats(account);
 		return List.copyOf(backtestStats.stats);
 	}
 
-	private void addAccountStats(Account account, boolean portfolio, boolean haveMarketData) {
-		addIf(haveMarketData, Stat.number("Final account value", account.getNAV(), 0));
-		if (portfolio) {
-			addPortfolioStats(account, haveMarketData);
-		}
-		addIf(haveMarketData, Stat.percent("Current drawdown", account.getCurrentDD(), 0));
-		addIf(haveMarketData, Stat.percent("Max drawdown", account.getMaxDD(), 0));
-		addIf(haveMarketData, Stat.percent("Max downside drawdown", account.getMaxDownsideDD(), 0));
-	}
-
 	/**
-	 * Exposure: positions at the latest prices as a share of the account value. Total profit: account value minus
-	 * deposits plus withdrawals.
+	 * Trade and history stats of the user's portfolio: without missed trades (there are no orders to miss); values
+	 * that need market data are empty when {@code haveMarketData} is false.
 	 */
-	private void addPortfolioStats(Account account, boolean haveMarketData) {
-		double nav = account.getNAV();
-		stats.add(Stat.number("Free cash", account.getCash(), 0));
-		addIf(haveMarketData && nav > 0, Stat.percent("Exposure", (nav - account.getCash()) / nav * 100, 0));
-		addIf(haveMarketData, Stat.number("Total profit", account.calcCashProfit(), 0));
+	public static List<Stat> tradesOf(Account account, boolean haveMarketData) {
+		BacktestStats backtestStats = new BacktestStats();
+		backtestStats.addTradeStats(account.getStats(), null, haveMarketData);
+		backtestStats.addHistoryStats(account);
+		return List.copyOf(backtestStats.stats);
 	}
 
 	private void addTradeStats(TradeStats tradeStats, Integer missedTrades, boolean haveMarketData) {
@@ -79,6 +79,6 @@ public final class BacktestStats {
 
 	/** Values that need market data are shown as unknown without it. */
 	private void addIf(boolean known, Stat stat) {
-		stats.add(known ? stat : new Stat(stat.name(), null, 0, ""));
+		stats.add(known ? stat : Stat.unknown(stat.name()));
 	}
 }

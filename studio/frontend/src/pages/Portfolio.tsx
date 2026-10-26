@@ -1,6 +1,7 @@
 import { createSignal, Show } from 'solid-js';
 import { EquityChart, type EquityMode, EquityModeSwitch } from '../components/EquityChart';
 import { Loaded } from '../components/Loaded';
+import { StatTable } from '../components/StatTable';
 import { StatTiles } from '../components/StatTiles';
 import { Tabs } from '../components/Tabs';
 import { type PortfolioData, portfolio } from '../state';
@@ -46,17 +47,20 @@ const hasEquity = (data: PortfolioData) => data.equity.times.length > 0;
 function Equity(props: { data: PortfolioData }) {
   return (
     <>
-      <Show
-        when={hasEquity(props.data)}
-        fallback={
-          <p class="muted">
-            {props.data.actions.rows.length === 0 ? 'No account actions yet.' : 'Load market data to see the equity.'}
-          </p>
-        }
-      >
-        <EquityChart equity={props.data.equity} mode={equityMode()} stats={props.data.stats} fileName="portfolio" />
-      </Show>
-      <StatTiles stats={props.data.stats} />
+      <div class="chart-with-stats">
+        <Show
+          when={hasEquity(props.data)}
+          fallback={
+            <p class="muted chart-placeholder">
+              {props.data.actions.rows.length === 0 ? 'No account actions yet.' : 'Load market data to see the equity.'}
+            </p>
+          }
+        >
+          <EquityChart equity={props.data.equity} mode={equityMode()} stats={props.data.summary} fileName="portfolio" />
+        </Show>
+        <StatTable stats={props.data.stats} />
+      </div>
+      <StatTiles stats={props.data.summary} wide />
     </>
   );
 }

@@ -2,9 +2,12 @@ package com.alphatica.alis.studio.web;
 
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.time.Time;
+import com.alphatica.alis.studio.logic.options.ScorerOption;
+import com.alphatica.alis.studio.logic.options.UnavailableScorerException;
 import com.alphatica.alis.studio.logic.trading.backtest.BacktestSettings;
 import com.alphatica.alis.studio.state.AppState;
 import com.alphatica.alis.studio.strategy.StrategyList;
+import com.alphatica.alis.trading.account.scorer.AccountScorer;
 import com.alphatica.alis.trading.strategy.Strategy;
 
 import java.time.DateTimeException;
@@ -75,6 +78,17 @@ final class Inputs {
 	static <T> T option(Map<String, T> options, String name, String field) {
 		return Optional.ofNullable(name).map(options::get)
 				.orElseThrow(() -> new ValidationException("Unknown " + field + ": " + name));
+	}
+
+	/**
+	 * Scorer factory of one of the {@link ScorerOption}s by its name, for a job on the market data.
+	 */
+	static Supplier<AccountScorer> scorer(Map<String, ScorerOption> options, String name, MarketData marketData) {
+		try {
+			return option(options, name, "result scorer").forData(marketData);
+		} catch (UnavailableScorerException e) {
+			throw new ValidationException(e.getMessage());
+		}
 	}
 
 	static Supplier<Strategy> strategy(String name) {

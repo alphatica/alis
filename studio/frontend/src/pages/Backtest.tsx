@@ -15,7 +15,7 @@ import { Tabs } from '../components/Tabs';
 import { type ColumnSpec, formatRow, type Value } from '../format';
 import { createJob } from '../jobs';
 import { backtestOptions, type Equity, followDefaults, type Stat } from '../state';
-import { staticSource, textColumns, VirtualTable, widestTracker } from '../table';
+import { type RowSource, textColumns, VirtualTable, widestTracker } from '../table';
 import { showError } from '../toasts';
 
 type Progress = { time: string; bar: number; bars: number };
@@ -23,18 +23,28 @@ type BacktestView = { stats: Stat[]; equity: Equity };
 /** The form as sent to the backend (BacktestApi.BacktestRequest). */
 type BacktestInput = { strategy: string; startTime: string; endTime: string; commissionRate: string; initialCapital: string };
 
-/** Rows appended by a job, formatted as text: kept in a plain array, `version` tells the table that more arrived. */
+/**
+ * Rows appended by a job, formatted as text: kept in a plain array, `version` tells the table that more arrived.
+ * Shown newest first: the table reads the array from its end, so appending does not copy it.
+ */
 function liveRows() {
   let rows: string[][] = [];
   const [version, setVersion] = createSignal(0);
   // Widest row per column, kept up to date while rows arrive, so the column widths do not change while scrolling
   const tracker = widestTracker();
   const [widest, setWidest] = createSignal<(string[] | undefined)[]>([]);
-  return {
-    source: staticSource(() => {
+  const source: RowSource<string[]> = {
+    count: () => {
       version();
-      return rows;
-    }),
+      return rows.length;
+    },
+    row: (index) => {
+      version();
+      return rows[rows.length - 1 - index];
+    },
+  };
+  return {
+    source,
     widest,
     append: (items: string[][]) => {
       let widestChanged = false;

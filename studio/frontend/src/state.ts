@@ -27,6 +27,9 @@ export type Equity = {
 };
 
 export type PortfolioData = {
+  /** Tiles under the equity chart: the account now. */
+  summary: Stat[];
+  /** Table next to the chart: risk, ratios, trades and history. */
   stats: Stat[];
   actions: TableData;
   history: TableData;

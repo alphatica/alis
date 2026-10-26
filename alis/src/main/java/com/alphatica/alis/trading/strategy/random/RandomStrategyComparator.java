@@ -101,7 +101,7 @@ public class RandomStrategyComparator {
 	private Profile profileOf(Account baseAccount, int[] lengths) throws AccountActionException {
 		ExposureMeter meter = new ExposureMeter();
 		Account replayed = new Account(0);
-		AccountReplayer.replayInto(replayed, marketData, baseAccount.getAccountHistory().getActions(), (time, netDeposits) -> {
+		AccountReplayer.replayInto(replayed, marketData, baseAccount.getAccountHistory().getActions(), time -> {
 			if (!time.isAfter(endTime)) {
 				meter.add(replayed);
 			}

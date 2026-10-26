@@ -22,26 +22,23 @@ import static com.alphatica.alis.trading.order.OrderSize.PERCENTAGE;
 
 public class DonchianChannel extends Strategy {
 
-//	@IntParam(start = 5, step = 1, end = 500)
+	@IntParam(start = 5, step = 5, end = 300)
 	int sellLength;
 
 	@BoolParam
 	boolean highestGrowthFirst;
 
-	@IntParam(start = 5, step = 5, end = 20)
+	@IntParam(start = 5, step = 5, end = 300)
 	int buyLength;
 
 	private HighestClose highestClose;
 	private LowestClose lowestClose;
 
 	public DonchianChannel() {
-//		buyLength = 6;
-//		sellLength = 114;
-//		highestGrowthFirst = false;
 
-		sellLength = 249;
+		sellLength = 180;
 		highestGrowthFirst = false;
-		buyLength = 9;
+		buyLength = 130;
 		paramsChanged();
 	}
 

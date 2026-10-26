@@ -8,6 +8,8 @@ import com.alphatica.alis.trading.account.Quantities;
  * {@code maxDecimals} fraction digits followed by {@code suffix}. An empty cell is null.
  */
 public record Column(String title, Kind kind, int decimals, int maxDecimals, String suffix) {
+	/** Fraction digits of scores (the GUI uses as many in its own score labels). */
+	public static final int SCORE_MAX_DECIMALS = 2;
 
 	public enum Kind {
 		TEXT, DATE, NUMBER
@@ -23,6 +25,13 @@ public record Column(String title, Kind kind, int decimals, int maxDecimals, Str
 
 	public static Column number(String title, int decimals) {
 		return new Column(title, Kind.NUMBER, decimals, decimals, "");
+	}
+
+	/**
+	 * Score of a result scorer: up to 2 fraction digits, as scores range from NAV to ratios like Sharpe's.
+	 */
+	public static Column score(String title) {
+		return new Column(title, Kind.NUMBER, 0, SCORE_MAX_DECIMALS, "");
 	}
 
 	public static Column percent(String title, int decimals) {

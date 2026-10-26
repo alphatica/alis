@@ -10,10 +10,12 @@ public class AccountHistory {
 	private final List<AccountAction> accountActions;
 	private final List<PositionHistoryRecord> historyRecords;
 	private double paidCommissions;
+	private final SessionHistory sessions;
 	private double cashPaymentsBalance;
 
 	public AccountHistory(double cash) {
 		cashPaymentsBalance = cash;
+		sessions = new SessionHistory(cash);
 		pricesRecords = new ArrayList<>(1024);
 		accountActions = new ArrayList<>(1024);
 		historyRecords = new ArrayList<>(1024);
@@ -29,6 +31,12 @@ public class AccountHistory {
 
 	public void recordCashPayment(double value) {
 		cashPaymentsBalance += value;
+		sessions.addFlow(value);
+	}
+
+	/** NAV of every session valued by {@link Account#updateLastKnown} and its time-weighted returns. */
+	public SessionHistory getSessions() {
+		return sessions;
 	}
 
 	public double getCashPayments() {

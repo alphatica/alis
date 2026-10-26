@@ -12,12 +12,14 @@ import com.alphatica.alis.trading.account.actions.Trade;
 import com.alphatica.alis.trading.order.Order;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.alphatica.alis.tools.java.CollectionsTools.arrayList;
 import static com.alphatica.alis.trading.order.Direction.BUY;
 import static com.alphatica.alis.trading.order.Direction.SELL;
 import static com.alphatica.alis.trading.order.OrderSize.PERCENTAGE;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,6 +63,34 @@ class StrategyExecutorTests {
 		assertEquals(104_545.45454, account.getNAV(), 1e-6);
 		List<AccountAction> actions = account.getAccountHistory().getActions();
 		assertEquals(new AccountAction(new Time(150), new Trade(market, SELL, 120.0, 454.545454, 0.0)), actions.getLast());
+	}
+
+	@Test
+	void shouldRecordNavOfEverySessionAfterDelistingsAndClosing() throws AccountActionException {
+		// As the studio's backtest records it: after each session, the last one after closing positions
+		MarketName market = new MarketName("test_market");
+		TestData data = new TestData("test_market").withDelistings(new Delisting(market, new Time(150), 120.0));
+		List<Time> times = new ArrayList<>();
+		List<Double> nav = new ArrayList<>();
+		StrategyExecutor executor = new StrategyExecutor().withCommissionRate(0.1).withInitialCash(100_000)
+				.withTimeRange(new Time(1), new Time(160))
+				.withBarExecutedConsumer((time, account, orders) -> {
+					times.add(time);
+					nav.add(account.getNAV());
+				});
+
+		Account account = executor.execute(data, new TestStrategy());
+
+		nav.set(nav.size() - 1, account.getNAV());
+		double[] expected = new double[nav.size()];
+		double previous = 100_000;
+		for (int i = 0; i < expected.length; i++) {
+			expected[i] = nav.get(i) / previous - 1;
+			previous = nav.get(i);
+		}
+		assertEquals(times, account.getAccountHistory().getSessions().times());
+		assertArrayEquals(expected, account.getAccountHistory().getSessions().returns(), 1e-12);
+		assertEquals(4.545454540000, account.getAccountHistory().getSessions().totalReturnPercent(), 1e-9);
 	}
 
 	@Test

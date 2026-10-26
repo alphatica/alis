@@ -791,6 +791,24 @@ h2 {
 	margin-top: var(--space-4);
 }
 
+/* A few tiles, one line high, sharing the whole width */
+.stats-wide {
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.stats-wide .stat {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-2) var(--space-4);
+}
+
+.stats-wide .stat-value {
+	margin-top: 0;
+	white-space: nowrap;
+}
+
 /* ---------- Two columns: narrow sidebar (stats, form) and main content ---------- */
 
 .split {
@@ -930,6 +948,33 @@ h2 {
 	overflow: hidden;
 }
 
+/* Equity chart with a stats table on its right; the chart takes the rest of the width */
+.chart-with-stats {
+	display: flex;
+	flex: 1 1 0;
+	gap: var(--space-4);
+	min-height: 240px;
+}
+
+.chart-with-stats > .chart,
+.chart-with-stats > .chart-placeholder {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+/* As tall as its rows, at most as tall as the chart (then it scrolls) */
+.stat-table {
+	flex: none;
+	align-self: flex-start;
+	width: 320px;
+	max-height: 100%;
+}
+
+/* The frame closes the last row */
+.stat-table tr:last-child td {
+	border-bottom: 0;
+}
+
 /* uPlot's selection box when dragging to zoom */
 .chart .u-select {
 	background: rgb(77 141 255 / 15%);
@@ -1019,6 +1064,19 @@ h2 {
 	.chart {
 		flex: none;
 		height: 60vh;
+	}
+
+	.chart-with-stats {
+		flex: none;
+		flex-direction: column;
+	}
+
+	.chart-with-stats > .chart {
+		flex: none;
+	}
+
+	.stat-table {
+		width: auto;
 	}
 }
 

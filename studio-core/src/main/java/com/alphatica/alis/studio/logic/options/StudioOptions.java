@@ -1,10 +1,21 @@
 package com.alphatica.alis.studio.logic.options;
 
+import com.alphatica.alis.data.market.Market;
+import com.alphatica.alis.data.market.MarketData;
+import com.alphatica.alis.data.riskfreerate.RiskFreeRates;
+import com.alphatica.alis.studio.logic.riskfreerate.RiskFreeRatesProvider;
+import com.alphatica.alis.studio.logic.stats.RatioStats;
 import com.alphatica.alis.trading.account.scorer.AccountScorer;
+import com.alphatica.alis.trading.account.scorer.Cagr;
+import com.alphatica.alis.trading.account.scorer.CalmarRatio;
 import com.alphatica.alis.trading.account.scorer.Expectancy;
+import com.alphatica.alis.trading.account.scorer.JensensAlpha;
 import com.alphatica.alis.trading.account.scorer.NavAdjustedForMaxDD;
 import com.alphatica.alis.trading.account.scorer.NetAssetValue;
 import com.alphatica.alis.trading.account.scorer.ProfitableMarkets;
+import com.alphatica.alis.trading.account.scorer.ReturnToMaxDownsideDD;
+import com.alphatica.alis.trading.account.scorer.SharpeRatio;
+import com.alphatica.alis.trading.account.scorer.SortinoRatio;
 import com.alphatica.alis.trading.optimizer.ParametersSelection;
 import com.alphatica.alis.trading.optimizer.ResultVerifier;
 
@@ -14,8 +25,9 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Choices offered in the GUI, by the name shown to the user, in the order shown. Scorers are factories: a scorer may
- * keep state, so every run gets a new one.
+ * Choices offered in the GUI, by the name shown to the user, in the order shown. Scorers are {@link ScorerOption}s,
+ * resolved once per job. Ratio scorers use the risk-free rates of {@link RiskFreeRatesProvider} (loaded before the API
+ * opens) and the country of {@link RatioStats}; Jensen's alpha also its benchmark.
  */
 public final class StudioOptions {
 
@@ -26,12 +38,18 @@ public final class StudioOptions {
 
 	public static final Map<String, ParametersSelection> PARAMETERS_SELECTIONS = parametersSelections();
 
-	public static final Map<String, Supplier<AccountScorer>> EXIT_SCORERS = ordered(
-			Map.entry("Net asset value", NetAssetValue::new),
-			Map.entry("Trade expectancy", Expectancy::new),
-			Map.entry("NAV / max drawdown", NavAdjustedForMaxDD::new));
+	public static final Map<String, ScorerOption> EXIT_SCORERS = ordered(
+			Map.entry("Net asset value", ScorerOption.of(NetAssetValue::new)),
+			Map.entry("CAGR", ScorerOption.of(Cagr::new)),
+			Map.entry("Trade expectancy", ScorerOption.of(Expectancy::new)),
+			Map.entry("NAV / max drawdown", ScorerOption.of(NavAdjustedForMaxDD::new)),
+			Map.entry("Return / max downside DD", ScorerOption.of(ReturnToMaxDownsideDD::new)),
+			Map.entry("Sharpe ratio", ScorerOption.of(() -> new SharpeRatio(RiskFreeRatesProvider.get(), RatioStats.COUNTRY))),
+			Map.entry("Sortino ratio", ScorerOption.of(() -> new SortinoRatio(RiskFreeRatesProvider.get(), RatioStats.COUNTRY))),
+			Map.entry("Calmar ratio", ScorerOption.of(CalmarRatio::new)),
+			Map.entry("Jensen's alpha", StudioOptions::jensensAlpha));
 
-	public static final Map<String, Supplier<AccountScorer>> SCORERS = withProfitableMarkets();
+	public static final Map<String, ScorerOption> SCORERS = withProfitableMarkets();
 
 	private StudioOptions() {
 	}
@@ -53,9 +71,20 @@ public final class StudioOptions {
 		return Collections.unmodifiableMap(map);
 	}
 
-	private static Map<String, Supplier<AccountScorer>> withProfitableMarkets() {
-		Map<String, Supplier<AccountScorer>> map = new LinkedHashMap<>(EXIT_SCORERS);
-		map.put("Max profitable markets", ProfitableMarkets::new);
+	private static Map<String, ScorerOption> withProfitableMarkets() {
+		Map<String, ScorerOption> map = new LinkedHashMap<>(EXIT_SCORERS);
+		map.put("Max profitable markets", ScorerOption.of(ProfitableMarkets::new));
 		return Collections.unmodifiableMap(map);
+	}
+
+	/** Against the whole history of {@link RatioStats#BENCHMARK} in the job's market data. */
+	private static Supplier<AccountScorer> jensensAlpha(MarketData marketData) throws UnavailableScorerException {
+		Market benchmark = marketData.getMarket(RatioStats.BENCHMARK);
+		if (benchmark == null) {
+			throw new UnavailableScorerException("Jensen's alpha needs the benchmark " + RatioStats.BENCHMARK.name()
+					+ " in the loaded market data");
+		}
+		RiskFreeRates rates = RiskFreeRatesProvider.get();
+		return () -> new JensensAlpha(rates, RatioStats.COUNTRY, benchmark);
 	}
 }

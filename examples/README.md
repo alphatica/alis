@@ -1,9 +1,6 @@
 # Examples
 
-[CurrentChecks](CurrentChecks/README.md)
+Sample research code built on the Alis library. To run an example, start its class that has a `main` method.
 
-Checking various indicators with most recent data.
-
-[StrategiesTests](StrategiesTests/README.md)
-
-Testing trading strategies for historical performance.
+- [CurrentChecks](CurrentChecks/README.md) – checks indicators on the most recent market data.
+- [StrategiesTests](StrategiesTests/README.md) – backtests of simple trading strategies.
