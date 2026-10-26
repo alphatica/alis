@@ -108,6 +108,55 @@ class RunnerTest {
 		assertEquals(0, second.trades());
 	}
 
+	@Test
+	void shouldRemoveFractionalOriginalSellsCoveredByGeneratedExit() throws AccountActionException {
+		List<AccountAction> actions = List.of(
+				new AccountAction(new Time(1), new Deposit(100)),
+				new AccountAction(new Time(1), new Trade(MARKET, BUY, 1, 0.1, 0)),
+				new AccountAction(new Time(1), new Trade(MARKET, BUY, 1, 0.2, 0)),
+				new AccountAction(new Time(4), new Trade(MARKET, SELL, 4, 0.15, 0)),
+				new AccountAction(new Time(5), new Trade(MARKET, SELL, 5, 0.15, 0)));
+
+		ExitFinderResult result = run(new Runner(COMMISSION_RATE), finder(data -> data.getTime().equals(new Time(2))), actions);
+
+		assertEquals(1, result.trades());
+		assertTrue(result.account().getPositions().isEmpty());
+		// 100 - 0.3 + 0.3 * 3 * (1 - 0.01)
+		assertEquals(100.591, result.account().getCash(), 0.000_001);
+	}
+
+	@Test
+	void shouldKeepRemainderOfFractionalOriginalSell() throws AccountActionException {
+		List<AccountAction> actions = List.of(
+				new AccountAction(new Time(1), new Deposit(100)),
+				new AccountAction(new Time(1), new Trade(MARKET, BUY, 1, 0.3, 0)),
+				new AccountAction(new Time(2), new Trade(MARKET, BUY, 2, 0.2, 0)),
+				new AccountAction(new Time(5), new Trade(MARKET, SELL, 5, 0.5, 0.5)));
+
+		ExitFinderResult result = run(new Runner(COMMISSION_RATE), finder(data -> data.getTime().equals(new Time(1))), actions);
+
+		assertTrue(result.account().getPositions().isEmpty());
+		// buys: 0.3 + 0.4; generated exit of 0.3 at 2 with 1% commission; remaining 0.2 sold at 5 with 0.2 / 0.5 of 0.5
+		assertEquals(100 - 0.7 + 0.6 * 0.99 + 1.0 - 0.2, result.account().getCash(), 0.000_001);
+	}
+
+	@Test
+	void shouldKeepOriginalSellsBeyondGeneratedExitQuantity() throws AccountActionException {
+		List<AccountAction> actions = List.of(
+				new AccountAction(new Time(1), new Deposit(100)),
+				new AccountAction(new Time(1), new Trade(MARKET, BUY, 1, 0.3, 0)),
+				new AccountAction(new Time(3), new Trade(MARKET, BUY, 3, 0.2, 0)),
+				new AccountAction(new Time(4), new Trade(MARKET, SELL, 4, 0.15, 0)),
+				new AccountAction(new Time(4), new Trade(MARKET, SELL, 4, 0.15, 0)),
+				new AccountAction(new Time(5), new Trade(MARKET, SELL, 5, 0.2, 0)));
+
+		ExitFinderResult result = run(new Runner(COMMISSION_RATE), finder(data -> data.getTime().equals(new Time(2))), actions);
+
+		assertTrue(result.account().getPositions().isEmpty());
+		// 100 - 0.3 + 0.3 * 3 * 0.99 - 0.6 + 0.2 * 5
+		assertEquals(100.991, result.account().getCash(), 0.000_001);
+	}
+
 	private static List<AccountAction> fundedRoundTrip() {
 		return List.of(
 				new AccountAction(new Time(1), new Deposit(100)),

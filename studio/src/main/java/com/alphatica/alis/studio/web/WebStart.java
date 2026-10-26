@@ -24,7 +24,7 @@ public final class WebStart {
 		String url = "http://" + HOST + ":" + port + "/";
 		switch (RunningInstance.probe(HOST, port)) {
 			case NONE -> {
-				Javalin app = WebApp.create(Set.of(HOST + ":" + port, "localhost:" + port));
+				Javalin app = WebApp.create(Set.of(HOST + ":" + port, "localhost:" + port), Splash::close);
 				app.start(HOST, port);
 				System.out.println("Alis Studio: " + url);
 			}
@@ -35,8 +35,11 @@ public final class WebStart {
 				System.exit(1);
 			}
 		}
-		if (!List.of(args).contains(NO_BROWSER_ARG)) {
+		if (List.of(args).contains(NO_BROWSER_ARG)) {
+			Splash.close();
+		} else {
 			openBrowser(url);
+			Splash.closeLater();
 		}
 	}
 

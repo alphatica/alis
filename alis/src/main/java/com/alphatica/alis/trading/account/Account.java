@@ -67,18 +67,18 @@ public class Account {
 	}
 
 	public void addPosition(MarketName market, PositionEntry entry, double commission) throws AccountActionException {
-		double value = entry.quantity * entry.price;
+		double value = entry.quantity() * entry.price;
 		double cashNeeded = value + commission;
 		if (cashNeeded > cash) {
 			throw new AccountActionException(format("Not enough cash to buy %s on %s. Missing cash: %.2f", market, entry.time, cash - cashNeeded));
 		}
 		Position position = positions.get(market);
 		if (position != null) {
-			position.add(new PositionEntry(entry.time, entry.quantity, entry.price), commission);
+			position.add(PositionEntry.ofUnits(entry.time, entry.units, entry.price), commission);
 		} else {
 			positions.put(market, new Position(
 					market,
-					new PositionEntry(entry.time, entry.quantity, entry.price),
+					PositionEntry.ofUnits(entry.time, entry.units, entry.price),
 					commission));
 		}
 		accountHistory.addCommission(commission);
@@ -87,16 +87,16 @@ public class Account {
 
 	public void reducePosition(MarketName market, PositionExit exit, double commission) throws AccountActionException {
 		Position position = positions.get(market);
-		if (position == null || position.getQuantity() < exit.quantity) {
-			throw new AccountActionException(format("Unable to sell %d of %s on %s", exit.quantity, market, exit.time));
+		if (position == null || position.getUnits() < exit.units) {
+			throw new AccountActionException(format("Unable to sell %s of %s on %s", Quantities.format(exit.quantity()), market, exit.time));
 		}
 		List<PositionPricesRecord> positionPricesRecords = position.reduce(exit, commission);
 		accountHistory.addRecords(positionPricesRecords);
 		accountHistory.addCommission(commission);
-		double value = exit.price * exit.quantity;
+		double value = exit.price * exit.quantity();
 		double cashReceived = value - commission;
 		cash += cashReceived;
-		if (position.getQuantity() == 0) {
+		if (position.getUnits() == 0) {
 			Position removed = positions.remove(market);
 			addToHistory(removed);
 		}
@@ -189,7 +189,7 @@ public class Account {
 	public void close(double commissionRate) throws AccountActionException {
 		for (Map.Entry<MarketName, Position> next : getPositions().entrySet()) {
 			double price = next.getValue().getLastClose();
-			int quantity = next.getValue().getQuantity();
+			double quantity = next.getValue().getQuantity();
 			PositionExit exit = new PositionExit(null, quantity, price);
 			double commissionValue = quantity * price * commissionRate;
 			reducePosition(next.getKey(), exit, commissionValue);
@@ -208,7 +208,7 @@ public class Account {
 			if (position == null) {
 				continue;
 			}
-			int quantity = position.getQuantity();
+			double quantity = position.getQuantity();
 			reducePosition(delisting.market(), new PositionExit(session, quantity, delisting.price()), 0.0);
 			// Recorded as a regular SELL. Consider a dedicated Delisting action type in the future.
 			trades.add(new Trade(delisting.market(), SELL, delisting.price(), quantity, 0.0));

@@ -15,6 +15,12 @@ final class WebApp {
 	}
 
 	static Javalin create(Set<String> allowedHosts) {
+		return create(allowedHosts, () -> {
+		});
+	}
+
+	/** {@code onRequest} runs before every request (used to close the splash screen once the browser connects). */
+	static Javalin create(Set<String> allowedHosts, Runnable onRequest) {
 		ErrorReports errorReports = new ErrorReports();
 		JobRegistry jobs = new JobRegistry(errorReports);
 		LiveHub hub = new LiveHub();
@@ -22,6 +28,7 @@ final class WebApp {
 		return Javalin.create(config -> {
 			config.startup.showJavalinBanner = false;
 			config.jsonMapper(Json.JAVALIN);
+			config.routes.before(ctx -> onRequest.run());
 			Frontend.configure(config);
 			new RequestGuard(allowedHosts).register(config.routes);
 			ApiErrors.register(config.routes, errorReports);

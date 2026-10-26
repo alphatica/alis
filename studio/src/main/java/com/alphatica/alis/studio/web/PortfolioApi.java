@@ -6,6 +6,7 @@ import com.alphatica.alis.studio.dao.AccountActionCSVFacade;
 import com.alphatica.alis.studio.logic.trading.account.AccountProvider;
 import com.alphatica.alis.studio.state.AppState;
 import com.alphatica.alis.studio.web.live.LiveHub;
+import com.alphatica.alis.trading.account.Quantities;
 import com.alphatica.alis.trading.account.actions.AccountAction;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
 import com.alphatica.alis.trading.account.actions.AccountActionType;
@@ -116,8 +117,13 @@ final class PortfolioApi {
 		};
 	}
 
-	private static int quantity(String value) {
-		return (int) Inputs.wholeNumber(value, "quantity", 1, Integer.MAX_VALUE);
+	private static double quantity(String value) {
+		double quantity = Inputs.number(value, "quantity");
+		if (!Quantities.isValid(quantity)) {
+			throw new ValidationException("The quantity must be at least " + Quantities.format(Quantities.MIN_QUANTITY)
+					+ " with at most " + Quantities.DECIMAL_PLACES + " decimal places");
+		}
+		return quantity;
 	}
 
 	private record PortfolioState(MarketData marketData, long revision) {

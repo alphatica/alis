@@ -28,26 +28,27 @@ class StrategyExecutorTests {
 	void shouldExecuteStrategy() throws AccountActionException {
 		/*
 			1. Start with 100k
-			2. Buy 454 shares for 45.4k and pay 4.54k commission
-			3. Sell for 90.8k and pay 9.08k commission
-			4. Nav = 100 -45.4 -4.54 +90.8 -9.08 = 131.78k
+			2. Buy 50k / (100 * 1.1) = 454.545454 shares (rounded down to 0.000001)
+			   for 45454.5454 and pay 4545.45454 commission
+			3. Sell at 200 for 90909.0908 and pay 9090.90908 commission
+			4. Nav = 100000 - 45454.5454 - 4545.45454 + 90909.0908 - 9090.90908 = 131818.18178
 		 */
 		double commissionRate = 0.1;
 		double initialCash = 100_000;
 		StrategyExecutor executor = new StrategyExecutor().withCommissionRate(commissionRate).withInitialCash(initialCash);
 		Account account = executor.execute(new TestData("test_market"), new TestStrategy());
 		assertEquals(0, account.getPositions().size());
-		double nav = 131_780;
-		assertEquals(nav, account.getNAV());
+		double nav = 131_818.18178;
+		assertEquals(nav, account.getNAV(), 1e-6);
 	}
 
 	@Test
 	void shouldSellPositionAtDelistingPriceWithoutCommission() throws AccountActionException {
 		/*
 			1. Start with 100k
-			2. Buy 454 shares at 100 for 45.4k and pay 4.54k commission
-			3. Delisting at 120 without commission: + 54.48k
-			4. Nav = 100 -45.4 -4.54 +54.48 = 104.54k
+			2. Buy 454.545454 shares at 100 for 45454.5454 and pay 4545.45454 commission
+			3. Delisting at 120 without commission: + 54545.45448
+			4. Nav = 100000 - 45454.5454 - 4545.45454 + 54545.45448 = 104545.45454
 		 */
 		MarketName market = new MarketName("test_market");
 		TestData data = new TestData("test_market").withDelistings(new Delisting(market, new Time(150), 120.0));
@@ -57,9 +58,9 @@ class StrategyExecutorTests {
 		Account account = executor.execute(data, new TestStrategy());
 
 		assertEquals(0, account.getPositions().size());
-		assertEquals(104_540, account.getNAV(), 0.001);
+		assertEquals(104_545.45454, account.getNAV(), 1e-6);
 		List<AccountAction> actions = account.getAccountHistory().getActions();
-		assertEquals(new AccountAction(new Time(150), new Trade(market, SELL, 120.0, 454, 0.0)), actions.getLast());
+		assertEquals(new AccountAction(new Time(150), new Trade(market, SELL, 120.0, 454.545454, 0.0)), actions.getLast());
 	}
 
 	@Test
@@ -111,8 +112,9 @@ class StrategyExecutorTests {
 				.findFirst()
 				.orElseThrow();
 
-		assertEquals(909, buy.quantity());
-		assertEquals(9_090.0, buy.commission(), 0.001);
+		// 100000 / (100 * 1.1), rounded down to 0.000001
+		assertEquals(909.090909, buy.quantity());
+		assertEquals(9_090.90909, buy.commission(), 1e-6);
 		assertTrue(buy.quantity() * buy.price() + buy.commission() <= initialCash);
 	}
 

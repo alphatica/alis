@@ -142,7 +142,7 @@ export function AddTradeDialog(props: { open: boolean; onClose: () => void }) {
           <option value="sell">Sell</option>
         </select>
         <TextField id="trade-price" label="Price" inputmode="decimal" value={price()} onInput={setPrice} />
-        <TextField id="trade-quantity" label="Quantity" inputmode="numeric" value={quantity()} onInput={setQuantity} />
+        <TextField id="trade-quantity" label="Quantity" inputmode="decimal" value={quantity()} onInput={setQuantity} />
         <TextField id="trade-commission" label="Commission" inputmode="decimal" value={commission()} onInput={setCommission} />
       </DialogForm>
     </Modal>

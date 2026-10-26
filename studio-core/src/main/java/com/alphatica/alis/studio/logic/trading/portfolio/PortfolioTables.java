@@ -17,9 +17,9 @@ import java.util.List;
 public final class PortfolioTables {
 
 	public static final List<Column> ACTIONS_COLUMNS = List.of(Column.date("Time"), Column.text("Market"), Column.text("Type"),
-			Column.number("Price", 2), Column.number("Quantity", 0), Column.number("Value", 2), Column.number("Commission", 2));
+			Column.number("Price", 2), Column.quantity("Quantity"), Column.number("Value", 2), Column.number("Commission", 2));
 	public static final List<Column> HISTORY_COLUMNS = List.of(Column.text("Market"), Column.date("Buy time"),
-			Column.number("Buy price", 2), Column.date("Sell time"), Column.number("Sell price", 2), Column.number("Quantity", 0),
+			Column.number("Buy price", 2), Column.date("Sell time"), Column.number("Sell price", 2), Column.quantity("Quantity"),
 			Column.number("Value", 2), Column.number("Profit (cash)", 2), Column.number("Profit (%)", 2),
 			Column.number("Buy efficiency", 2), Column.number("Sell efficiency", 2));
 

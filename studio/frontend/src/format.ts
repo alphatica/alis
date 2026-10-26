@@ -1,13 +1,14 @@
 // Values from the backend shown in the user's locale (the browser's language): thousands separators and decimal mark.
 
-const formats = new Map<number, Intl.NumberFormat>();
+const formats = new Map<string, Intl.NumberFormat>();
 
-/** Formatter with exactly `decimals` fraction digits; created once per count. */
-export function numberFormat(decimals: number): Intl.NumberFormat {
-  let format = formats.get(decimals);
+/** Formatter with `decimals` to `maxDecimals` fraction digits; created once per pair. */
+export function numberFormat(decimals: number, maxDecimals = decimals): Intl.NumberFormat {
+  const key = `${decimals}:${maxDecimals}`;
+  let format = formats.get(key);
   if (!format) {
-    format = new Intl.NumberFormat(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-    formats.set(decimals, format);
+    format = new Intl.NumberFormat(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: maxDecimals });
+    formats.set(key, format);
   }
   return format;
 }
@@ -23,19 +24,22 @@ export type ColumnSpec = {
   title: string;
   /** DATE cells are yyyymmdd numbers. */
   kind: 'TEXT' | 'DATE' | 'NUMBER';
-  /** Fraction digits of a NUMBER cell. */
+  /** Fraction digits of a NUMBER cell: at least `decimals`, at most `maxDecimals`. */
   decimals: number;
+  maxDecimals: number;
   /** Shown after a NUMBER cell, e.g. " %". */
   suffix: string;
 };
 
-/** A number with `decimals` fraction digits and `suffix`; a text as it is; '' for null. */
-export function formatValue(value: Value | undefined, decimals = 0, suffix = ''): string {
-  return typeof value === 'number' ? numberFormat(decimals).format(value) + suffix : (value ?? '');
+/** A number with `decimals` (up to `maxDecimals`) fraction digits and `suffix`; a text as it is; '' for null. */
+export function formatValue(value: Value | undefined, decimals = 0, suffix = '', maxDecimals = decimals): string {
+  return typeof value === 'number' ? numberFormat(decimals, maxDecimals).format(value) + suffix : (value ?? '');
 }
 
 export function formatCell(column: ColumnSpec, value: Value | undefined): string {
-  return column.kind === 'NUMBER' ? formatValue(value, column.decimals, column.suffix) : String(value ?? '');
+  return column.kind === 'NUMBER'
+    ? formatValue(value, column.decimals, column.suffix, column.maxDecimals)
+    : String(value ?? '');
 }
 
 export function formatRow(columns: ColumnSpec[], row: Value[]): string[] {

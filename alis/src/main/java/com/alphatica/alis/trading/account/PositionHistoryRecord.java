@@ -17,7 +17,7 @@ import static com.alphatica.alis.tools.java.NumberTools.percentChange;
  * Entry commissions are split between closed and open part proportionally to quantity; exit commissions belong to the
  * closed part. For a market they sum up to all commissions paid.
  */
-public record PositionHistoryRecord(MarketName marketName, Time entryTime, Time exitTime, double entry, double exit, int quantity,
+public record PositionHistoryRecord(MarketName marketName, Time entryTime, Time exitTime, double entry, double exit, double quantity,
 									double entryCommission, double exitCommission, int tradeLength, double entryEfficiency,
 									double exitEfficiency, boolean open) {
 

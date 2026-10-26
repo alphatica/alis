@@ -40,7 +40,11 @@ if not defined MAIN_JAR (
 
 if exist "%OUTPUT_DIR%" rmdir /s /q "%OUTPUT_DIR%"
 
+rem Splash screen: the jpackage launcher does not read SplashScreen-Image from the manifest
+copy /y studio\src\main\resources\splash.png studio\target\splash.png >nul
+
 jpackage ^
+    --java-options "-splash:$APPDIR\splash.png" ^
     --type app-image ^
     --name "%APP_NAME%" ^
     --input studio\target ^

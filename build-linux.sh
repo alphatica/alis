@@ -60,7 +60,11 @@ fi
 rm -rf "$BUILD_DIR" "$OUTPUT_DIR"
 mkdir -p "$BUILD_DIR" "$OUTPUT_DIR"
 
+# Splash screen: the jpackage launcher does not read SplashScreen-Image from the manifest
+cp studio/src/main/resources/splash.png studio/target/splash.png
+
 jpackage \
+    --java-options '-splash:$APPDIR/splash.png' \
     --type app-image \
     --name "$LAUNCHER_NAME" \
     --input studio/target \

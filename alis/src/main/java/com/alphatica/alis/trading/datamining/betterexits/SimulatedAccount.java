@@ -5,6 +5,7 @@ import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.trading.account.Account;
+import com.alphatica.alis.trading.account.Quantities;
 import com.alphatica.alis.trading.account.actions.AccountAction;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
 import com.alphatica.alis.trading.account.actions.Deposit;
@@ -77,7 +78,7 @@ final class SimulatedAccount {
 		}
 	}
 
-	void scheduleExit(MarketName market, int quantity) {
+	void scheduleExit(MarketName market, double quantity) {
 		actions = deleteFollowingSellActions(actions, market, quantity);
 		pendingSells.add(new SellInfo(market, quantity));
 	}
@@ -117,15 +118,15 @@ final class SimulatedAccount {
 	private static List<AccountAction> deleteFollowingSellActions(
 			List<AccountAction> actions,
 			MarketName market,
-			int quantity) {
+			double quantity) {
 		List<AccountAction> newActions = new ArrayList<>(actions.size());
-		int remainingQuantity = quantity;
+		long remainingUnits = Quantities.toUnits(quantity);
 		while (!actions.isEmpty()) {
 			AccountAction action = actions.removeFirst();
-			if (isMatchingSell(action, market, remainingQuantity)) {
+			if (isMatchingSell(action, market, remainingUnits)) {
 				Trade trade = (Trade) action.actionType();
-				int toReduce = Math.min(remainingQuantity, trade.quantity());
-				remainingQuantity -= toReduce;
+				long toReduce = Math.min(remainingUnits, Quantities.toUnits(trade.quantity()));
+				remainingUnits -= toReduce;
 				addRemainingSell(newActions, action, trade, market, toReduce);
 				continue;
 			}
@@ -134,8 +135,8 @@ final class SimulatedAccount {
 		return newActions;
 	}
 
-	private static boolean isMatchingSell(AccountAction action, MarketName market, int remainingQuantity) {
-		return remainingQuantity > 0
+	private static boolean isMatchingSell(AccountAction action, MarketName market, long remainingUnits) {
+		return remainingUnits > 0
 				&& action.actionType() instanceof Trade trade
 				&& trade.direction() == SELL
 				&& trade.marketName().equals(market);
@@ -146,14 +147,15 @@ final class SimulatedAccount {
 			AccountAction originalAction,
 			Trade originalTrade,
 			MarketName market,
-			int reducedQuantity) {
-		int leftQuantity = originalTrade.quantity() - reducedQuantity;
-		if (leftQuantity > 0) {
-			double commission = (leftQuantity / (double) originalTrade.quantity())
+			long reducedUnits) {
+		long originalUnits = Quantities.toUnits(originalTrade.quantity());
+		long leftUnits = originalUnits - reducedUnits;
+		if (leftUnits > 0) {
+			double commission = (leftUnits / (double) originalUnits)
 					* originalTrade.commission();
 			actions.add(new AccountAction(
 					originalAction.time(),
-					new Trade(market, SELL, originalTrade.price(), leftQuantity, commission)));
+					new Trade(market, SELL, originalTrade.price(), Quantities.toShares(leftUnits), commission)));
 		}
 	}
 }

@@ -2,7 +2,10 @@ package com.alphatica.alis.trading.account.actions;
 
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.time.Time;
+import com.alphatica.alis.trading.account.Quantities;
 import com.alphatica.alis.trading.order.Direction;
+
+import static java.lang.String.format;
 
 public class AccountActionParser {
 
@@ -38,7 +41,12 @@ public class AccountActionParser {
 		MarketName marketName = new MarketName(fields[2]);
 		Direction direction = Direction.fromString(fields[3]);
 		double price = parsePositiveDouble(fields[4]);
-		int quantity = (int) Math.round(parsePositiveDouble(fields[5]));
+		double quantity = parsePositiveDouble(fields[5]);
+		if (!Quantities.isValid(quantity)) {
+			throw new IllegalArgumentException(format("Quantity `%s` must be from %s to %s with at most %d decimal places",
+					fields[5], Quantities.format(Quantities.MIN_QUANTITY), Quantities.format(Quantities.MAX_QUANTITY),
+					Quantities.DECIMAL_PLACES));
+		}
 		double commission = parsePositiveDouble(fields[6]);
 		return new AccountAction(time, new Trade(marketName, direction, price, quantity, commission));
 	}

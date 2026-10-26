@@ -5,7 +5,7 @@ import com.alphatica.alis.data.time.Time;
 
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 
-public record PositionPricesRecord(MarketName marketName, Time entryTime, Time exitTime, double entry, double exit, int quantity, double lowestLow,
+public record PositionPricesRecord(MarketName marketName, Time entryTime, Time exitTime, double entry, double exit, double quantity, double lowestLow,
 								   double highestHigh) {
 
 	public double getEntryEfficiency() {

@@ -18,7 +18,7 @@ public class Position {
 	private double lastClose;
 	private int tradeLength;
 	// Averaged history of this position cycle (see PositionHistoryRecord)
-	private int closedQuantity;
+	private long closedUnits;
 	private double closedEntryValue;
 	private double closedExitValue;
 	private double firstExitPrice;
@@ -46,20 +46,30 @@ public class Position {
 	}
 
 	public double getEntryPrice() {
-		double v = entries.stream().map(p -> p.quantity * p.price).reduce(0.0, Double::sum);
-		int q = entries.stream().map(p -> p.quantity).reduce(0, Integer::sum);
-		return v / q;
+		double v = entries.stream().map(p -> p.quantity() * p.price).reduce(0.0, Double::sum);
+		return v / getQuantity();
 	}
 
 	/**
 	 * Entry value (quantity * entry price, without commissions) of the still open part of this position.
 	 */
 	public double getOpenEntryValue() {
-		return entries.stream().mapToDouble(e -> e.quantity * e.price).sum();
+		return entries.stream().mapToDouble(e -> e.quantity() * e.price).sum();
 	}
 
-	public int getQuantity() {
-		return entries.stream().map(q -> q.quantity).reduce(0, Integer::sum);
+	/**
+	 * Number of shares held, possibly fractional.
+	 */
+	public double getQuantity() {
+		return Quantities.toShares(getUnits());
+	}
+
+	long getUnits() {
+		long units = 0;
+		for (PositionEntry entry : entries) {
+			units += entry.units;
+		}
+		return units;
 	}
 
 	public void add(PositionEntry entry) {
@@ -76,25 +86,26 @@ public class Position {
 	}
 
 	List<PositionPricesRecord> reduce(PositionExit exit, double commission) throws AccountActionException {
-		if (exit.quantity > getQuantity()) {
+		if (exit.units > getUnits()) {
 			throw new AccountActionException("Not enough quantity to reduce ");
 		}
 		List<PositionPricesRecord> positionPricesRecords = new ArrayList<>();
 		exits.add(exit);
 		exitCommissions += commission;
-		int toRemove = exit.quantity;
+		long toRemove = exit.units;
 		int checkIndex = 0;
 		while (toRemove > 0 && checkIndex < entries.size()) {
 			PositionEntry entry = entries.get(checkIndex);
 			checkIndex++;
-			if (entry.quantity == 0) {
+			if (entry.units == 0) {
 				continue;
 			}
-			int removing = Math.min(toRemove, entry.quantity);
-			entry.quantity -= removing;
+			long removing = Math.min(toRemove, entry.units);
+			entry.units -= removing;
 			toRemove -= removing;
-			closedEntryValue += removing * entry.price;
-			positionPricesRecords.add(new PositionPricesRecord(marketName, entry.time, exit.time, entry.price, exit.price, removing, entry.lowestLow
+			double removedQuantity = Quantities.toShares(removing);
+			closedEntryValue += removedQuantity * entry.price;
+			positionPricesRecords.add(new PositionPricesRecord(marketName, entry.time, exit.time, entry.price, exit.price, removedQuantity, entry.lowestLow
 					, entry.highestHigh));
 		}
 		recordClosedPart(exit);
@@ -104,8 +115,8 @@ public class Position {
 	public List<PositionPricesRecord> getOpenPositionsPricesRecords() {
 		List<PositionPricesRecord> positionPricesRecords = new ArrayList<>();
 		for (PositionEntry entry : entries) {
-			if (entry.quantity > 0) {
-				positionPricesRecords.add(new PositionPricesRecord(marketName, entry.time, null, entry.price, lastClose, entry.quantity,
+			if (entry.units > 0) {
+				positionPricesRecords.add(new PositionPricesRecord(marketName, entry.time, null, entry.price, lastClose, entry.quantity(),
 						entry.lowestLow, entry.highestHigh));
 			}
 		}
@@ -122,7 +133,7 @@ public class Position {
 			lowestLow = low;
 		}
 		for (PositionEntry entry : entries) {
-			if (entry.quantity > 0) {
+			if (entry.units > 0) {
 				entry.sessions++;
 				if (high > entry.highestHigh) {
 					entry.highestHigh = high;
@@ -138,10 +149,11 @@ public class Position {
 	 * Closed part of this position: from the first buy to the last sell. Empty if nothing was sold yet.
 	 */
 	public Optional<PositionHistoryRecord> getClosedHistoryRecord() {
-		if (closedQuantity == 0) {
+		if (closedUnits == 0) {
 			return Optional.empty();
 		}
 		PositionEntry firstEntry = entries.getFirst();
+		double closedQuantity = Quantities.toShares(closedUnits);
 		double entryCommission = entryCommissions * closedQuantity / totalBoughtQuantity();
 		return Optional.of(new PositionHistoryRecord(marketName, firstEntry.time, lastExitTime, closedEntryValue / closedQuantity,
 				closedExitValue / closedQuantity, closedQuantity, entryCommission, exitCommissions, closedTradeLength,
@@ -152,11 +164,12 @@ public class Position {
 	 * Open part of this position: from the oldest remaining lot to the last close. Empty if position is fully closed.
 	 */
 	public Optional<PositionHistoryRecord> getOpenHistoryRecord() {
-		int quantity = getQuantity();
-		if (quantity == 0) {
+		long units = getUnits();
+		if (units == 0) {
 			return Optional.empty();
 		}
-		PositionEntry oldest = entries.stream().filter(e -> e.quantity > 0).findFirst().orElseThrow();
+		double quantity = Quantities.toShares(units);
+		PositionEntry oldest = entries.stream().filter(e -> e.units > 0).findFirst().orElseThrow();
 		double entryCommission = entryCommissions * quantity / totalBoughtQuantity();
 		return Optional.of(new PositionHistoryRecord(marketName, oldest.time, null, getEntryPrice(), lastClose, quantity, entryCommission,
 				0, oldest.sessions, oldest.lowestLow / oldest.price, lastClose / oldest.highestHigh, true));
@@ -170,11 +183,11 @@ public class Position {
 	}
 
 	private void recordClosedPart(PositionExit exit) {
-		if (closedQuantity == 0) {
+		if (closedUnits == 0) {
 			firstExitPrice = exit.price;
 		}
-		closedQuantity += exit.quantity;
-		closedExitValue += exit.quantity * exit.price;
+		closedUnits += exit.units;
+		closedExitValue += exit.quantity() * exit.price;
 		lastExitTime = exit.time;
 		closedLowestLow = lowestLow;
 		closedHighestHigh = highestHigh;
@@ -182,7 +195,7 @@ public class Position {
 	}
 
 	private double totalBoughtQuantity() {
-		return entries.stream().mapToDouble(e -> e.initialQuantity).sum();
+		return entries.stream().mapToDouble(e -> Quantities.toShares(e.initialUnits)).sum();
 	}
 
 	public double getLastClose() {

@@ -5,6 +5,7 @@ import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.account.PositionEntry;
 import com.alphatica.alis.trading.account.PositionExit;
+import com.alphatica.alis.trading.account.Quantities;
 import com.alphatica.alis.trading.account.actions.AccountAction;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
 import com.alphatica.alis.trading.account.actions.Trade;
@@ -77,35 +78,35 @@ final class StrategyTradeExecutor {
 	private BuyResult executeBuy(Order order, TimeMarketData marketData, TimeMarketDataSet current,
 								 Account account) throws AccountActionException {
 		double price = tradePrice.getPrice(marketData);
-		int quantity = possibleCount(requestedCount(order, account, price), marketData);
+		double quantity = possibleQuantity(requestedQuantity(order, account, price), marketData);
 		if (quantity == 0) {
 			logger.log("Ignoring buy order for %s. Quantity = 0", order.market());
 			return BuyResult.IGNORED;
 		}
 		double commission = quantity * price * commissionRate;
 		double value = quantity * price + commission;
-		logger.log("Trying to buy %s x %d at %.2f", marketData.getMarketName(), quantity, price);
+		logger.log("Trying to buy %s x %s at %.2f", marketData.getMarketName(), Quantities.format(quantity), price);
 		if (value > account.getCash()) {
 			logger.log("Unable to buy. Not enough cash. Required: %.2f available: %.2f", value, account.getCash());
 			return BuyResult.INSUFFICIENT_CASH;
 		}
 		account.addPosition(order.market(), new PositionEntry(current.getTime(), quantity, price), commission);
 		recordTrade(account, current, marketData, BUY, price, quantity, commission);
-		logger.log("Bought %s x %d", order.market(), quantity);
+		logger.log("Bought %s x %s", order.market(), Quantities.format(quantity));
 		return BuyResult.EXECUTED;
 	}
 
 	private boolean executeSell(Order order, TimeMarketData marketData, TimeMarketDataSet current,
 								Account account) throws AccountActionException {
 		double price = tradePrice.getPrice(marketData);
-		int quantity = possibleCount(requestedCount(order, account, price), marketData);
+		double quantity = possibleQuantity(requestedQuantity(order, account, price), marketData);
 		if (quantity <= 0) {
 			return false;
 		}
 		var position = account.getPosition(order.market());
 		double commission = quantity * price * commissionRate;
-		logger.log("Selling %s x %d at %.2f, bought at %.2f, profit: %.1f%% / %.1f",
-				order.market(), quantity, price, position.getEntryPrice(),
+		logger.log("Selling %s x %s at %.2f, bought at %.2f, profit: %.1f%% / %.1f",
+				order.market(), Quantities.format(quantity), price, position.getEntryPrice(),
 				percentChange(position.getEntryPrice(), price),
 				quantity * (price - position.getEntryPrice()) - commission);
 		account.reducePosition(order.market(), new PositionExit(current.getTime(), quantity, price), commission);
@@ -118,34 +119,48 @@ final class StrategyTradeExecutor {
 		return marketData != null && marketData.getTime().equals(current.getTime()) ? marketData : null;
 	}
 
-	private int requestedCount(Order order, Account account, double price) {
+	/**
+	 * Requested quantity, not rounded yet.
+	 */
+	private double requestedQuantity(Order order, Account account, double price) {
 		return switch (order.size()) {
-			case PERCENTAGE -> percentageCount(order, account, price);
+			case PERCENTAGE -> percentageQuantity(order, account, price);
 			case COUNT -> order.sizeValue();
+			case VALUE -> valueQuantity(order, account, price);
 		};
 	}
 
-	private int percentageCount(Order order, Account account, double price) {
+	private double percentageQuantity(Order order, Account account, double price) {
 		return switch (order.direction()) {
-			case BUY -> {
-				double orderBudget = order.sizeValue() * account.getNAV() / 100.0;
-				double unitCostIncludingCommission = price * (1.0 + commissionRate);
-				yield (int) Math.floor(orderBudget / unitCostIncludingCommission);
-			}
+			case BUY -> order.sizeValue() * account.getNAV() / 100.0 / unitCostIncludingCommission(price);
 			case SELL -> order.sizeValue() * account.getPosition(order.market()).getQuantity() / 100;
 		};
 	}
 
-	private int possibleCount(int count, TimeMarketData marketData) {
+	private double valueQuantity(Order order, Account account, double price) {
+		return switch (order.direction()) {
+			case BUY -> order.sizeValue() / unitCostIncludingCommission(price);
+			case SELL -> Math.min(order.sizeValue() / price, account.getPosition(order.market()).getQuantity());
+		};
+	}
+
+	private double unitCostIncludingCommission(double price) {
+		return price * (1.0 + commissionRate);
+	}
+
+	/**
+	 * Requested quantity limited by turnover (if set) and rounded down to the smallest quantity the account can hold.
+	 */
+	private double possibleQuantity(double quantity, TimeMarketData marketData) {
 		if (limitOrderSize.isNaN()) {
-			return count;
+			return Quantities.roundDown(quantity);
 		}
 		double traded = marketData.getData(TURNOVER, 0) / marketData.getAveragePrice(0);
-		return (int) Math.min(traded * limitOrderSize, count);
+		return Quantities.roundDown(Math.min(traded * limitOrderSize, quantity));
 	}
 
 	private static void recordTrade(Account account, TimeMarketDataSet current, TimeMarketData marketData,
-									Direction direction, double price, int quantity, double commission)
+									Direction direction, double price, double quantity, double commission)
 			throws AccountActionException {
 		account.getAccountHistory().addAction(new AccountAction(current.getTime(),
 				new Trade(marketData.getMarketName(), direction, price, quantity, commission)));

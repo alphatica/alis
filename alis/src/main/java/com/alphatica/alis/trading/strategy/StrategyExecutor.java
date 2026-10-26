@@ -150,8 +150,8 @@ public class StrategyExecutor {
 		Collections.sort(pendingOrders);
 		Collections.reverse(pendingOrders);
 		for(var order: pendingOrders) {
-			logger.log("New pending order: %s %s. Size: %d%s. Priority: %.2f",
-					order.direction(), order.market(), order.sizeValue(), order.size().shortSign(), order.priority());
+			logger.log("New pending order: %s %s. Size: %s. Priority: %.2f",
+					order.direction(), order.market(), order.formatSize(), order.priority());
 		}
 		return pendingOrders;
 	}

@@ -78,6 +78,10 @@
                             <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                             <mainClass>com.alphatica.alis.studio.web.WebStart</mainClass>
                         </manifest>
+                        <manifestEntries>
+                            <!-- Shown by the java launcher before the JVM starts (java -jar); closed in WebStart -->
+                            <SplashScreen-Image>splash.png</SplashScreen-Image>
+                        </manifestEntries>
                     </archive>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>

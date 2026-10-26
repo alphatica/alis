@@ -1,6 +1,7 @@
 package com.alphatica.alis.trading.strategy;
 
 import com.alphatica.alis.trading.account.Account;
+import com.alphatica.alis.trading.account.Quantities;
 
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 
@@ -18,8 +19,8 @@ final class StrategyExecutionLogger {
 		}
 		for (var entry : account.getPositions().entrySet()) {
 			var position = entry.getValue();
-			log("Have position: %s x %d bought at %.2f profit: %.1f%% / %.1f",
-					entry.getKey(), position.getQuantity(), position.getEntryPrice(),
+			log("Have position: %s x %s bought at %.2f profit: %.1f%% / %.1f",
+					entry.getKey(), Quantities.format(position.getQuantity()), position.getEntryPrice(),
 					percentChange(position.getEntryPrice(), position.getLastClose()),
 					position.getQuantity() * (position.getLastClose() - position.getEntryPrice()));
 		}

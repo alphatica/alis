@@ -41,7 +41,7 @@ final class BacktestApi {
 			Column.text("Size"), Column.number("Priority", 2));
 	private static final List<Column> TRADES = List.of(Column.text("Market"), Column.date("Entry time"),
 			Column.date("Exit time"), Column.number("Entry price", 2), Column.number("Exit price", 2),
-			Column.number("Quantity", 0), Column.percent("Profit %", 2), Column.number("Profit (cash)", 2),
+			Column.quantity("Quantity"), Column.percent("Profit %", 2), Column.number("Profit (cash)", 2),
 			Column.number("Entry efficiency", 2), Column.number("Exit efficiency", 2));
 
 	private final JobRegistry jobs;
