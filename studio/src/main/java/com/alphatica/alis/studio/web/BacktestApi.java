@@ -67,7 +67,7 @@ final class BacktestApi {
 		MarketData marketData = Inputs.marketData();
 		BacktestSettings settings = Inputs.settings(request);
 		lastRun = null;
-		Job job = jobs.start(JOB_TYPE, running -> run(running.channel(), settings, marketData));
+		Job job = jobs.start(JOB_TYPE, request, running -> run(running.channel(), settings, marketData));
 		ctx.json(Map.of("jobId", job.id()));
 	}
 
@@ -94,10 +94,11 @@ final class BacktestApi {
 
 	private void compareWithRandom(Context ctx) {
 		LastRun run = requireLastRun();
-		int iterations = (int) Inputs.wholeNumber(ctx.bodyAsClass(CompareRequest.class).iterations(),
+		CompareRequest request = ctx.bodyAsClass(CompareRequest.class);
+		int iterations = (int) Inputs.wholeNumber(request.iterations(),
 				"number of iterations", 1, MAX_ITERATIONS);
 		BacktestSettings settings = run.settings();
-		Job job = jobs.start(RANDOM_JOB_TYPE, running -> {
+		Job job = jobs.start(RANDOM_JOB_TYPE, request, running -> {
 			RandomStrategyComparator comparator = new RandomStrategyComparator(
 					line -> running.channel().append("lines", line), iterations, settings.initialCapital(),
 					settings.commissionRate(), settings.timeStart(), settings.timeEnd(), run.marketData());

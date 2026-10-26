@@ -95,10 +95,11 @@ final class BetterExitsApi {
 	}
 
 	private void start(Context ctx) {
-		Settings settings = settings(ctx.bodyAsClass(SearchRequest.class));
+		SearchRequest request = ctx.bodyAsClass(SearchRequest.class);
+		Settings settings = settings(request);
 		BetterExitsSearch search = new BetterExitsSearch(settings.marketData(), settings.file().actions(),
 				settings.scorer(), settings.commissionRate());
-		Job job = jobs.start(JOB_TYPE, running -> run(running, search));
+		Job job = jobs.start(JOB_TYPE, request, running -> run(running, search));
 		ctx.json(Map.of("jobId", job.id()));
 	}
 

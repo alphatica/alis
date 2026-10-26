@@ -11,6 +11,7 @@ import io.javalin.config.RoutesConfig;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,7 +22,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Long-running jobs, at most one running job per type. The GUI subscribes to topic {@code job/<id>} on the
- * WebSocket; output is pushed every 200 ms.
+ * WebSocket; output is pushed every 200 ms. The last job of every type is kept in memory with its output, also after
+ * it ends, so a GUI opened later finds it ({@code GET /api/jobs}) and shows it again.
  */
 public final class JobRegistry {
 	public static final String ERROR_EVENT = "error";
@@ -40,11 +42,19 @@ public final class JobRegistry {
 	}
 
 	public void register(RoutesConfig routes, LiveHub hub) {
+		routes.get("/api/jobs", ctx -> ctx.json(list()));
 		routes.post("/api/jobs/{id}/cancel", this::cancel);
 		hub.addTopics(TOPIC_PREFIX, this::topic);
 	}
 
-	public synchronized Job start(String type, JobWork work) {
+	public Job start(String type, JobWork work) {
+		return start(type, null, work);
+	}
+
+	/**
+	 * @param input the request the job is started with, given back to the GUI by {@code GET /api/jobs}
+	 */
+	public synchronized Job start(String type, Object input, JobWork work) {
 		Job previous = latestByType.get(type);
 		if (previous != null && !previous.channel().isFinished()) {
 			throw new ValidationException("Already running: " + type);
@@ -52,11 +62,18 @@ public final class JobRegistry {
 		if (previous != null) {
 			jobsById.remove(previous.id());
 		}
-		Job job = new Job(UUID.randomUUID().toString(), type);
+		Job job = new Job(UUID.randomUUID().toString(), type, input);
 		jobsById.put(job.id(), job);
 		latestByType.put(type, job);
 		Thread.ofVirtual().name("job-" + type).start(() -> execute(job, work));
 		return job;
+	}
+
+	/**
+	 * The last job of every type.
+	 */
+	List<JobInfo> list() {
+		return latestByType.values().stream().map(JobInfo::of).toList();
 	}
 
 	private void execute(Job job, JobWork work) {
@@ -89,6 +106,16 @@ public final class JobRegistry {
 
 	private void flushAll() {
 		jobsById.values().forEach(job -> job.channel().flush());
+	}
+
+	/**
+	 * @param input the request the job was started with, null when there is none
+	 */
+	record JobInfo(String id, String type, Object input, boolean running, boolean cancelRequested) {
+
+		static JobInfo of(Job job) {
+			return new JobInfo(job.id(), job.type(), job.input(), !job.channel().isFinished(), job.isCancelRequested());
+		}
 	}
 
 	private record FinishedJob(String topic) implements TopicSource {

@@ -5,14 +5,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class Job {
 	private final String id;
 	private final String type;
+	private final Object input;
 	private final JobChannel channel;
 	private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
 	private volatile Runnable cancelAction = () -> {
 	};
 
-	Job(String id, String type) {
+	Job(String id, String type, Object input) {
 		this.id = id;
 		this.type = type;
+		this.input = input;
 		this.channel = new JobChannel(JobRegistry.TOPIC_PREFIX + id);
 	}
 
@@ -22,6 +24,13 @@ public final class Job {
 
 	public String type() {
 		return type;
+	}
+
+	/**
+	 * The request the job was started with, shown by the GUI next to the job's output; null when there is none.
+	 */
+	public Object input() {
+		return input;
 	}
 
 	public JobChannel channel() {

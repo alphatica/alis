@@ -2,10 +2,11 @@
 // Loaded once at start and reloaded in the background when the backend reports a change;
 // the old value stays on screen until the new one arrives.
 
-import { type Accessor, createEffect, createMemo, createSignal } from 'solid-js';
+import { type Accessor, createEffect, createMemo, createSignal, untrack } from 'solid-js';
 import { api, type ErrorMessage, toErrorMessage } from './api';
 import { type ColumnSpec, formatValue, type Value } from './format';
-import { onAppEvent, onReconnect, subscribe } from './live';
+import { restoreJobs, watchJob } from './jobs';
+import { onAppEvent, onReconnect } from './live';
 import { pagedSource, type TableData } from './table';
 import { pushToast } from './toasts';
 
@@ -77,13 +78,16 @@ export type RunDefaults = {
   initialCapital: string;
 };
 
-/** Calls `apply` with the form defaults at start and whenever they change, e.g. after new data is loaded. */
+/**
+ * Calls `apply` with the form defaults at start and whenever they change, e.g. after new data is loaded.
+ * Signals read by `apply` do not call it again.
+ */
 export function followDefaults(defaults: Accessor<RunDefaults | undefined>, apply: (values: RunDefaults) => void) {
   const latest = createMemo(defaults, undefined, { equals: (a, b) => JSON.stringify(a) === JSON.stringify(b) });
   createEffect(() => {
     const values = latest();
     if (values) {
-      apply(values);
+      untrack(() => apply(values));
     }
   });
 }
@@ -146,7 +150,9 @@ export function loadAll() {
   optimizationOptions.load();
   betterExitsOptions.load();
   markets.load();
+  restoreJobs();
 }
+onReconnect(restoreJobs);
 
 // ---------- Jobs ----------
 
@@ -158,14 +164,12 @@ export type JobState = 'running' | 'finished';
  */
 export function trackJob(id: string, onDone?: () => void): Accessor<JobState> {
   const [state, setState] = createSignal<JobState>('running');
-  const unsubscribe = subscribe(`job/${id}`, (event, data) => {
-    if (event === 'error') {
-      (data as ErrorMessage[]).forEach(pushToast);
-    } else if (event === 'done') {
+  watchJob(id, false, {
+    errors: (_all, fresh) => fresh.forEach(pushToast),
+    done: () => {
       setState('finished');
-      unsubscribe();
       onDone?.();
-    }
+    },
   });
   return state;
 }

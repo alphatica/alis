@@ -12,11 +12,13 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
- * Buffers data produced by a job and sends it to subscribed GUI clients in batches.
- * Late subscribers first receive everything sent so far.
+ * Buffers data produced by a job and sends it to subscribed GUI clients in batches. The data stays here after the job
+ * ends, so a GUI opened later can show it: every subscriber first receives a {@value #SNAPSHOT_EVENT} event with
+ * everything sent so far, then new data as it comes.
  */
 public final class JobChannel implements TopicSource {
 	static final String DONE_EVENT = "done";
+	static final String SNAPSHOT_EVENT = "snapshot";
 
 	private final String topic;
 	private final Map<String, List<Object>> pendingAppends = new LinkedHashMap<>();
@@ -46,8 +48,7 @@ public final class JobChannel implements TopicSource {
 
 	@Override
 	public synchronized void subscribe(LiveClient client) {
-		appendHistory.forEach((event, items) -> client.send(message(event, items)));
-		replaceHistory.forEach((event, value) -> client.send(message(event, value)));
+		client.send(message(SNAPSHOT_EVENT, snapshot()));
 		if (finished) {
 			client.send(message(DONE_EVENT, null));
 		} else {
@@ -84,6 +85,12 @@ public final class JobChannel implements TopicSource {
 		return finished;
 	}
 
+	private Snapshot snapshot() {
+		Map<String, List<Object>> appends = new LinkedHashMap<>();
+		appendHistory.forEach((event, items) -> appends.put(event, new ArrayList<>(items)));
+		return new Snapshot(appends, new LinkedHashMap<>(replaceHistory));
+	}
+
 	private LiveMessage message(String event, Object data) {
 		return new LiveMessage(topic, event, data);
 	}
@@ -91,5 +98,11 @@ public final class JobChannel implements TopicSource {
 	private void send(LiveMessage message) {
 		clients.removeIf(client -> !client.isOpen());
 		clients.forEach(client -> client.send(message));
+	}
+
+	/**
+	 * Everything sent so far: all items of every append event and the latest value of every replace event.
+	 */
+	record Snapshot(Map<String, List<Object>> appends, Map<String, Object> replaces) {
 	}
 }

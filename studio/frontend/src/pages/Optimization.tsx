@@ -1,21 +1,36 @@
 // Strategies → Optimization: settings, iteration count and Start/Stop on the left,
 // the best 100 results on the right. Results arrive live from the optimization job; "View" shows a result's
-// parameters as Java code.
+// parameters as Java code. The job and its results live on the backend: after reopening the GUI the last optimization
+// is shown again, with its settings in the form.
 
 import { createEffect, createMemo, createRoot, createSignal, For, on } from 'solid-js';
 import { api, type ErrorMessage } from '../api';
+import { JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
 import { Loaded } from '../components/Loaded';
 import { Modal } from '../components/Modal';
 import { StableLabel } from '../components/StableLabel';
 import { type ColumnSpec, numberFormat, type Value } from '../format';
-import { subscribe } from '../live';
+import { createJob } from '../jobs';
 import { followDefaults, optimizationOptions } from '../state';
 import { type Column, staticSource, valueColumns, VirtualTable } from '../table';
-import { pushToast, showError } from '../toasts';
+import { showError } from '../toasts';
 
 /** One row of the results; `cells` are the values of the results columns. */
 type Result = { score: number; cells: Value[]; params: string[] };
+
+/** The form as sent to the backend (OptimizationApi.StartRequest). */
+type OptimizationInput = {
+  strategy: string;
+  startTime: string;
+  endTime: string;
+  commissionRate: string;
+  initialCapital: string;
+  resultVerifier: string;
+  parametersSelection: string;
+  scorer: string;
+  maxPermutations: string;
+};
 
 // Kept outside the component, so the form, the running job and the results survive switching screens.
 const [strategy, setStrategy] = createSignal('');
@@ -28,14 +43,39 @@ const [parametersSelection, setParametersSelection] = createSignal('');
 const [scorer, setScorer] = createSignal('');
 const [maxPermutations, setMaxPermutations] = createSignal('');
 
-const [jobId, setJobId] = createSignal<string>();
-const [stopping, setStopping] = createSignal(false);
 const [iterations, setIterations] = createSignal<number>();
 const [results, setResults] = createSignal<Result[]>([]);
-const [started, setStarted] = createSignal(false);
+const [lastError, setLastError] = createSignal<ErrorMessage>();
 const [shown, setShown] = createSignal<Result>();
 
-const running = () => jobId() !== undefined;
+const job = createJob<OptimizationInput>('optimization', {
+  reset: () => {
+    setResults([]);
+    setIterations(undefined);
+    setLastError(undefined);
+  },
+  // Max permutations last: changing the strategy or the parameters selection resets it (effect below)
+  restore: (input) => {
+    setStrategy(input.strategy);
+    setStartTime(input.startTime);
+    setEndTime(input.endTime);
+    setCommissionRate(input.commissionRate);
+    setInitialCapital(input.initialCapital);
+    setResultVerifier(input.resultVerifier);
+    setParametersSelection(input.parametersSelection);
+    setScorer(input.scorer);
+    setMaxPermutations(input.maxPermutations);
+  },
+  event: (event, data) => {
+    if (event === 'results') {
+      setResults(data as Result[]);
+    } else if (event === 'iterations') {
+      setIterations(data as number);
+    }
+  },
+  failed: setLastError,
+});
+const { running, stopping, started } = job;
 
 /** Keeps the current choice while the backend still offers it, otherwise takes the first option. */
 function keepOrFirst(current: () => string, set: (value: string) => void, options: string[]) {
@@ -44,8 +84,9 @@ function keepOrFirst(current: () => string, set: (value: string) => void, option
   }
 }
 
-// Defaults from the backend, like in Backtest; max permutations is reset whenever the strategy or the
-// parameters selection changes.
+// Defaults from the backend, like in Backtest, except while the form shows the settings of a job found after
+// reopening the GUI or of the running one; max permutations is reset whenever the strategy or the parameters
+// selection changes.
 createRoot(() => {
   createEffect(() => {
     const options = optimizationOptions.data();
@@ -59,6 +100,9 @@ createRoot(() => {
   followDefaults(
     () => optimizationOptions.data()?.defaults,
     (defaults) => {
+      if (running() || job.restored()) {
+        return;
+      }
       setStartTime(defaults.startTime);
       setEndTime(defaults.endTime);
       setCommissionRate(defaults.commissionRate);
@@ -77,57 +121,19 @@ createRoot(() => {
 
 const isFullPermutation = () => parametersSelection() === optimizationOptions.data()?.fullPermutation;
 
-async function start() {
-  setResults([]);
-  setIterations(undefined);
-  setStopping(false);
-  setStarted(true);
-  try {
-    const { jobId: id } = await api.post<{ jobId: string }>('/api/optimization', {
-      strategy: strategy(),
-      startTime: startTime(),
-      endTime: endTime(),
-      commissionRate: commissionRate(),
-      initialCapital: initialCapital(),
-      resultVerifier: resultVerifier(),
-      parametersSelection: parametersSelection(),
-      scorer: scorer(),
-      maxPermutations: maxPermutations(),
-    });
-    setJobId(id);
-    follow(id);
-  } catch (e) {
-    showError(e);
-    setStarted(false);
-  }
-}
-
-function follow(id: string) {
-  const unsubscribe = subscribe(`job/${id}`, (event, data) => {
-    switch (event) {
-      case 'results':
-        setResults(data as Result[]);
-        break;
-      case 'iterations':
-        setIterations(data as number);
-        break;
-      case 'error':
-        (data as ErrorMessage[]).forEach(pushToast);
-        break;
-      case 'done':
-        setJobId(undefined);
-        unsubscribe();
-        break;
-    }
-  });
-}
-
-function stop() {
-  const id = jobId();
-  if (id) {
-    setStopping(true);
-    api.post(`/api/jobs/${id}/cancel`).catch(showError);
-  }
+function start() {
+  const input: OptimizationInput = {
+    strategy: strategy(),
+    startTime: startTime(),
+    endTime: endTime(),
+    commissionRate: commissionRate(),
+    initialCapital: initialCapital(),
+    resultVerifier: resultVerifier(),
+    parametersSelection: parametersSelection(),
+    scorer: scorer(),
+    maxPermutations: maxPermutations(),
+  };
+  job.start(() => api.post<{ jobId: string }>('/api/optimization', input));
 }
 
 export function Optimization() {
@@ -192,11 +198,12 @@ function SettingsForm(props: { options: { strategies: string[]; resultVerifiers:
       <span class="muted">
         Iterations: {iterations() === undefined ? (running() ? '…' : '—') : numberFormat(0).format(iterations()!)}
       </span>
+      <JobFailed error={lastError()} />
       <div class="sidebar-buttons">
         <button class="btn btn-primary" type="submit" disabled={running() || !strategy()}>
           <StableLabel labels={['Start', 'Running…']} current={running() ? 1 : 0} />
         </button>
-        <button class="btn" type="button" disabled={!running() || stopping()} onClick={stop}>
+        <button class="btn" type="button" disabled={!running() || stopping()} onClick={job.stop}>
           <StableLabel labels={['Stop', 'Stopping…']} current={stopping() && running() ? 1 : 0} />
         </button>
       </div>

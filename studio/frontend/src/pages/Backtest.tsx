@@ -1,9 +1,11 @@
 // Strategies → Backtest: settings and actions on the left; equity with stats under it,
-// trades and orders on the right. Orders and trades arrive live from the backtest job.
+// trades and orders on the right. Orders and trades arrive live from the backtest job. The jobs and their output live
+// on the backend: after reopening the GUI the last backtest and the last comparison to random are shown again.
 
 import { createEffect, createRoot, createSignal, For, Show } from 'solid-js';
 import { api, download, type ErrorMessage, toErrorMessage } from '../api';
 import { EquityChart, type EquityMode, EquityModeSwitch } from '../components/EquityChart';
+import { ErrorBox, JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
 import { Loaded } from '../components/Loaded';
 import { Modal } from '../components/Modal';
@@ -11,13 +13,15 @@ import { StableLabel } from '../components/StableLabel';
 import { StatTiles } from '../components/StatTiles';
 import { Tabs } from '../components/Tabs';
 import { type ColumnSpec, formatRow, type Value } from '../format';
-import { subscribe } from '../live';
+import { createJob } from '../jobs';
 import { backtestOptions, type Equity, followDefaults, type Stat } from '../state';
 import { staticSource, textColumns, VirtualTable, widestTracker } from '../table';
-import { pushToast, ReportButton, showError } from '../toasts';
+import { showError } from '../toasts';
 
 type Progress = { time: string; bar: number; bars: number };
 type BacktestView = { stats: Stat[]; equity: Equity };
+/** The form as sent to the backend (BacktestApi.BacktestRequest). */
+type BacktestInput = { strategy: string; startTime: string; endTime: string; commissionRate: string; initialCapital: string };
 
 /** Rows appended by a job, formatted as text: kept in a plain array, `version` tells the table that more arrived. */
 function liveRows() {
@@ -60,13 +64,61 @@ const [endTime, setEndTime] = createSignal('');
 const [commissionRate, setCommissionRate] = createSignal('');
 const [initialCapital, setInitialCapital] = createSignal('');
 
-const [running, setRunning] = createSignal(false);
 const [progress, setProgress] = createSignal<Progress>();
 const [result, setResult] = createSignal<BacktestView>();
+const [lastError, setLastError] = createSignal<ErrorMessage>();
 /** Strategy of the shown result, for the CSV file name. */
 const [resultStrategy, setResultStrategy] = createSignal('');
 const orders = liveRows();
 const trades = liveRows();
+/** Rows that came before the column formats: after reopening the GUI the job's output may come before the options. */
+let waitingRows: { event: string; rows: Value[][] }[] = [];
+
+function addRows(event: string, rows: Value[][]) {
+  const options = backtestOptions.data();
+  if (!options) {
+    waitingRows.push({ event, rows });
+  } else if (event === 'orders') {
+    orders.append(rows.map((row) => formatRow(options.orders, row)));
+  } else {
+    trades.append(rows.map((row) => formatRow(options.trades, row)));
+  }
+}
+
+const job = createJob<BacktestInput>('backtest', {
+  reset: () => {
+    orders.clear();
+    trades.clear();
+    waitingRows = [];
+    setResult(undefined);
+    setProgress(undefined);
+    setLastError(undefined);
+  },
+  restore: (input) => {
+    setStrategy(input.strategy);
+    setStartTime(input.startTime);
+    setEndTime(input.endTime);
+    setCommissionRate(input.commissionRate);
+    setInitialCapital(input.initialCapital);
+    setResultStrategy(input.strategy);
+  },
+  event: (event, data) => {
+    switch (event) {
+      case 'orders':
+      case 'trades':
+        addRows(event, data as Value[][]);
+        break;
+      case 'progress':
+        setProgress(data as Progress);
+        break;
+      case 'result':
+        setResult(data as BacktestView);
+        break;
+    }
+  },
+  failed: setLastError,
+});
+const running = job.running;
 
 const [tab, setTab] = createSignal(0);
 const [equityMode, setEquityMode] = createSignal<EquityMode>('nav');
@@ -81,9 +133,20 @@ createRoot(() => {
       setStrategy(options.strategies[0] ?? '');
     }
   });
+  createEffect(() => {
+    if (backtestOptions.data() && waitingRows.length > 0) {
+      const waiting = waitingRows;
+      waitingRows = [];
+      waiting.forEach((batch) => addRows(batch.event, batch.rows));
+    }
+  });
+  // Not over the settings of a running backtest or of one found after reopening the GUI
   followDefaults(
     () => backtestOptions.data()?.defaults,
     (defaults) => {
+      if (running() || job.restored()) {
+        return;
+      }
       setStartTime(defaults.startTime);
       setEndTime(defaults.endTime);
       setCommissionRate(defaults.commissionRate);
@@ -92,56 +155,16 @@ createRoot(() => {
   );
 });
 
-async function start() {
-  const options = backtestOptions.data();
-  if (!options) {
-    return;
-  }
-  orders.clear();
-  trades.clear();
-  setResult(undefined);
-  setProgress(undefined);
-  setRunning(true);
-  try {
-    const { jobId } = await api.post<{ jobId: string }>('/api/backtest', {
-      strategy: strategy(),
-      startTime: startTime(),
-      endTime: endTime(),
-      commissionRate: commissionRate(),
-      initialCapital: initialCapital(),
-    });
-    setResultStrategy(strategy());
-    follow(jobId, options.orders, options.trades);
-  } catch (e) {
-    showError(e);
-    setRunning(false);
-  }
-}
-
-function follow(jobId: string, orderColumns: ColumnSpec[], tradeColumns: ColumnSpec[]) {
-  const unsubscribe = subscribe(`job/${jobId}`, (event, data) => {
-    switch (event) {
-      case 'orders':
-        orders.append((data as Value[][]).map((row) => formatRow(orderColumns, row)));
-        break;
-      case 'trades':
-        trades.append((data as Value[][]).map((row) => formatRow(tradeColumns, row)));
-        break;
-      case 'progress':
-        setProgress(data as Progress);
-        break;
-      case 'result':
-        setResult(data as BacktestView);
-        break;
-      case 'error':
-        (data as ErrorMessage[]).forEach(pushToast);
-        break;
-      case 'done':
-        setRunning(false);
-        unsubscribe();
-        break;
-    }
-  });
+function start() {
+  const input: BacktestInput = {
+    strategy: strategy(),
+    startTime: startTime(),
+    endTime: endTime(),
+    commissionRate: commissionRate(),
+    initialCapital: initialCapital(),
+  };
+  setResultStrategy(input.strategy);
+  job.start(() => api.post<{ jobId: string }>('/api/backtest', input));
 }
 
 async function exportTrades() {
@@ -164,6 +187,7 @@ export function Backtest() {
           <Show when={running()}>
             <BacktestProgress />
           </Show>
+          <JobFailed error={lastError()} />
           <div class="sidebar-buttons sidebar-buttons-stack">
             <button class="btn" type="button" disabled={!canAnalyze()} onClick={exportTrades}>
               Export trades to CSV
@@ -289,23 +313,6 @@ function LiveTable(props: { columns: ColumnSpec[]; rows: ReturnType<typeof liveR
 
 // ---------- Dialogs ----------
 
-/** Error inside a dialog: toasts would be hidden under its backdrop. */
-function DialogError(props: { error: ErrorMessage }) {
-  return (
-    <div class="dialog-error" role="alert">
-      <div class="toast-title">{props.error.title}</div>
-      <div class="toast-message">{props.error.message}</div>
-      <Show when={props.error.reportId}>
-        {(reportId) => (
-          <div class="toast-actions">
-            <ReportButton reportId={reportId()} />
-          </div>
-        )}
-      </Show>
-    </div>
-  );
-}
-
 function DrawdownDialog(props: { open: boolean; onClose: () => void }) {
   const [lines, setLines] = createSignal<string[]>();
   const [error, setError] = createSignal<ErrorMessage>();
@@ -322,7 +329,7 @@ function DrawdownDialog(props: { open: boolean; onClose: () => void }) {
   return (
     <Modal open={props.open} onClose={props.onClose} title="Drawdown check">
       <pre class="job-output">{lines()?.join('\n') ?? (error() ? '' : 'Checking…')}</pre>
-      <Show when={error()}>{(e) => <DialogError error={e()} />}</Show>
+      <Show when={error()}>{(e) => <ErrorBox error={e()} />}</Show>
       <div class="actions dialog-actions">
         <button class="btn" type="button" onClick={() => props.onClose()}>
           Close
@@ -335,35 +342,31 @@ function DrawdownDialog(props: { open: boolean; onClose: () => void }) {
 // Kept outside the dialog: the output stays after closing it, the comparison runs until Stop or closing.
 const [iterations, setIterations] = createSignal('1000');
 const [randomLines, setRandomLines] = createSignal<string[]>([]);
-const [randomJob, setRandomJob] = createSignal<string>();
 const [randomError, setRandomError] = createSignal<ErrorMessage>();
 
-async function startRandom() {
-  setRandomLines([]);
-  setRandomError(undefined);
-  try {
-    const { jobId } = await api.post<{ jobId: string }>('/api/backtest/compare-random', { iterations: iterations() });
-    setRandomJob(jobId);
-    const unsubscribe = subscribe(`job/${jobId}`, (event, data) => {
-      if (event === 'lines') {
-        setRandomLines((lines) => [...lines, ...(data as string[])]);
-      } else if (event === 'error') {
-        setRandomError((data as ErrorMessage[])[0]);
-      } else if (event === 'done') {
-        setRandomJob(undefined);
-        unsubscribe();
-      }
-    });
-  } catch (e) {
-    setRandomError(toErrorMessage(e));
-  }
+const randomJob = createJob<{ iterations: string }>('backtest-random', {
+  reset: () => {
+    setRandomLines([]);
+    setRandomError(undefined);
+  },
+  restore: (input) => setIterations(input.iterations),
+  event: (event, data) => {
+    if (event === 'lines') {
+      setRandomLines((lines) => [...lines, ...(data as string[])]);
+    }
+  },
+  failed: setRandomError,
+  // Toasts would be hidden under the dialog's backdrop
+  toastErrors: false,
+});
+
+function startRandom() {
+  const input = { iterations: iterations() };
+  randomJob.start(() => api.post<{ jobId: string }>('/api/backtest/compare-random', input));
 }
 
 function stopRandom() {
-  const jobId = randomJob();
-  if (jobId) {
-    api.post(`/api/jobs/${jobId}/cancel`).catch(showError);
-  }
+  randomJob.stop();
 }
 
 function RandomDialog(props: { open: boolean; onClose: () => void }) {
@@ -383,7 +386,7 @@ function RandomDialog(props: { open: boolean; onClose: () => void }) {
         class="toolbar"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!randomJob()) {
+          if (!randomJob.running()) {
             startRandom();
           }
         }}
@@ -397,17 +400,17 @@ function RandomDialog(props: { open: boolean; onClose: () => void }) {
           value={iterations()}
           onInput={(event) => setIterations(event.currentTarget.value)}
         />
-        <button class="btn btn-primary" type="submit" disabled={randomJob() !== undefined}>
+        <button class="btn btn-primary" type="submit" disabled={randomJob.running()}>
           Start
         </button>
-        <button class="btn" type="button" disabled={randomJob() === undefined} onClick={stopRandom}>
+        <button class="btn" type="button" disabled={!randomJob.running() || randomJob.stopping()} onClick={stopRandom}>
           Stop
         </button>
       </form>
       <pre ref={output} class="job-output">
         {randomLines().join('\n')}
       </pre>
-      <Show when={randomError()}>{(e) => <DialogError error={e()} />}</Show>
+      <Show when={randomError()}>{(e) => <ErrorBox error={e()} />}</Show>
       <div class="actions dialog-actions">
         <button class="btn" type="button" onClick={close}>
           Close

@@ -1,19 +1,44 @@
-import { createEffect, createMemo, createRoot, createSignal, For, Show } from 'solid-js';
-import { api } from '../api';
+// Strategies → Signals: strategy and start date on the left, the signals and the strategy's info on the right.
+// Computed by a job on the backend: after reopening the GUI the last result is shown again, with its settings.
+
+import { createEffect, createMemo, createRoot, createSignal, For, Show, untrack } from 'solid-js';
+import { api, type ErrorMessage } from '../api';
+import { JobFailed } from '../components/ErrorBox';
 import { Loaded } from '../components/Loaded';
 import { StableLabel } from '../components/StableLabel';
+import { createJob } from '../jobs';
 import { signalsOptions } from '../state';
 import { type TableData, TextTable } from '../table';
-import { showError } from '../toasts';
 
 type SignalsResult = { signals: TableData; info: TableData };
+/** The form as sent to the backend (SignalsApi.SignalsRequest). */
+type SignalsInput = { strategy: string; forPortfolio: boolean; startTime: string };
 
 // Kept outside the component, so the form and the last result are still there after switching screens.
 const [strategy, setStrategy] = createSignal('');
 const [forPortfolio, setForPortfolio] = createSignal(true);
 const [startTime, setStartTime] = createSignal('');
-const [running, setRunning] = createSignal(false);
 const [result, setResult] = createSignal<SignalsResult>();
+const [lastError, setLastError] = createSignal<ErrorMessage>();
+
+const job = createJob<SignalsInput>('signals', {
+  reset: () => {
+    setResult(undefined);
+    setLastError(undefined);
+  },
+  restore: (input) => {
+    setStrategy(input.strategy);
+    setForPortfolio(input.forPortfolio);
+    setStartTime(input.startTime);
+  },
+  event: (event, data) => {
+    if (event === 'result') {
+      setResult(data as SignalsResult);
+    }
+  },
+  failed: setLastError,
+});
+const running = job.running;
 
 // Defaults: the first strategy; start date = the last day of market data, or today without data
 // (updated when new data is loaded).
@@ -24,26 +49,19 @@ createRoot(() => {
       setStrategy(options.strategies[0] ?? '');
     }
   });
+  // Not over the start date of a result found after reopening the GUI
   const defaultStartTime = createMemo(() => signalsOptions.data()?.defaultStartTime ?? '');
-  createEffect(() => setStartTime(defaultStartTime()));
+  createEffect(() => {
+    const value = defaultStartTime();
+    if (!untrack(job.restored)) {
+      setStartTime(value);
+    }
+  });
 });
 
-async function show() {
-  setResult(undefined);
-  setRunning(true);
-  try {
-    setResult(
-      await api.post<SignalsResult>('/api/signals', {
-        strategy: strategy(),
-        forPortfolio: forPortfolio(),
-        startTime: startTime(),
-      }),
-    );
-  } catch (e) {
-    showError(e);
-  } finally {
-    setRunning(false);
-  }
+function show() {
+  const input: SignalsInput = { strategy: strategy(), forPortfolio: forPortfolio(), startTime: startTime() };
+  job.start(() => api.post<{ jobId: string }>('/api/signals', input));
 }
 
 export function Signals() {
@@ -93,6 +111,7 @@ export function Signals() {
             <button class="btn btn-primary" type="submit" disabled={running() || !strategy()}>
               <StableLabel labels={['Show signals', 'Running…']} current={running() ? 1 : 0} />
             </button>
+            <JobFailed error={lastError()} />
           </form>
         )}
       </Loaded>

@@ -21,7 +21,7 @@ public final class LiveHub {
 	public static final String PATH = "/ws";
 	public static final String APP_TOPIC = "app";
 
-	private final Map<String, LiveClient> clients = new ConcurrentHashMap<>();
+	private final Map<String, SocketClient> clients = new ConcurrentHashMap<>();
 	private final Map<String, Set<String>> subscriptions = new ConcurrentHashMap<>();
 	private final Map<String, Function<String, Optional<TopicSource>>> resolvers = new ConcurrentHashMap<>();
 
@@ -36,7 +36,7 @@ public final class LiveHub {
 		routes.ws(PATH, ws -> {
 			ws.onConnect(ctx -> {
 				ctx.enableAutomaticPings();
-				clients.put(ctx.sessionId(), new LiveClient(ctx));
+				clients.put(ctx.sessionId(), new SocketClient(ctx));
 			});
 			ws.onMessage(this::onMessage);
 			ws.onClose(this::disconnect);
@@ -50,7 +50,7 @@ public final class LiveHub {
 	}
 
 	private void onMessage(WsMessageContext ctx) {
-		LiveClient client = clients.get(ctx.sessionId());
+		SocketClient client = clients.get(ctx.sessionId());
 		if (client == null) {
 			return;
 		}
@@ -66,13 +66,13 @@ public final class LiveHub {
 		}
 	}
 
-	private void subscribe(LiveClient client, String topic) {
+	private void subscribe(SocketClient client, String topic) {
 		if (subscriptions.computeIfAbsent(client.id(), id -> ConcurrentHashMap.newKeySet()).add(topic)) {
 			source(topic).ifPresent(source -> source.subscribe(client));
 		}
 	}
 
-	private void unsubscribe(LiveClient client, String topic) {
+	private void unsubscribe(SocketClient client, String topic) {
 		Set<String> topics = subscriptions.get(client.id());
 		if (topics != null && topics.remove(topic)) {
 			source(topic).ifPresent(source -> source.unsubscribe(client));
@@ -80,7 +80,7 @@ public final class LiveHub {
 	}
 
 	private void disconnect(WsContext ctx) {
-		LiveClient client = clients.remove(ctx.sessionId());
+		SocketClient client = clients.remove(ctx.sessionId());
 		Set<String> topics = subscriptions.remove(ctx.sessionId());
 		if (client != null && topics != null) {
 			topics.forEach(topic -> source(topic).ifPresent(source -> source.unsubscribe(client)));

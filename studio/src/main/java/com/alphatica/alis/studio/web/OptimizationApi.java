@@ -84,7 +84,7 @@ final class OptimizationApi {
 		} catch (OptimizerException e) {
 			throw new ValidationException(e.getMessage());
 		}
-		Job job = jobs.start(JOB_TYPE, running -> run(running, optimizer));
+		Job job = jobs.start(JOB_TYPE, request, running -> run(running, optimizer));
 		ctx.json(Map.of("jobId", job.id()));
 	}
 

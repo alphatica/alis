@@ -1,21 +1,25 @@
 // Analysis → Find better exits: an account log file, the commission rate and
 // the scorer on the left, with the log's own score and the iteration count; the best 100 alternative exits on the
-// right. Results arrive live from the search job, which runs until stopped.
+// right. Results arrive live from the search job, which runs until stopped. The job and its results live on the
+// backend: after reopening the GUI the last search is shown again.
 
 import { createEffect, createMemo, createRoot, createSignal, For, on, Show } from 'solid-js';
 import { api, type ErrorMessage } from '../api';
+import { JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
 import { Loaded } from '../components/Loaded';
 import { StableLabel } from '../components/StableLabel';
 import { type ColumnSpec, formatValue, numberFormat, type Value } from '../format';
-import { subscribe } from '../live';
+import { createJob } from '../jobs';
 import { betterExitsOptions, type BetterExitsOptions } from '../state';
 import { staticSource, valueColumns, VirtualTable } from '../table';
-import { pushToast, showError } from '../toasts';
+import { showError } from '../toasts';
 
 /** One row of the results; `cells` are the values of the results columns. */
 type Result = { score: number; name: string; cells: Value[] };
 type LoadedFile = NonNullable<BetterExitsOptions['file']>;
+/** The form as sent to the backend (BetterExitsApi.SearchRequest). */
+type SearchInput = { commissionRate: string; scorer: string };
 
 // Kept outside the component, so the form, the running job and the results survive switching screens.
 const [file, setFile] = createSignal<LoadedFile>();
@@ -24,13 +28,31 @@ const [commissionRate, setCommissionRate] = createSignal('');
 const [scorer, setScorer] = createSignal('');
 const [originalScore, setOriginalScore] = createSignal<Value>();
 
-const [jobId, setJobId] = createSignal<string>();
-const [stopping, setStopping] = createSignal(false);
 const [iterations, setIterations] = createSignal<number>();
 const [results, setResults] = createSignal<Result[]>([]);
-const [started, setStarted] = createSignal(false);
+const [lastError, setLastError] = createSignal<ErrorMessage>();
 
-const running = () => jobId() !== undefined;
+const job = createJob<SearchInput>('better-exits', {
+  reset: () => {
+    setResults([]);
+    setIterations(undefined);
+    setLastError(undefined);
+  },
+  restore: (input) => {
+    setCommissionRate(input.commissionRate);
+    setScorer(input.scorer);
+    refreshScore();
+  },
+  event: (event, data) => {
+    if (event === 'results') {
+      setResults(data as Result[]);
+    } else if (event === 'iterations') {
+      setIterations(data as number);
+    }
+  },
+  failed: setLastError,
+});
+const { running, stopping, started } = job;
 
 createRoot(() => {
   createEffect(() => {
@@ -93,50 +115,12 @@ async function loadFile(chosen: File) {
   }
 }
 
-const settings = () => ({ commissionRate: commissionRate(), scorer: scorer() });
+const settings = (): SearchInput => ({ commissionRate: commissionRate(), scorer: scorer() });
 
-async function start() {
-  setResults([]);
-  setIterations(undefined);
-  setStopping(false);
-  setStarted(true);
+function start() {
   refreshScore();
-  try {
-    const { jobId: id } = await api.post<{ jobId: string }>('/api/better-exits', settings());
-    setJobId(id);
-    follow(id);
-  } catch (e) {
-    showError(e);
-    setStarted(false);
-  }
-}
-
-function follow(id: string) {
-  const unsubscribe = subscribe(`job/${id}`, (event, data) => {
-    switch (event) {
-      case 'results':
-        setResults(data as Result[]);
-        break;
-      case 'iterations':
-        setIterations(data as number);
-        break;
-      case 'error':
-        (data as ErrorMessage[]).forEach(pushToast);
-        break;
-      case 'done':
-        setJobId(undefined);
-        unsubscribe();
-        break;
-    }
-  });
-}
-
-function stop() {
-  const id = jobId();
-  if (id) {
-    setStopping(true);
-    api.post(`/api/jobs/${id}/cancel`).catch(showError);
-  }
+  const input = settings();
+  job.start(() => api.post<{ jobId: string }>('/api/better-exits', input));
 }
 
 export function BetterExits() {
@@ -225,11 +209,12 @@ function SettingsForm(props: { scorers: string[] }) {
       <span class="muted">
         Iterations: {iterations() === undefined ? (running() ? '…' : '—') : numberFormat(0).format(iterations()!)}
       </span>
+      <JobFailed error={lastError()} />
       <div class="sidebar-buttons">
         <button class="btn btn-primary" type="submit" disabled={running() || !file() || loading()}>
           <StableLabel labels={['Start', 'Running…']} current={running() ? 1 : 0} />
         </button>
-        <button class="btn" type="button" disabled={!running() || stopping()} onClick={stop}>
+        <button class="btn" type="button" disabled={!running() || stopping()} onClick={job.stop}>
           <StableLabel labels={['Stop', 'Stopping…']} current={stopping() && running() ? 1 : 0} />
         </button>
       </div>
