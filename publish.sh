@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Buduje alis.zip i kopiuje go w dwa miejsca:
-#  1. do zrodel strony (../alphatica.com/web/src/public/downloads/), zeby deploy
-#     strony zawieral plik i go nie usunal,
-#  2. prosto na serwer (/var/www/html/downloads/), bez deployu strony.
 set -e
 export BRANCH
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -17,8 +13,8 @@ site_copy="../alphatica.com/web/src/public/downloads/alis.zip"
 
 COPY_TO_DESKTOP=0 ./build-gui.sh
 git push
-cp studio/target/*-jar-with-dependencies.jar alis-studio/studio.jar
 rm -f alis.zip
+cp studio/target/*-jar-with-dependencies.jar alis-studio/studio.jar
 zip -r alis.zip alis-studio/
 
 mkdir -p -- "$(dirname -- "$site_copy")"
@@ -32,3 +28,4 @@ ssh -p "$deploy_port" "$deploy_target" \
      && sudo mv -f /var/www/html/downloads/.alis.zip.new /var/www/html/downloads/alis.zip \
      && rm -f alis.zip.upload"
 echo "Wgrano na serwer: /var/www/html/downloads/alis.zip"
+rm -f alis.zip

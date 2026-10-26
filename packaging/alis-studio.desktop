@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Alis Studio
+Comment=Analiza i testowanie strategii giełdowych
+Exec=AlisStudio
+Icon=alis-studio
+Terminal=false
+Categories=Office;Finance;

@@ -2,3 +2,6 @@
 target
 /dist/
 /.build-tools/
+.claude/
+alis-studio/
+alis/alis.iml

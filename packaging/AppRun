@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -e
+
+if [[ -n "${APPDIR:-}" ]]; then
+    APP_ROOT="$APPDIR"
+else
+    APP_ROOT="$(dirname "$(readlink -f "$0")")"
+fi
+
+exec "$APP_ROOT/bin/AlisStudio" "$@"
