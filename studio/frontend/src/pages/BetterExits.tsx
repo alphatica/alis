@@ -3,10 +3,11 @@
 // right. Results arrive live from the search job, which runs until stopped. The job and its results live on the
 // backend: after reopening the GUI the last search is shown again.
 
-import { createEffect, createMemo, createRoot, createSignal, For, on, Show } from 'solid-js';
+import { createEffect, createMemo, createRoot, createSignal, on, Show } from 'solid-js';
 import { api, type ErrorMessage } from '../api';
 import { JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
+import { Select } from '../components/Select';
 import { Loaded } from '../components/Loaded';
 import { StableLabel } from '../components/StableLabel';
 import { type ColumnSpec, formatValue, numberFormat, type Value } from '../format';
@@ -191,20 +192,17 @@ function SettingsForm(props: { scorers: string[] }) {
         onInput={setCommissionRate}
         onChange={() => refreshScore()}
       />
-      <div class="field">
-        <label for="better-exits-scorer">Result scorer</label>
-        <select
-          id="better-exits-scorer"
-          disabled={running()}
-          value={scorer()}
-          onChange={(event) => {
-            setScorer(event.currentTarget.value);
-            refreshScore();
-          }}
-        >
-          <For each={props.scorers}>{(name) => <option value={name}>{name}</option>}</For>
-        </select>
-      </div>
+      <Select
+        id="better-exits-scorer"
+        label="Result scorer"
+        value={scorer()}
+        onChange={(value) => {
+          setScorer(value);
+          refreshScore();
+        }}
+        options={props.scorers}
+        disabled={running()}
+      />
       <span class="muted">Original score: {formatValue(originalScore(), 0, '', 2) || '—'}</span>
       <span class="muted">
         Iterations: {iterations() === undefined ? (running() ? '…' : '—') : numberFormat(0).format(iterations()!)}

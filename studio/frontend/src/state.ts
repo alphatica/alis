@@ -72,7 +72,7 @@ export type SignalsOptions = { strategies: string[]; defaultStartTime: string };
 
 export const signalsOptions = store<SignalsOptions>('/api/signals/options', ['data-loaded']);
 
-/** Defaults of the backtest and optimization forms (RunDefaults.java). */
+/** Defaults of the backtest, optimization and walk-forward forms (RunDefaults.java). */
 export type RunDefaults = {
   /** yyyymmdd; empty without market data */
   startTime: string;
@@ -118,6 +118,17 @@ export type OptimizationOptions = {
 };
 
 export const optimizationOptions = store<OptimizationOptions>('/api/optimization/options', ['data-loaded']);
+/** WalkForwardApi.WalkForwardOptions: as for the optimization, without its results columns. */
+export type WalkForwardOptions = Omit<OptimizationOptions, 'results'> & {
+  /** Default training and test windows. */
+  trainingMonths: number;
+  testMonths: number;
+  /** Columns of the out-of-sample backtest's orders and trades, as in BacktestOptions. */
+  orders: ColumnSpec[];
+  trades: ColumnSpec[];
+};
+
+export const walkForwardOptions = store<WalkForwardOptions>('/api/walk-forward/options', ['data-loaded']);
 export type BetterExitsOptions = {
   scorers: string[];
   defaultCommissionRate: string;
@@ -151,6 +162,7 @@ export function loadAll() {
   signalsOptions.load();
   backtestOptions.load();
   optimizationOptions.load();
+  walkForwardOptions.load();
   betterExitsOptions.load();
   markets.load();
   restoreJobs();

@@ -32,9 +32,9 @@ final class BacktestApi {
 	private static final String RANDOM_JOB_TYPE = "backtest-random";
 	private static final int MAX_ITERATIONS = 1_000_000;
 
-	private static final List<Column> ORDERS = List.of(Column.date("Time"), Column.text("Market"), Column.text("Order"),
+	static final List<Column> ORDERS = List.of(Column.date("Time"), Column.text("Market"), Column.text("Order"),
 			Column.text("Size"), Column.number("Priority", 2));
-	private static final List<Column> TRADES = List.of(Column.text("Market"), Column.date("Entry time"),
+	static final List<Column> TRADES = List.of(Column.text("Market"), Column.date("Entry time"),
 			Column.date("Exit time"), Column.number("Entry price", 2), Column.number("Exit price", 2),
 			Column.quantity("Quantity"), Column.percent("Profit %", 2), Column.number("Profit (cash)", 2),
 			Column.number("Entry efficiency", 2), Column.number("Exit efficiency", 2));

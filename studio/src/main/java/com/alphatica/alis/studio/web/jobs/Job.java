@@ -42,7 +42,8 @@ public final class Job {
 	}
 
 	/**
-	 * Action stopping the underlying work, e.g. {@code optimizer::stop}.
+	 * Action stopping the underlying work, e.g. {@code optimizer::stop}; run again on every further request, so it
+	 * must allow that.
 	 */
 	public void onCancel(Runnable action) {
 		cancelAction = action;
@@ -51,9 +52,15 @@ public final class Job {
 		}
 	}
 
+	/**
+	 * Runs the cancel action on every request while the job runs, so a job of several stages can stop each one;
+	 * nothing after the job ends.
+	 */
 	void cancel() {
-		if (cancelRequested.compareAndSet(false, true)) {
-			cancelAction.run();
+		if (channel.isFinished()) {
+			return;
 		}
+		cancelRequested.set(true);
+		cancelAction.run();
 	}
 }

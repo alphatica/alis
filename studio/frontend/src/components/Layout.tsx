@@ -26,6 +26,7 @@ export const NAVIGATION: (NavItem | NavGroup)[] = [
     screens: [
       { path: '/backtest', label: 'Backtest' },
       { path: '/optimization', label: 'Optimization' },
+      { path: '/walk-forward', label: 'Walk-forward' },
       { path: '/better-exits', label: 'Better exits' },
     ],
   },

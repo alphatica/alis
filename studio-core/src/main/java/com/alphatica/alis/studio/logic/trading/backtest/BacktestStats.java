@@ -34,32 +34,29 @@ public final class BacktestStats {
 		backtestStats.stats.add(Stat.number("Final account value", account.getNAV(), 0));
 		backtestStats.stats.add(RatioStats.totalReturn(sessions));
 		backtestStats.stats.add(RatioStats.cagr(sessions));
-		backtestStats.stats.add(Stat.percent("Current drawdown", account.getCurrentDD(), 0));
 		backtestStats.stats.add(Stat.percent("Max drawdown", account.getMaxDD(), 0));
 		backtestStats.stats.add(Stat.percent("Max downside drawdown", account.getMaxDownsideDD(), 0));
 		backtestStats.stats.addAll(RatioStats.of(sessions, account.getMaxDD(), account.getMaxDownsideDD(), marketData,
 				rates));
-		backtestStats.addTradeStats(account.getStats(), result.missedTrades(), true);
-		backtestStats.addHistoryStats(account);
+		backtestStats.addTradeStats(account.getStats(), true);
+		backtestStats.addMarketStats(account);
 		return List.copyOf(backtestStats.stats);
 	}
 
 	/**
-	 * Trade and history stats of the user's portfolio: without missed trades (there are no orders to miss); values
-	 * that need market data are empty when {@code haveMarketData} is false.
+	 * Trade and history stats of the user's portfolio, with the paid commissions; values that need market data are
+	 * empty when {@code haveMarketData} is false.
 	 */
 	public static List<Stat> tradesOf(Account account, boolean haveMarketData) {
 		BacktestStats backtestStats = new BacktestStats();
-		backtestStats.addTradeStats(account.getStats(), null, haveMarketData);
-		backtestStats.addHistoryStats(account);
+		backtestStats.addTradeStats(account.getStats(), haveMarketData);
+		backtestStats.stats.add(Stat.number("Paid commissions", account.getAccountHistory().getPaidCommissions(), 0));
+		backtestStats.addMarketStats(account);
 		return List.copyOf(backtestStats.stats);
 	}
 
-	private void addTradeStats(TradeStats tradeStats, Integer missedTrades, boolean haveMarketData) {
+	private void addTradeStats(TradeStats tradeStats, boolean haveMarketData) {
 		stats.add(Stat.number("Total trades", tradeStats.trades(), 0));
-		if (missedTrades != null) {
-			stats.add(Stat.number("Missed trades", missedTrades, 0));
-		}
 		stats.add(Stat.number("Profit factor", tradeStats.profitFactor(), 2));
 		stats.add(Stat.number("Expectancy", tradeStats.expectancy(), 2));
 		stats.add(Stat.percent("Average win", tradeStats.averageWinPercent(), 0));
@@ -69,8 +66,7 @@ public final class BacktestStats {
 		stats.add(Stat.percent("Accuracy", tradeStats.accuracy(), 1));
 	}
 
-	private void addHistoryStats(Account account) {
-		stats.add(Stat.number("Paid commissions", account.getAccountHistory().getPaidCommissions(), 0));
+	private void addMarketStats(Account account) {
 		stats.add(Stat.number("Profitable markets", account.countProfitableMarkets(), 0));
 		stats.add(Stat.number("Unprofitable markets", account.countUnprofitableMarkets(), 0));
 		stats.add(Stat.text("Biggest win", account.biggestWin()));

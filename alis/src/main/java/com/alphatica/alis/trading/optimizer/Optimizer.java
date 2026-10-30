@@ -31,8 +31,12 @@ public abstract class Optimizer {
 		return paramsStepsSet;
 	}
 
+	/**
+	 * Sets the parameter fields (the fields with a parameter annotation) of the object to the values by field name and
+	 * calls {@link Optimizable#paramsChanged()}. Other fields, e.g. state built while trading, stay as they are.
+	 */
 	@SuppressWarnings("java:S3011")
-	protected static void copyParameters(Map<String, Object> params, Optimizable optimizable) throws IllegalAccessException {
+	public static void copyParameters(Map<String, Object> params, Optimizable optimizable) throws IllegalAccessException {
 		Field[] fields = optimizable.getClass().getDeclaredFields();
 		for (Field field : fields) {
 			if (isParameterField(field)) {

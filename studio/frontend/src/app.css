@@ -791,6 +791,17 @@ h2 {
 	margin-top: var(--space-4);
 }
 
+/* Results of a backtest: the same columns on every screen, whatever the width of its sidebar */
+.stats-results {
+	grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+@media (max-width: 1400px) {
+	.stats-results {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+}
+
 /* A few tiles, one line high, sharing the whole width */
 .stats-wide {
 	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -821,6 +832,15 @@ h2 {
 
 .split-narrow {
 	--sidebar-width: 220px;
+}
+
+/* A longer form that scrolls: a bit wider, with room between the fields and the scrollbar */
+.split-medium {
+	--sidebar-width: 260px;
+}
+
+.split-medium > .sidebar {
+	padding-right: var(--space-3);
 }
 
 .split .table-tall {

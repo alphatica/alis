@@ -11,6 +11,7 @@ import { BetterExits } from './pages/BetterExits';
 import { Data } from './pages/Data';
 import { Help } from './pages/Help';
 import { Optimization } from './pages/Optimization';
+import { WalkForward } from './pages/WalkForward';
 import { Portfolio } from './pages/Portfolio';
 import { Signals } from './pages/Signals';
 import { Closed, License, NotFound, Placeholder } from './pages/Simple';
@@ -24,6 +25,7 @@ const PAGES: Record<string, Component> = {
   '/signals': Signals,
   '/backtest': Backtest,
   '/optimization': Optimization,
+  '/walk-forward': WalkForward,
   '/better-exits': BetterExits,
   '/data': Data,
   '/help': Help,

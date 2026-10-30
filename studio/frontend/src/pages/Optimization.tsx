@@ -3,18 +3,18 @@
 // parameters as Java code. The job and its results live on the backend: after reopening the GUI the last optimization
 // is shown again, with its settings in the form.
 
-import { createEffect, createMemo, createRoot, createSignal, For, on } from 'solid-js';
+import { createEffect, createMemo, createRoot, createSignal, on } from 'solid-js';
 import { api, type ErrorMessage } from '../api';
 import { JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
 import { Loaded } from '../components/Loaded';
-import { Modal } from '../components/Modal';
+import { ParamsDialog } from '../components/ParamsDialog';
+import { Select } from '../components/Select';
 import { StableLabel } from '../components/StableLabel';
 import { type ColumnSpec, numberFormat, type Value } from '../format';
 import { createJob } from '../jobs';
 import { followDefaults, optimizationOptions } from '../state';
 import { type Column, staticSource, valueColumns, VirtualTable } from '../table';
-import { showError } from '../toasts';
 
 /** One row of the results; `cells` are the values of the results columns. */
 type Result = { score: number; cells: Value[]; params: string[] };
@@ -139,7 +139,11 @@ function start() {
 export function Optimization() {
   return (
     <div class="page-fill">
-      <ParamsDialog result={shown()} onClose={() => setShown(undefined)} />
+      <ParamsDialog
+        params={shown()?.params}
+        title={`Score ${numberFormat(0, 2).format(shown()?.score ?? 0)}`}
+        onClose={() => setShown(undefined)}
+      />
       <div class="split split-narrow split-stretch">
         <div class="sidebar">
           <Loaded store={optimizationOptions}>{(options) => <SettingsForm options={options()} />}</Loaded>
@@ -164,7 +168,7 @@ function SettingsForm(props: { options: { strategies: string[]; resultVerifiers:
         }
       }}
     >
-      <Select id="optimization-strategy" label="Strategy" value={strategy()} onChange={setStrategy} options={props.options.strategies} />
+      <Select id="optimization-strategy" label="Strategy" value={strategy()} onChange={setStrategy} options={props.options.strategies} disabled={running()} />
       <Field id="optimization-start" label="Start time" placeholder="yyyymmdd" inputmode="numeric" disabled={running()} value={startTime()} onInput={setStartTime} />
       <Field id="optimization-end" label="End time" placeholder="yyyymmdd" inputmode="numeric" disabled={running()} value={endTime()} onInput={setEndTime} />
       <Field
@@ -177,15 +181,16 @@ function SettingsForm(props: { options: { strategies: string[]; resultVerifiers:
         onInput={setCommissionRate}
       />
       <Field id="optimization-capital" label="Initial capital" inputmode="decimal" disabled={running()} value={initialCapital()} onInput={setInitialCapital} />
-      <Select id="optimization-verifier" label="Result verifier" value={resultVerifier()} onChange={setResultVerifier} options={props.options.resultVerifiers} />
+      <Select id="optimization-verifier" label="Result verifier" value={resultVerifier()} onChange={setResultVerifier} options={props.options.resultVerifiers} disabled={running()} />
       <Select
         id="optimization-selection"
         label="Parameters selection"
         value={parametersSelection()}
         onChange={setParametersSelection}
         options={props.options.parametersSelections}
+        disabled={running()}
       />
-      <Select id="optimization-scorer" label="Result scorer" value={scorer()} onChange={setScorer} options={props.options.scorers} />
+      <Select id="optimization-scorer" label="Result scorer" value={scorer()} onChange={setScorer} options={props.options.scorers} disabled={running()} />
       <Field
         id="optimization-max-permutations"
         label="Max permutations"
@@ -211,17 +216,6 @@ function SettingsForm(props: { options: { strategies: string[]; resultVerifiers:
   );
 }
 
-function Select(props: { id: string; label: string; value: string; onChange: (value: string) => void; options: string[] }) {
-  return (
-    <div class="field">
-      <label for={props.id}>{props.label}</label>
-      <select id={props.id} disabled={running()} value={props.value} onChange={(event) => props.onChange(event.currentTarget.value)}>
-        <For each={props.options}>{(name) => <option value={name}>{name}</option>}</For>
-      </select>
-    </div>
-  );
-}
-
 function ResultsTable(props: { columns: ColumnSpec[] }) {
   const columns = createMemo<Column<Result>[]>(() => [
     ...valueColumns(props.columns, (row: Result) => row.cells),
@@ -240,27 +234,5 @@ function ResultsTable(props: { columns: ColumnSpec[] }) {
       source={staticSource(results)}
       emptyMessage={running() ? 'No results yet.' : started() ? 'No results.' : 'Start an optimization to see its results.'}
     />
-  );
-}
-
-function ParamsDialog(props: { result: Result | undefined; onClose: () => void }) {
-  const text = () => props.result?.params.join('\n') ?? '';
-  const copy = () => navigator.clipboard.writeText(text()).catch(showError);
-  return (
-    <Modal
-      open={props.result !== undefined}
-      onClose={props.onClose}
-      title={props.result ? `Score ${numberFormat(0, 2).format(props.result.score)}` : ''}
-    >
-      <pre class="job-output">{text()}</pre>
-      <div class="actions dialog-actions">
-        <button class="btn" type="button" onClick={copy}>
-          Copy
-        </button>
-        <button class="btn" type="button" onClick={() => props.onClose()}>
-          Close
-        </button>
-      </div>
-    </Modal>
   );
 }

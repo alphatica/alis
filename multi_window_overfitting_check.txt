@@ -1,0 +1,430 @@
+MULTI-WINDOW OVERFITTING CHECK - plan implementacji (Alis Studio)
+=====================================================================
+
+Data zapisu: 2026-10-29
+Sesja, w której powstał plan: 203cf444-f176-47eb-8998-fb8a2667293d
+  Wznowienie tamtej sesji (z katalogu /home/lw/Projects/alis-parent):
+  claude --resume 203cf444-f176-47eb-8998-fb8a2667293d
+Gałąź w chwili zapisu: full_stats (główna: main)
+
+
+0. INSTRUKCJE DLA NASTĘPNEJ SESJI
+---------------------------------
+- Odpowiadaj po polsku. Teksty w UI studio są po angielsku.
+- Pytanie użytkownika to prośba o informację, a nie polecenie pisania kodu.
+- Zanim zaczniesz kodować, ustal z użytkownikiem otwarte decyzje z sekcji 9.
+- Realizuj kroki 1-5 po kolei. Każdy krok kończy się kompilacją i zielonymi
+  testami. Commit tylko na prośbę użytkownika.
+- Testy w krokach 1-3 pisz skillem `mutation-driven-tests`.
+- Build i testy backendu:
+    mvn -q -o -pl alis,studio-core,studio -am test
+  Frontend (typecheck + build):
+    cd studio/frontend && npm run build
+- Nazwy klas i metod z tego pliku sprawdź w kodzie przed użyciem (stan na dzień
+  zapisu).
+- Pamięć projektu (MEMORY.md) ładuje się automatycznie. Ważne stamtąd: nowe
+  zależności tylko na licencjach zgodnych z AGPL-3.0; frontend bez CDN i bez
+  zasobów z zewnątrz (SolidJS bundlowany przez Vite do JAR-a); raporty w
+  suchym stylu (liczby, bez werdyktów).
+
+
+1. CEL I METODA
+---------------
+Nowy ekran studio, który sprawdza, czy optymalizacja parametrów strategii ma
+sens, czyli czy zestaw najlepszy na jednych latach zachowuje przewagę na latach
+niewidzianych.
+
+Metoda to CSCV (Combinatorially Symmetric Cross-Validation) / PBO z pracy
+Bailey, Borwein, López de Prado, Zhu, "The Probability of Backtest Overfitting".
+
+1. Okres dzielimy na S pełnych lat kalendarzowych.
+2. Każdy zestaw parametrów ma wyniki rok po roku z jednego, ciągłego backtestu.
+3. Dla każdej kombinacji k lat treningowych z S (domyślnie k = floor(S/2), np.
+   C(10,5) = 252 podziały):
+   a) wybieramy zestaw najlepszy na latach treningowych,
+   b) sprawdzamy jego wynik na pozostałych latach (testowych),
+   c) notujemy, czy jest powyżej mediany pozostałych zestawów na latach
+      testowych, oraz jego percentyl.
+4. Licznik "powyżej mediany" (np. 214/252) mówi o sile przewagi. Bez przewagi
+   wychodzi średnio ok. 50%, ale rozrzut jest duży, bo podziały się nakładają
+   (cała informacja to S lat).
+   Symulacja (1000 losowych zestawów bez przewagi, 10 lat): 5-95% wyników mieści
+   się w 31-64%.
+5. Istotność liczona testem permutacyjnym (sekcja 6), a nie z rozkładu
+   dwumianowego.
+
+Interpretacja dla użytkownika: wybór ma sens, gdy licznik jest wysoki ORAZ p
+jest małe. Test ocenia regułę wyboru "najlepszy z tej puli" względem wyboru
+losowego. Nie mówi, czy strategia zarabia; to pokazuje osobny kafelek
+"Test score > 0".
+
+
+2. DECYZJE UŻYTKOWNIKA (wiążące)
+--------------------------------
+D1. Scorery ograniczone do takich, które łatwo łączyć z różnych lat:
+    CAGR, Sharpe ratio, Sortino ratio, ROIC (definicja w D5).
+    - NAV pominięty: w każdym podziale wszystkie zestawy mają te same sesje,
+      więc ranking jest taki sam jak dla CAGR.
+    - Alfa Jensena odłożona ("zapomnij na razie").
+    - Calmar, NAV / max drawdown, Return / max downside DD, Trade expectancy:
+      nie da się ich łączyć z lat (max DD zależy od ścieżki; expectancy jest
+      liczone z transakcji).
+D2. Przełom roku (słowa użytkownika): "pozycja otwarta na przełomie roku musi
+    wejść do statystyk do momentu końca roku, a jej zyski od nowego roku muszą
+    wejść do nowego roku. Nie możemy sztucznie zamykać pozycji ani liczyć wyniku
+    do innego roku niż był w rzeczywistości."
+    Realizacja: jeden ciągły backtest przez cały okres; lata wycinane z gotowego
+    szeregu dziennych zwrotów (wycena mark-to-market na zamknięciu sesji).
+    Nic nie jest zamykane na granicy lat. Statystyk transakcyjnych (trafność,
+    liczba transakcji, expectancy) w podziale na lata nie pokazujemy.
+D3. Scorer ProfitableMarkets usunięty (patrz sekcja 3, stan repo).
+D4. Filtry odrzucające zestawy przed podziałem: odłożone (sekcja 10).
+D5. ROIC (zwrot z zainwestowanego kapitału), definicja użytkownika z
+    2026-10-29:
+    - Dla każdej transakcji:
+        kapitał = wartość wejścia po odjęciu prowizji = quantity * cena wejścia
+        zysk    = quantity * (cena wyjścia - cena wejścia) - prowizja wyjścia
+        dni     = dni kalendarzowe trzymania (data wyjścia - data wejścia)
+    - Dla zestawu (transakcje łącznie, nie średnia z transakcji):
+        ROIC = 365 * Σ zysk / Σ (kapitał * dni) * 100   [% rocznie]
+    - NAV w momencie wejścia nie ma znaczenia.
+    - Prowizja wejścia tylko zmniejsza kapitał i nie wchodzi do zysku
+      (potwierdzone).
+    - Część zakupu sprzedana w sesji zakupu liczy się jako 1 dzień.
+    - ZROBIONE: scorer ReturnOnInvestedCapital na całym okresie, w
+      StudioOptions.SCORERS jako "Return on invested capital" (sekcja 3).
+    - Uwaga: ROIC pomija niezainwestowaną gotówkę, więc zestaw z kilkoma
+      udanymi transakcjami w latach treningowych może wygrywać trening (bez
+      filtra minimalnej liczby transakcji, który jest odłożony).
+
+
+3. STAN KODU - co jest gdzie
+----------------------------
+Stan repo w chwili zapisu (niezacommitowane, gałąź full_stats):
+- usunięty alis/.../trading/account/scorer/ProfitableMarkets.java (git rm),
+- StudioOptions: jedna mapa SCORERS (dawne EXIT_SCORERS i SCORERS były po
+  usunięciu identyczne); BetterExitsApi używa SCORERS.
+- nowy scorer alis/.../account/scorer/ReturnOnInvestedCapital.java (D5) z
+  testami ReturnOnInvestedCapitalTest (PIT, mutatory ALL: 43/43 KILLED),
+  dodany do SCORERS po "CAGR"; test w StudioOptionsTest.
+  Skąd bierze dane:
+  - kapitał * dni z Account.getAllPricesRecords(): jeden PositionPricesRecord
+    na każdą sprzedaną część zakupu (sprzedaż FIFO) oraz na każdy otwarty
+    zakup; exitTime == null oznacza pozycję otwartą albo zamkniętą przez
+    Account.close, wtedy liczone do ostatniej sesji,
+  - zysk z Account.getAllHistoryRecords(): getProfitCash() - exitCommission()
+    dla każdego cyklu pozycji.
+
+Backtest, konto, zwroty:
+- StrategyExecutor.execute: pętla po sesjach; po kupnach i sprzedażach woła
+  account.updateLastKnown(current), co wycenia pozycje na CLOSE i zapisuje NAV
+  sesji do SessionHistory.record(time, nav).
+- SessionHistory (alis/.../trading/account/SessionHistory.java): times(),
+  nav(), returns() (zwroty ważone czasem: NAV / (poprzedni NAV + wpłaty) - 1).
+  Pierwszy zwrot liczony od kapitału początkowego.
+- Account.close(commissionRate) na końcu backtestu zamyka pozycje i robi
+  revalueLast. Prowizja trafia do ostatniej sesji ostatniego roku. To jedyne
+  wymuszone zamknięcie, zaakceptowane.
+- Delistingi: processDelistings po wycenie, revalueLast w tej samej sesji.
+- AccountHistory.getHistoryRecords(): zamknięte pozycje, jeden
+  PositionHistoryRecord na cykl pozycji (entryTime, exitTime, entry, exit,
+  quantity, entryCommission, exitCommission, tradeLength). Pozycje zamknięte
+  przez Account.close też tu trafiają. Wyceny na koniec roku nie ma; cenę
+  CLOSE z ostatniej sesji roku trzeba wziąć z danych rynkowych.
+- Time (alis/.../data/time/Time.java): record Time(int time) w formacie
+  yyyymmdd; toLocalDate(), epochDay().
+
+Scorery i wskaźniki:
+- AccountScorer.score(Account, Map<String, Double> customStats).
+- Cagr, SharpeRatio, SortinoRatio (Sharpe i Sortino dziedziczą po
+  RiskFreeRatioScorer, który bierze stopy z RiskFreeRates.periods(country,
+  first, last)).
+- ReturnRatios (alis/.../trading/account/ReturnRatios.java):
+  SESSIONS_PER_YEAR = 252; sharpe, sortino, cagrPercent; prywatna klasa
+  RiskFreeCursor:
+    rf sesji = stopa obowiązująca w poprzedniej sesji * dni kalendarzowe od
+    poprzedniej sesji / 365; pierwsza sesja = 1 dzień po stopie z własnego dnia.
+- Scores.finiteOrZero: NaN i nieskończoność zamieniane na 0.
+
+Optymalizator:
+- StrategyOptimizer (alis/.../trading/optimizer/StrategyOptimizer.java):
+  optimize(BiConsumer<OptimizerScore, Account> onScore). Callback jest wołany
+  z synchronized registerScore, czyli po jednym naraz, ale z wielu wątków.
+  Kolejność wyników jest więc niedeterministyczna.
+- ParametersSelection: FULL_PERMUTATION, GENETIC, RANDOM.
+- ResultVerifier: NONE, REMOVE_MARKETS, REMOVE_ORDERS, FUZZY_START_TIME.
+- OptimizerScore.formatParamsAsJavaCode(): parametry jako kod Java.
+
+Studio, backend (moduł studio):
+- OptimizationApi (studio/.../web/OptimizationApi.java): wzorzec dla nowego
+  API. Endpointy options i start, zadanie przez JobRegistry, wyniki wysyłane
+  przez job.channel().replace(event, value), job.onCancel(optimizer::stop).
+- JobRegistry: najwyżej jedno działające zadanie każdego typu; ostatnie zadanie
+  każdego typu zostaje w pamięci z wynikami i GUI odtwarza je po ponownym
+  otwarciu.
+- Inputs: time, number, wholeNumber, option, scorer, strategy, marketData,
+  settings(RunForm).
+- StudioOptions (studio-core/.../logic/options/StudioOptions.java): SCORERS,
+  RESULT_VERIFIERS, PARAMETERS_SELECTIONS.
+- Rejestracja API: WebApp.java (new OptimizationApi(jobs).register(...)).
+
+Studio, frontend (studio/frontend/src):
+- pages/Optimization.tsx: wzorzec formularza i zadania (createJob, restore,
+  event). Komponenty Select i ParamsDialog są tam lokalne; do przeniesienia do
+  components/, żeby użyć ich też w nowym ekranie.
+- components/: StatTiles, Tabs, Field, Modal, StableLabel, EquityChart
+  (uPlot), table/VirtualTable.
+- index.tsx: mapa PAGES i trasy; components/Layout.tsx: grupa menu "Research"
+  (Backtest, Optimization, Better exits).
+- Zależności: solid-js, @solidjs/router, uplot.
+
+
+4. KROK 1 - wyniki roczne i scorery roczne (alis + studio-core)
+---------------------------------------------------------------
+Zmiana w bibliotece alis:
+- ReturnRatios: dodać publiczną metodę riskFreeReturns(List<Time> times,
+  List<RatePeriod> periods), która zwraca double[] rf dla każdej sesji (logika
+  RiskFreeCursor), i przestawić na nią sharpe i sortino. Istniejące testy
+  Sharpe i Sortino muszą przejść bez zmian.
+- Stopa zależy tylko od dat sesji, a te są wspólne dla wszystkich zestawów,
+  więc liczyć ją raz na zadanie.
+
+Nowy pakiet: studio-core/.../studio/logic/trading/overfitting/
+- YearStats (jeden rok jednego zestawu), same sumy:
+    n               liczba sesji
+    sumLogGrowth    suma log(1 + r)
+    sumX            suma x, gdzie x = r - rf (nadwyżka sesji)
+    sumX2           suma x^2
+    sumNeg2         suma x^2 dla x < 0
+    sumProfit       suma zysku transakcji przypadającego na ten rok (ROIC)
+    sumCapitalDays  suma kapitał * dni kalendarzowe trzymania w tym roku (ROIC)
+  Zbiór lat to suma pól; lata testowe = suma wszystkich lat minus lata
+  treningowe. Precyzja: dzienne zwroty mają średnią << odchylenie, więc wzór
+  na wariancję z sum jest wystarczający.
+- FullYears: które lata są pełne. Proponowana reguła (do potwierdzenia przy
+  implementacji): rok Y jest pełny, gdy sesje backtestu obejmują pierwszą i
+  ostatnią sesję roku Y w danych rynkowych i rok Y jest zamknięty (w danych
+  jest sesja z roku Y+1 albo ostatnia sesja Y to 31.12). Bieżący, niezakończony
+  rok odpada. Niepełne lata na brzegach backtest przechodzi normalnie (pozycje
+  i wskaźniki przechodzą dalej), ale nie wchodzą do statystyk.
+- YearlyBreakdown: Account (SessionHistory.times() i returns()) + rf[] daje
+  listę YearStats dla pełnych lat. Sesja należy do roku swojej daty. Pierwszy
+  zwrot nowego roku jest liczony od NAV z ostatniej sesji poprzedniego roku,
+  więc luka cenowa po Nowym Roku idzie do nowego roku (D2).
+- ROIC w YearlyBreakdown, z części zakupów (PositionPricesRecord, jak w
+  ReturnOnInvestedCapital) i cen CLOSE z danych rynkowych (D2 i D5).
+  Pozycja może mieć kilka zakupów i częściowe sprzedaże, a PositionHistoryRecord
+  uśrednia cały cykl, więc dzielić po częściach, nie po cyklach.
+  - Prowizja wyjścia: PositionPricesRecord jej nie ma, a w PositionHistoryRecord
+    jest suma z cyklu, którego sprzedaże mogą być w różnych latach. Propozycja:
+    dodać do PositionPricesRecord udział prowizji (prowizja sprzedaży *
+    sprzedana ilość części / ilość sprzedaży) w Position.reduce. To zmiana
+    rekordu używanego w kilku miejscach, więc najpierw sprawdzić wywołania.
+  - Zysk części obejmującej kilka lat dzielony wyceną na zamknięciu ostatniej
+    sesji każdego roku:
+      rok wejścia:     quantity * (close końca roku - cena wejścia)
+      lata pośrednie:  quantity * (close końca roku - close końca poprzedniego)
+      rok wyjścia:     quantity * (cena wyjścia - close końca poprzedniego)
+                       - prowizja wyjścia
+  - Dni dzielone na granicy roku kalendarzowego (1 stycznia): rok wejścia =
+    1.01 następnego roku - data wejścia; rok wyjścia = data wyjścia - 1.01
+    roku wyjścia; lata pośrednie = liczba dni roku. Suma = data wyjścia - data
+    wejścia.
+  - Kapitał części (quantity * cena wejścia) jest stały, więc kapitał * dni
+    roku sumuje się do kapitał * wszystkie dni.
+  - Części zakupów w niepełnych latach odpadają razem z tymi latami.
+  - Część sprzedana w sesji zakupu: 1 dzień, jak w ReturnOnInvestedCapital
+    (zdarza się przy delistingu w dniu zakupu i przy Account.close w ostatniej
+    sesji).
+- YearlyScorer, enum z nazwami zgodnymi z SCORERS ("CAGR", "Sharpe ratio",
+  "Sortino ratio", "Return on invested capital"); score(YearStats suma):
+    CAGR    = (exp(sumLogGrowth * 252 / n) - 1) * 100
+    Sharpe  = mean / sd * sqrt(252), mean = sumX / n,
+              sd = sqrt((sumX2 - sumX^2 / n) / (n - 1)); n < 2 lub sd = 0 -> NaN
+    Sortino = (sumX / n) / sqrt(sumNeg2 / n) * sqrt(252);
+              n < 2 lub mianownik 0 -> NaN
+    ROIC    = 365 * sumProfit / sumCapitalDays * 100; sumCapitalDays = 0 -> NaN
+  Na końcu NaN -> 0, jak Scores.finiteOrZero.
+
+Testy:
+- Pozycja otwarta przed 31.12 ze zmianą ceny po Nowym Roku: zysk do zamknięcia
+  31.12 w starym roku, reszta (łącznie z luką) w nowym.
+- YearlyScorer na wszystkich latach backtestu z pełnych lat = Cagr /
+  SharpeRatio / SortinoRatio / ReturnOnInvestedCapital na tym samym koncie
+  (tolerancja ok. 1e-9).
+- ROIC: transakcja z przełomu roku (wejście w grudniu, wyjście w styczniu):
+  zysk do close końca roku w starym roku, reszta minus prowizja wyjścia w
+  nowym; dni podzielone na 1 stycznia; transakcja przez dwa przełomy roku
+  (rok pośredni).
+- FullYears: niepełny pierwszy rok, niepełny ostatni rok, bieżący rok.
+
+
+5. KROK 2 - silnik podziałów (studio-core)
+------------------------------------------
+OverfittingTest:
+- Wejście: lista kandydatów Candidate(params jako List<String> z
+  formatParamsAsJavaCode, YearStats[] po latach), YearlyScorer, k (liczba lat
+  treningowych).
+- Kandydatów sortować po tekście parametrów przed liczeniem (kolejność z
+  optymalizatora jest niedeterministyczna), żeby remisy rozstrzygały się
+  zawsze tak samo.
+- Wymagane co najmniej 2 zestawy.
+- Podziały: wszystkie kombinacje k z S (maska bitowa lat). Powyżej ok. 50 000
+  kombinacji (np. 18+ lat) losowa próbka ze stałym ziarnem.
+- Dla każdego podziału:
+  - wybrany = najlepszy wynik na latach treningowych (remis: pierwszy w
+    posortowanej kolejności),
+  - wynik testowy wybranego i pozostałych,
+  - lower = liczba pozostałych z niższym wynikiem testowym, ties = z równym,
+  - percentyl = (lower + 0.5 * ties) / (N - 1),
+  - powyżej mediany, gdy (lower + 0.5 * ties) > (N - 1) / 2. Liczone przez
+    zliczanie, bez sortowania.
+- Dane w płaskich tablicach double; lata testowe z różnicy sum.
+- OverfittingReport:
+  - kafelki: liczba zestawów, lata (od-do i S), liczba podziałów (k / S-k),
+    powyżej mediany c/M (%), mediana percentyla testowego wybranego,
+    "Test score > 0" d/M, średni wynik trening -> test; po tasowaniach
+    dodatkowo wybór losowy (średnia i zakres 5-95%), p-value, z-score,
+  - wiersze podziałów: lata treningowe, lata testowe, wynik treningowy, wynik
+    testowy, percentyl testowy, powyżej mediany, indeks zestawu (do View),
+  - wybierane zestawy: parametry, ile razy wybrany, ile z tego powyżej
+    mediany,
+  - lata zestawu najlepszego na wszystkich pełnych latach: wynik w roku i
+    percentyl w puli w tym roku,
+  - 100 najlepszych zestawów według YearlyScorer na wszystkich pełnych latach,
+  - histogram percentyli testowych wybranego: 10 przedziałów 0-100%.
+
+Testy:
+- Ręcznie policzony przypadek: 3 zestawy, 4 lata, k = 2, 6 podziałów
+  (liczniki, percentyle).
+- Remisy; zmiana kolejności kandydatów nie zmienia wyniku.
+- Limit i próbkowanie podziałów (ten sam wynik przy tym samym ziarnie).
+- k różne od S/2 (podział niesymetryczny).
+
+
+6. KROK 3 - tasowanie i p-value (studio-core)
+---------------------------------------------
+Pytanie, na które odpowiada: czy wynik (np. 214/252) mógł wyjść przez
+przypadek? Okna nie są niezależne: jeden zestaw z przypadkowo świetnym rokiem
+wygrywa trening we wszystkich podziałach z tym rokiem, więc przypadek przesuwa
+licznik skokami po kilkadziesiąt okien.
+
+ShuffleTest:
+- Hipoteza zerowa: wynik zestawu w jednym roku nic nie mówi o jego innych
+  latach.
+- Jedno tasowanie: w każdym roku osobno losowa permutacja kandydatów
+  (Fisher-Yates na tablicy indeksów). Cała kolumna YearStats roku trafia do
+  losowych zestawów. Zostaje rozkład wyników każdego roku i układ podziałów;
+  znika tylko trwałość rankingu między latami.
+- Na każdym tasowaniu ten sam test, na tej samej liście podziałów co test
+  główny; zapisujemy tylko licznik "powyżej mediany".
+- B = 1000 tasowań. Ziarno tasowania t wyliczane z t (np. bazowe ziarno + t,
+  SplittableRandom), więc wynik nie zależy od liczby wątków. Liczone
+  równolegle, przerywane po Stop.
+- p = (1 + liczba tasowań z licznikiem >= obserwowany) / (B + 1); najmniejsze
+  możliwe ok. 0.001, pokazywane jako "p < 0.001".
+- z = (obserwowany - średnia z tasowań) / odchylenie standardowe z tasowań;
+  sd = 0 -> brak wartości. z to tylko skala pomocnicza, właściwą miarą jest p.
+- Z tych samych liczników: "Random choice: <średnia>% (90% range a-b%)".
+- Koszt (szacunek do potwierdzenia pomiarem): 10 lat x 10 000 zestawów x 1000
+  tasowań to kilka do kilkunastu sekund na wszystkich rdzeniach. 16 lat (12 870
+  podziałów) to ok. 50 razy więcej; wtedy mniej tasowań albo próbka podziałów.
+
+Teksty w UI (opis jednym zdaniem):
+- p-value: "How often this pool, with each year's results dealt to parameter
+  sets at random, puts the chosen set above the test median at least as often;
+  below 0.05 the edge of picking the best set over a random one is unlikely to
+  be luck."
+- z-score: "How many standard deviations of the shuffled pools the result is
+  above their mean."
+
+Testy:
+- Ten sam wynik przy każdym uruchomieniu (stałe ziarno, różna liczba wątków).
+- Ranking idealnie trwały między latami daje najmniejsze możliwe p.
+- Ranking odwrócony między latami daje p bliskie 1.
+
+
+7. KROK 4 - backend (studio)
+----------------------------
+OverfittingApi (wzór: OptimizationApi), rejestracja w WebApp:
+- GET /api/overfitting/options: strategie, dozwolone sposoby wyboru
+  parametrów (tylko Full permutation i Random), scorery (CAGR, Sharpe ratio,
+  Sortino ratio, Return on invested capital), wartości domyślne
+  (RunDefaults), max permutations.
+- GET /api/overfitting/years?start=&end=&trainingYears=: podgląd pod
+  formularzem ("Full years: 2016-2025 (10) - 252 splits"). Reguła pełnego roku
+  jest tylko w backendzie.
+- POST /api/overfitting: start zadania typu "overfitting". StartRequest: pola
+  jak w OptimizationApi bez resultVerifier, plus trainingYears; implementuje
+  Inputs.RunForm.
+- Walidacja: pełne lata (próg w sekcji 9), trainingYears od 1 do S-1, bez
+  GENETIC (genetyczny dopasowuje pulę do wszystkich lat, łącznie z
+  testowymi), scorer z dozwolonej listy.
+
+Przebieg zadania:
+- StrategyOptimizer z ResultVerifier.NONE. Weryfikatory zwracają przebieg,
+  który jest medianą wyniku na całym okresie, czyli używają lat testowych;
+  FUZZY_START_TIME dodatkowo skraca pierwszy rok. Scorer optymalizatora:
+  odpowiadający istniejący (Cagr / SharpeRatio / SortinoRatio /
+  ReturnOnInvestedCapital); przy
+  FULL_PERMUTATION i RANDOM nie wpływa na wybór zestawów.
+- Callback onScore od razu zamienia Account na Candidate. Konta nie są
+  przechowywane; pamięć to ok. 10 000 x 10 lat x 5 liczb.
+- Sprawdzenie, że każde konto ma te same sesje co pierwsze; inaczej błąd.
+- Co ok. 2 s raport przeliczany z dotychczasowej puli i wysyłany:
+  channel.replace("report", ...), plus "iterations".
+- Po zakończeniu lub po Stop: raport końcowy, potem tasowania z postępem
+  ("shuffles"), potem raport z p.
+- Stop przy Full permutation: w raporcie ostrzeżenie, że siatka jest niepełna
+  i nierównomierna. Przy Random pula po Stop to nadal losowa próbka.
+
+
+8. KROK 5 - frontend (studio/frontend)
+--------------------------------------
+- Nowy ekran pages/OverfittingCheck.tsx, trasa /overfitting w index.tsx,
+  pozycja "Overfitting check" w grupie Research w components/Layout.tsx.
+- Select i ParamsDialog przenieść z Optimization.tsx do components/ (bez zmian
+  zachowania Optimization).
+- Lewy panel: Strategy, Start time, End time, Commission rate, Initial capital,
+  Parameters selection (Full permutation / Random), Max permutations,
+  Result scorer (4 opcje), Training years (domyślnie połowa pełnych lat).
+  Pod datami linia podglądu z /api/overfitting/years. Licznik iteracji, postęp
+  tasowań, Start i Stop. Bez pola Result verifier.
+- Prawy panel:
+  - StatTiles z kafelkami z sekcji 5; przy p-value i z-score opisy z sekcji 6,
+  - Tabs: Splits, Chosen sets, Years, Top results (VirtualTable; przy
+    parametrach View -> ParamsDialog z Copy),
+  - histogram percentyli testowych w uPlot (słupki).
+- Odtwarzanie po ponownym otwarciu GUI: createJob('overfitting', { restore,
+  event, ... }) jak w Optimization.tsx.
+- Sprawdzenie: npm run build, potem ręcznie w działającym studio (skill run).
+- Na koniec pomiar czasu na prawdziwych danych (10 lat, 10 000 zestawów);
+  ewentualna korekta B lub limitu podziałów.
+
+
+9. OTWARTE DECYZJE (ustalić z użytkownikiem przed startem)
+---------------------------------------------------------
+1. Usunięcie ProfitableMarkets jest niezacommitowane na full_stats.
+   Propozycja: zacommitować osobno, a test zacząć na nowej gałęzi od main.
+2. Minimalna liczba pełnych lat. Propozycja: poniżej 4 błąd; 4-7 start z
+   ostrzeżeniem (6-35 podziałów; wynik opiera się tylko na kilku latach).
+3. Reguła pełnego roku (sekcja 4, FullYears): potwierdzić przy implementacji.
+(Rozstrzygnięte 2026-10-29: prowizja wejścia w ROIC tylko zmniejsza kapitał;
+ROIC jest w SCORERS, więc także w Optimization i Better exits.)
+
+
+10. POZA ZAKRESEM (na przyszłość)
+---------------------------------
+- Filtry odrzucające zestawy przed podziałem (liczba transakcji, zysk na
+  transakcję, NAV/DD). Odłożone przez użytkownika. Wynik symulacji z sesji:
+  filtr po wynikach policzony na całym okresie mocno zaniża test, np. przy
+  wyraźnej przewadze 84% -> 40% (filtr: najlepsze 20%), bo widzi lata
+  testowe. Filtr po liczbie transakcji zniekształca mało. Filtry po wynikach
+  trzeba by liczyć w każdym podziale tylko na latach treningowych.
+- Alfa Jensena: dałoby się ją łączyć, gdyby okresy stałej rf cięć też na
+  przełomie roku (beta i alfa per grupa, średnia ważona liczbą sesji;
+  łączenie grup bez bety tylko w obrębie roku). Odłożone.
+- Weryfikatory (REMOVE_MARKETS, REMOVE_ORDERS, FUZZY_START_TIME) i wybór
+  GENETIC w tym teście.
+- Walk-forward (trening tylko na latach wcześniejszych niż test) jako
+  uzupełnienie: CSCV nie patrzy na kolejność czasu.

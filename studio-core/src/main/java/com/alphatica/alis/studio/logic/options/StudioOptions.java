@@ -12,7 +12,7 @@ import com.alphatica.alis.trading.account.scorer.Expectancy;
 import com.alphatica.alis.trading.account.scorer.JensensAlpha;
 import com.alphatica.alis.trading.account.scorer.NavAdjustedForMaxDD;
 import com.alphatica.alis.trading.account.scorer.NetAssetValue;
-import com.alphatica.alis.trading.account.scorer.ProfitableMarkets;
+import com.alphatica.alis.trading.account.scorer.ReturnOnInvestedCapital;
 import com.alphatica.alis.trading.account.scorer.ReturnToMaxDownsideDD;
 import com.alphatica.alis.trading.account.scorer.SharpeRatio;
 import com.alphatica.alis.trading.account.scorer.SortinoRatio;
@@ -38,9 +38,10 @@ public final class StudioOptions {
 
 	public static final Map<String, ParametersSelection> PARAMETERS_SELECTIONS = parametersSelections();
 
-	public static final Map<String, ScorerOption> EXIT_SCORERS = ordered(
+	public static final Map<String, ScorerOption> SCORERS = ordered(
 			Map.entry("Net asset value", ScorerOption.of(NetAssetValue::new)),
 			Map.entry("CAGR", ScorerOption.of(Cagr::new)),
+			Map.entry("Return on invested capital", ScorerOption.of(ReturnOnInvestedCapital::new)),
 			Map.entry("Trade expectancy", ScorerOption.of(Expectancy::new)),
 			Map.entry("NAV / max drawdown", ScorerOption.of(NavAdjustedForMaxDD::new)),
 			Map.entry("Return / max downside DD", ScorerOption.of(ReturnToMaxDownsideDD::new)),
@@ -48,8 +49,6 @@ public final class StudioOptions {
 			Map.entry("Sortino ratio", ScorerOption.of(() -> new SortinoRatio(RiskFreeRatesProvider.get(), RatioStats.COUNTRY))),
 			Map.entry("Calmar ratio", ScorerOption.of(CalmarRatio::new)),
 			Map.entry("Jensen's alpha", StudioOptions::jensensAlpha));
-
-	public static final Map<String, ScorerOption> SCORERS = withProfitableMarkets();
 
 	private StudioOptions() {
 	}
@@ -68,12 +67,6 @@ public final class StudioOptions {
 		for (ParametersSelection selection : ParametersSelection.values()) {
 			map.put(selection.getText(), selection);
 		}
-		return Collections.unmodifiableMap(map);
-	}
-
-	private static Map<String, ScorerOption> withProfitableMarkets() {
-		Map<String, ScorerOption> map = new LinkedHashMap<>(EXIT_SCORERS);
-		map.put("Max profitable markets", ScorerOption.of(ProfitableMarkets::new));
 		return Collections.unmodifiableMap(map);
 	}
 

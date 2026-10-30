@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,6 +48,28 @@ class JobRegistryTest {
 			release.countDown();
 		}
 		awaitFinished(job);
+	}
+
+	@Test
+	void runsCancelActionOnEveryRequestWhileRunning() throws InterruptedException {
+		CountDownLatch registered = new CountDownLatch(1);
+		CountDownLatch release = new CountDownLatch(1);
+		AtomicInteger stops = new AtomicInteger();
+		Job job = registry.start("overfitting", null, running -> {
+			running.onCancel(stops::incrementAndGet);
+			registered.countDown();
+			release.await();
+		});
+		assertTrue(registered.await(5, TimeUnit.SECONDS));
+		job.cancel();
+		job.cancel();
+		assertEquals(2, stops.get());
+		release.countDown();
+		awaitFinished(job);
+
+		job.cancel();
+
+		assertEquals(2, stops.get());
 	}
 
 	@Test

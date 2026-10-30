@@ -2,11 +2,12 @@
 // trades and orders on the right. Orders and trades arrive live from the backtest job. The jobs and their output live
 // on the backend: after reopening the GUI the last backtest and the last comparison to random are shown again.
 
-import { createEffect, createRoot, createSignal, For, Show } from 'solid-js';
+import { createEffect, createRoot, createSignal, Show } from 'solid-js';
 import { api, download, type ErrorMessage, toErrorMessage } from '../api';
 import { EquityChart, type EquityMode, EquityModeSwitch } from '../components/EquityChart';
 import { ErrorBox, JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
+import { Select } from '../components/Select';
 import { Loaded } from '../components/Loaded';
 import { Modal } from '../components/Modal';
 import { StableLabel } from '../components/StableLabel';
@@ -15,57 +16,13 @@ import { Tabs } from '../components/Tabs';
 import { type ColumnSpec, formatRow, type Value } from '../format';
 import { createJob } from '../jobs';
 import { backtestOptions, type Equity, followDefaults, type Stat } from '../state';
-import { type RowSource, textColumns, VirtualTable, widestTracker } from '../table';
+import { type LiveRows, liveRows, textColumns, VirtualTable } from '../table';
 import { showError } from '../toasts';
 
 type Progress = { time: string; bar: number; bars: number };
 type BacktestView = { stats: Stat[]; equity: Equity };
 /** The form as sent to the backend (BacktestApi.BacktestRequest). */
 type BacktestInput = { strategy: string; startTime: string; endTime: string; commissionRate: string; initialCapital: string };
-
-/**
- * Rows appended by a job, formatted as text: kept in a plain array, `version` tells the table that more arrived.
- * Shown newest first: the table reads the array from its end, so appending does not copy it.
- */
-function liveRows() {
-  let rows: string[][] = [];
-  const [version, setVersion] = createSignal(0);
-  // Widest row per column, kept up to date while rows arrive, so the column widths do not change while scrolling
-  const tracker = widestTracker();
-  const [widest, setWidest] = createSignal<(string[] | undefined)[]>([]);
-  const source: RowSource<string[]> = {
-    count: () => {
-      version();
-      return rows.length;
-    },
-    row: (index) => {
-      version();
-      return rows[rows.length - 1 - index];
-    },
-  };
-  return {
-    source,
-    widest,
-    append: (items: string[][]) => {
-      let widestChanged = false;
-      // A loop, not push(...items): a batch may hold more rows than a call may take arguments
-      for (const item of items) {
-        rows.push(item);
-        widestChanged = tracker.add(item) || widestChanged;
-      }
-      setVersion((v) => v + 1);
-      if (widestChanged) {
-        setWidest([...tracker.rows]);
-      }
-    },
-    clear: () => {
-      rows = [];
-      tracker.clear();
-      setVersion((v) => v + 1);
-      setWidest([]);
-    },
-  };
-}
 
 // Kept outside the component, so the form, the running job and the last result survive switching screens.
 const [strategy, setStrategy] = createSignal('');
@@ -252,12 +209,7 @@ function SettingsForm(props: { strategies: string[] }) {
         }
       }}
     >
-      <div class="field">
-        <label for="backtest-strategy">Strategy</label>
-        <select id="backtest-strategy" value={strategy()} onChange={(event) => setStrategy(event.currentTarget.value)}>
-          <For each={props.strategies}>{(name) => <option value={name}>{name}</option>}</For>
-        </select>
-      </div>
+      <Select id="backtest-strategy" label="Strategy" value={strategy()} onChange={setStrategy} options={props.strategies} />
       <Field id="backtest-start" label="Start time" placeholder="yyyymmdd" inputmode="numeric" value={startTime()} onInput={setStartTime} />
       <Field id="backtest-end" label="End time" placeholder="yyyymmdd" inputmode="numeric" value={endTime()} onInput={setEndTime} />
       <Field
@@ -302,14 +254,14 @@ function BacktestEquity() {
           <Show when={view().equity.times.length > 0} fallback={<p class="muted">No sessions in the time range.</p>}>
             <EquityChart equity={view().equity} mode={equityMode()} stats={view().stats} fileName={resultStrategy() || 'backtest'} />
           </Show>
-          <StatTiles stats={view().stats} />
+          <StatTiles stats={view().stats} results />
         </>
       )}
     </Show>
   );
 }
 
-function LiveTable(props: { columns: ColumnSpec[]; rows: ReturnType<typeof liveRows>; empty: string }) {
+function LiveTable(props: { columns: ColumnSpec[]; rows: LiveRows; empty: string }) {
   const columns = textColumns(() => props.columns);
   return (
     <VirtualTable

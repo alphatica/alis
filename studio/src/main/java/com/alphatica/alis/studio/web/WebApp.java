@@ -40,6 +40,7 @@ final class WebApp {
 			new SignalsApi(jobs).register(config.routes);
 			new BacktestApi(jobs).register(config.routes);
 			new OptimizationApi(jobs).register(config.routes);
+			new WalkForwardApi(jobs).register(config.routes);
 			new BetterExitsApi(jobs).register(config.routes);
 			jobs.register(config.routes, hub);
 			hub.register(config.routes);

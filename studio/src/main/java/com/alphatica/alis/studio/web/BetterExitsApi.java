@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static com.alphatica.alis.studio.logic.options.StudioOptions.EXIT_SCORERS;
+import static com.alphatica.alis.studio.logic.options.StudioOptions.SCORERS;
 
 /**
  * Analysis → Find better exits: replays an account log loaded from a CSV file
@@ -58,7 +58,7 @@ final class BetterExitsApi {
 
 	private BetterExitsOptions options() {
 		LoadedFile file = loadedFile;
-		return new BetterExitsOptions(List.copyOf(EXIT_SCORERS.keySet()), DEFAULT_COMMISSION_RATE, file == null ? null : file.info(), RESULTS);
+		return new BetterExitsOptions(List.copyOf(SCORERS.keySet()), DEFAULT_COMMISSION_RATE, file == null ? null : file.info(), RESULTS);
 	}
 
 	/**
@@ -127,7 +127,7 @@ final class BetterExitsApi {
 		if (commissionRate >= 1) {
 			throw new ValidationException("Commission rate must be lower than 1");
 		}
-		return new Settings(marketData, file, commissionRate, Inputs.scorer(EXIT_SCORERS, request.scorer(), marketData));
+		return new Settings(marketData, file, commissionRate, Inputs.scorer(SCORERS, request.scorer(), marketData));
 	}
 
 	private record Settings(MarketData marketData, LoadedFile file, double commissionRate,
