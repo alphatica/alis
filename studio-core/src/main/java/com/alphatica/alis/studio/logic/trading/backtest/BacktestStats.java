@@ -8,9 +8,11 @@ import com.alphatica.alis.studio.logic.stats.Stat;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.account.SessionHistory;
 import com.alphatica.alis.trading.account.TradeStats;
+import com.alphatica.alis.trading.account.scorer.ReturnOnInvestedCapital;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class BacktestStats {
 
@@ -31,9 +33,10 @@ public final class BacktestStats {
 		BacktestStats backtestStats = new BacktestStats();
 		Account account = result.account();
 		SessionHistory sessions = account.getAccountHistory().getSessions();
-		backtestStats.stats.add(Stat.number("Final account value", account.getNAV(), 0));
 		backtestStats.stats.add(RatioStats.totalReturn(sessions));
 		backtestStats.stats.add(RatioStats.cagr(sessions));
+		backtestStats.stats.add(Stat.percent("Return on invested capital",
+				new ReturnOnInvestedCapital().score(account, Map.of()), 2));
 		backtestStats.stats.add(Stat.percent("Max drawdown", account.getMaxDD(), 0));
 		backtestStats.stats.add(Stat.percent("Max downside drawdown", account.getMaxDownsideDD(), 0));
 		backtestStats.stats.addAll(RatioStats.of(sessions, account.getMaxDD(), account.getMaxDownsideDD(), marketData,
