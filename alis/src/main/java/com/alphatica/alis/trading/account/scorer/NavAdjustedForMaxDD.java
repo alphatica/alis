@@ -7,6 +7,6 @@ import java.util.Map;
 public class NavAdjustedForMaxDD implements AccountScorer {
 	@Override
 	public double score(Account account, Map<String, Double> customStats) {
-		return account.getNAV() / -account.getMaxDD();
+		return Scores.finiteOrZero(account.getNAV() / -account.getMaxDD());
 	}
 }

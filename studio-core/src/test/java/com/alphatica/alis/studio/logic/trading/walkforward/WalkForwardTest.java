@@ -12,6 +12,7 @@ import com.alphatica.alis.studio.logic.trading.walkforward.WalkForwardWindows.Wi
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.account.PositionPricesRecord;
 import com.alphatica.alis.trading.account.scorer.NetAssetValue;
+import com.alphatica.alis.trading.optimizer.ParametersSelection;
 import com.alphatica.alis.trading.optimizer.params.IntParam;
 import com.alphatica.alis.trading.order.Direction;
 import com.alphatica.alis.trading.order.Order;
@@ -20,12 +21,16 @@ import com.alphatica.alis.trading.strategy.Strategy;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.IntToDoubleFunction;
 
 import static com.alphatica.alis.trading.optimizer.ParametersSelection.FULL_PERMUTATION;
+import static com.alphatica.alis.trading.optimizer.ParametersSelection.GENETIC;
+import static com.alphatica.alis.trading.optimizer.ParametersSelection.RANDOM;
 import static com.alphatica.alis.trading.optimizer.ResultVerifier.NONE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -136,6 +141,93 @@ class WalkForwardTest {
 
 		assertEquals(List.of(Map.of("market", 0), Map.of("market", 0)),
 				result.windows().stream().map(window -> window.optimized().params()).toList());
+	}
+
+	@Test
+	void shouldScoreBestParametersOfPreviousWindowWithRandomSelection() throws Exception {
+		List<List<Integer>> scored = new ArrayList<>();
+		WalkForward walkForward = recordingWalkForward(RANDOM, 1, scored);
+
+		Result result = walkForward.run(recordingListener(scored), (time, account, orders) -> {
+		});
+
+		assertEquals(2, scored.size());
+		assertEquals(List.of(scored.get(0).getFirst()), scored.get(1));
+		assertEquals(result.windows().get(0).optimized().params(), result.windows().get(1).optimized().params());
+	}
+
+	@Test
+	void shouldScoreBestParametersOfPreviousWindowOnceWithGeneticSelection() throws Exception {
+		List<List<Integer>> scored = new ArrayList<>();
+		WalkForward walkForward = recordingWalkForward(GENETIC, 4, scored);
+
+		Result result = walkForward.run(recordingListener(scored), (time, account, orders) -> {
+		});
+
+		int previousBest = (int) result.windows().get(0).optimized().params().get("value");
+		assertEquals(4, scored.get(0).size());
+		assertEquals(4, scored.get(1).size());
+		assertEquals((int) Collections.max(scored.get(0)), previousBest);
+		assertEquals(previousBest, scored.get(1).getFirst());
+		assertEquals(Collections.max(scored.get(1)), result.windows().get(1).optimized().params().get("value"));
+	}
+
+	@Test
+	void shouldNotRepeatPreviousParametersWithFullPermutation() throws Exception {
+		List<List<Integer>> scored = new ArrayList<>();
+		WalkForward walkForward = recordingWalkForward(FULL_PERMUTATION, 100, scored);
+
+		walkForward.run(recordingListener(scored), (time, account, orders) -> {
+		});
+
+		assertEquals(100, scored.get(1).size());
+		assertEquals(100, new HashSet<>(scored.get(1)).size());
+	}
+
+	private static WalkForward recordingWalkForward(ParametersSelection selection, long iterations,
+													List<List<Integer>> scored) {
+		BacktestSettings settings = new BacktestSettings(new Time(0), new Time(0), 0.001, 100_000, Recorded::new);
+		return new WalkForward(settings, TestMarkets.of(Map.of("a", A)), () -> (account, stats) -> {
+			int value = stats.get("value").intValue();
+			synchronized (scored) {
+				scored.getLast().add(value);
+			}
+			return value;
+		}, NONE, selection, iterations, TWO_YEARS);
+	}
+
+	private static WalkForward.Listener recordingListener(List<List<Integer>> scored) {
+		return new WalkForward.Listener() {
+			@Override
+			public void windowStarted(Window window, int windows) {
+				synchronized (scored) {
+					scored.add(new ArrayList<>());
+				}
+			}
+
+			@Override
+			public void iterations(int iterations) {
+			}
+
+			@Override
+			public void windowOptimized(OptimizedWindow window) {
+			}
+		};
+	}
+
+	static final class Recorded extends Strategy {
+		@IntParam(start = 0, step = 1, end = 99)
+		int value;
+
+		@Override
+		public List<Order> afterClose(TimeMarketDataSet data, Account account) {
+			return List.of();
+		}
+
+		@Override
+		public Map<String, Double> getCustomStats() {
+			return Map.of("value", (double) value);
+		}
 	}
 
 	private static WalkForward walkForward(MarketData data) {

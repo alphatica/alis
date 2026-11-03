@@ -19,6 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SignalOptimizerTest {
@@ -56,6 +58,38 @@ class SignalOptimizerTest {
 		assertEquals(2, executors.get());
 		assertEquals(2, scorers.get());
 		assertTrue(output.toString().contains("enabled = true;"));
+	}
+
+	@Test
+	void shouldRethrowFailureOfScoring() throws OptimizerException {
+		IllegalStateException failure = new IllegalStateException("scorer failed");
+		var optimizer = new SignalOptimizer(OptimizedSignalGenerator::new, new TestData("market"),
+				() -> new SignalExecutor().withTimeRange(new Time(10), new Time(13)),
+				() -> (execution, replay) -> {
+					throw failure;
+				}, AllocationPolicy.STOP_ON_FIRST_REJECTION, ParametersSelection.RANDOM, 1.0);
+
+		assertSame(failure, assertThrows(IllegalStateException.class, optimizer::run));
+	}
+
+	@Test
+	void shouldStopGeneticSelectionWhenAllParamsWereScored() throws OptimizerException {
+		AtomicInteger scores = new AtomicInteger();
+		var optimizer = new SignalOptimizer(OptimizedSignalGenerator::new, new TestData("market"),
+				() -> new SignalExecutor().withTimeRange(new Time(10), new Time(13)),
+				() -> (execution, replay) -> {
+					scores.incrementAndGet();
+					return replay.acceptedTradeCount();
+				}, AllocationPolicy.STOP_ON_FIRST_REJECTION, ParametersSelection.GENETIC, 1.0);
+		PrintStream originalOut = System.out;
+		try {
+			System.setOut(new PrintStream(new ByteArrayOutputStream()));
+			optimizer.run();
+		} finally {
+			System.setOut(originalOut);
+		}
+
+		assertEquals(2, scores.get());
 	}
 
 	private static final class OptimizedSignalGenerator extends SignalGenerator {

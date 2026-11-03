@@ -117,7 +117,7 @@ public final class WalkForward {
 				break;
 			}
 			listener.windowStarted(window, windows.size());
-			OptimizedWindow result = optimize(window, listener);
+			OptimizedWindow result = optimize(window, seeds(optimized), listener);
 			if (result == null) {
 				break;
 			}
@@ -131,8 +131,16 @@ public final class WalkForward {
 		return new Result(tested(optimized, backtest.account()), backtest);
 	}
 
+	private List<Map<String, Object>> seeds(List<OptimizedWindow> optimized) {
+		if (optimized.isEmpty() || parametersSelection == ParametersSelection.FULL_PERMUTATION) {
+			return List.of();
+		}
+		return List.of(optimized.getLast().params());
+	}
+
 	/** The window's best parameters; null when stopped before the optimization ended. */
-	private OptimizedWindow optimize(Window window, Listener listener) throws OptimizerException {
+	private OptimizedWindow optimize(Window window, List<Map<String, Object>> seeds, Listener listener)
+			throws OptimizerException {
 		BacktestSettings training = new BacktestSettings(window.trainingStart(), window.trainingEnd(),
 				settings.commissionRate(), settings.initialCapital(), settings.strategyFactory());
 		StrategyOptimizer optimizer = new OptimizationRequest(training, marketData, scorerFactory, resultVerifier,
@@ -143,7 +151,7 @@ public final class WalkForward {
 			optimizer.optimize((score, account) -> {
 				best.offer(score);
 				listener.iterations(optimizer.getLoopCount());
-			});
+			}, seeds);
 			// The count grows after each call above: the last one comes now
 			listener.iterations(optimizer.getLoopCount());
 		}

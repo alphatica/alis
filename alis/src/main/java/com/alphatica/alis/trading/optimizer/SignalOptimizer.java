@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
@@ -27,6 +28,7 @@ public class SignalOptimizer extends Optimizer {
 	private final AllocationPolicy allocationPolicy;
 	private final ParamsSelector paramsSelector;
 	private final AtomicBoolean isStopped = new AtomicBoolean(false);
+	private final AtomicReference<RuntimeException> failure = new AtomicReference<>();
 
 	private double bestScore;
 
@@ -56,12 +58,21 @@ public class SignalOptimizer extends Optimizer {
 			threads.add(thread);
 		}
 		waitForThreads(threads);
+		RuntimeException exception = failure.get();
+		if (exception != null) {
+			throw exception;
+		}
 	}
 
 	private Thread startWork() {
 		Runnable runnable = () -> {
 			while(!isStopped.get()) {
-				optimizeOnce();
+				try {
+					optimizeOnce();
+				} catch (RuntimeException e) {
+					failure.compareAndSet(null, e);
+					isStopped.set(true);
+				}
 			}
 		};
 		Thread t = new Thread(runnable);

@@ -45,6 +45,16 @@ public class StrategyOptimizer extends Optimizer {
 	 * @param onScore called for every scored set of parameters, one call at a time
 	 */
 	public void optimize(BiConsumer<OptimizerScore, Account> onScore) throws OptimizerException {
+		optimize(onScore, List.of());
+	}
+
+	public void optimize(BiConsumer<OptimizerScore, Account> onScore, List<Map<String, Object>> seeds) throws OptimizerException {
+		for (Map<String, Object> seed : seeds) {
+			if (iterationsStarted.incrementAndGet() > maxCounter || isStopped.get()) {
+				break;
+			}
+			runIteration(() -> score(seed, false, onScore));
+		}
 		int processors = Runtime.getRuntime().availableProcessors();
 		List<Thread> threads = new ArrayList<>();
 		for (int i = 0; i < processors; i++) {
@@ -60,17 +70,25 @@ public class StrategyOptimizer extends Optimizer {
 	private Thread startWork(BiConsumer<OptimizerScore, Account> onScore) {
 		Runnable task = () -> {
 			while (iterationsStarted.incrementAndGet() <= maxCounter && !isStopped.get()) {
-				try {
-					optimizeOnce(onScore);
-					counter.incrementAndGet();
-				} catch (IllegalAccessException e) {
-					fail(e);
-				}
+				runIteration(() -> optimizeOnce(onScore));
 			}
 		};
 		Thread thread = new Thread(task);
 		thread.start();
 		return thread;
+	}
+
+	private interface Iteration {
+		void run() throws IllegalAccessException;
+	}
+
+	private void runIteration(Iteration iteration) {
+		try {
+			iteration.run();
+			counter.incrementAndGet();
+		} catch (IllegalAccessException | RuntimeException e) {
+			fail(e);
+		}
 	}
 
 	private void fail(Exception e) {
@@ -94,14 +112,21 @@ public class StrategyOptimizer extends Optimizer {
 		if (nextParams.isEmpty()) {
 			return;
 		}
-		verifier.verify(resultVerifier, nextParams)
-				.ifPresent(result -> registerScore(result.score(), result.account(), nextParams, onScore));
+		score(nextParams, true, onScore);
+	}
+
+	private void score(Map<String, Object> params, boolean toSelector, BiConsumer<OptimizerScore, Account> onScore)
+			throws IllegalAccessException {
+		verifier.verify(resultVerifier, params)
+				.ifPresent(result -> registerScore(result.score(), result.account(), params, toSelector, onScore));
 	}
 
 	private synchronized void registerScore(double score, Account account, Map<String, Object> parameters,
-											BiConsumer<OptimizerScore, Account> onScore) {
+											boolean toSelector, BiConsumer<OptimizerScore, Account> onScore) {
 		OptimizerScore newScore = new OptimizerScore(score, parameters);
-		paramsSelector.registerScore(newScore);
+		if (toSelector) {
+			paramsSelector.registerScore(newScore);
+		}
 		onScore.accept(newScore, account);
 	}
 

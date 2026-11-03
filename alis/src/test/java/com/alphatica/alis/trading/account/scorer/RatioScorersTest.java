@@ -166,6 +166,25 @@ class RatioScorersTest {
 		assertEquals(0, new ReturnToMaxDownsideDD().score(new Account(1000), Map.of()));
 	}
 
+	@Test
+	void shouldScoreNavOverMaxDrawdown() throws AccountActionException {
+		Account account = tradedAccount();
+
+		double score = new NavAdjustedForMaxDD().score(account, Map.of());
+
+		assertEquals(1105 / (100 - 940.0 / 1050 * 100), score, 1e-9);
+	}
+
+	@Test
+	void shouldScoreZeroNavOverMaxDrawdownWithoutDrawdown() throws AccountActionException {
+		Account account = new Account(1000);
+		account.addPosition(MARKET, new PositionEntry(TIMES.getFirst(), 10, 50), 0);
+		account.updateLastKnown(prices(55, TIMES.get(0)));
+
+		assertEquals(0, new NavAdjustedForMaxDD().score(account, Map.of()));
+		assertEquals(0, new NavAdjustedForMaxDD().score(new Account(1000), Map.of()));
+	}
+
 	private static Account tradedAccount() throws AccountActionException {
 		Account account = new Account(1000);
 		account.addPosition(MARKET, new PositionEntry(TIMES.getFirst(), 10, 50), 0);
