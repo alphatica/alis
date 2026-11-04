@@ -40,10 +40,10 @@ esac
 if command -v appimagetool >/dev/null 2>&1; then
     APPIMAGETOOL="$(command -v appimagetool)"
 else
-    APPIMAGETOOL="$TOOLS_DIR/appimagetool-$APPIMAGE_ARCH.AppImage"
+    APPIMAGETOOL="$TOOLS_DIR/appimagetool-static-$APPIMAGE_ARCH.AppImage"
     if [[ ! -x "$APPIMAGETOOL" ]]; then
         mkdir -p "$TOOLS_DIR"
-        DOWNLOAD_URL="https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-$APPIMAGE_ARCH.AppImage"
+        DOWNLOAD_URL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$APPIMAGE_ARCH.AppImage"
         echo "Pobieranie appimagetool dla $APPIMAGE_ARCH..."
         if command -v curl >/dev/null 2>&1; then
             curl --fail --location --output "$APPIMAGETOOL" "$DOWNLOAD_URL"
