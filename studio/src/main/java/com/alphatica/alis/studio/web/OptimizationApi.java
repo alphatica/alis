@@ -9,12 +9,10 @@ import com.alphatica.alis.studio.strategy.StrategyList;
 import com.alphatica.alis.studio.web.jobs.Job;
 import com.alphatica.alis.studio.web.jobs.JobRegistry;
 import com.alphatica.alis.tools.java.TopResults;
-import com.alphatica.alis.trading.account.Account;
-import com.alphatica.alis.trading.account.ReturnRatios;
-import com.alphatica.alis.trading.account.TradeStats;
 import com.alphatica.alis.trading.optimizer.OptimizerException;
 import com.alphatica.alis.trading.optimizer.OptimizerScore;
 import com.alphatica.alis.trading.optimizer.ParametersSelection;
+import com.alphatica.alis.trading.optimizer.ResultStats;
 import com.alphatica.alis.trading.optimizer.StrategyOptimizer;
 import com.alphatica.alis.trading.strategy.Strategy;
 import io.javalin.config.RoutesConfig;
@@ -30,6 +28,7 @@ import static com.alphatica.alis.studio.logic.options.StudioOptions.PARAMETERS_S
 import static com.alphatica.alis.studio.logic.options.StudioOptions.RESULT_VERIFIERS;
 import static com.alphatica.alis.studio.logic.options.StudioOptions.SCORERS;
 import static com.alphatica.alis.trading.optimizer.ParametersSelection.FULL_PERMUTATION;
+import static com.alphatica.alis.trading.optimizer.ParametersSelection.GENETIC;
 
 /**
  * Strategies → Optimization: searches strategy parameters and streams the best 100 results found so far and the
@@ -87,20 +86,26 @@ final class OptimizationApi {
 		} catch (OptimizerException e) {
 			throw new ValidationException(e.getMessage());
 		}
-		Job job = jobs.start(JOB_TYPE, request, running -> run(running, optimizer));
+		Job job = jobs.start(JOB_TYPE, request, running -> run(running, optimizer, selection));
 		ctx.json(Map.of("jobId", job.id()));
 	}
 
-	private static void run(Job job, StrategyOptimizer optimizer) throws OptimizerException {
-		TopResults<Result> topResults = new TopResults<>(TOP_RESULTS, Comparator.comparingDouble(r -> -r.score()));
+	private static void run(Job job, StrategyOptimizer optimizer, ParametersSelection selection)
+			throws OptimizerException {
+		TopResults<Result> topResults = topResults(selection);
 		job.onCancel(optimizer::stop);
 		optimizer.optimize((score, account) -> {
-			if (topResults.add(Result.of(score, account))) {
+			if (topResults.add(Result.of(score))) {
 				job.channel().replace("results", topResults.list());
 			}
 			job.channel().replace("iterations", optimizer.getLoopCount());
 		});
 		job.channel().replace("iterations", optimizer.getLoopCount());
+	}
+
+	static TopResults<Result> topResults(ParametersSelection selection) {
+		Comparator<Result> order = Comparator.comparingDouble(r -> -r.score());
+		return new TopResults<>(TOP_RESULTS, order, selection == GENETIC ? Result::cells : null);
 	}
 
 	/**
@@ -111,16 +116,13 @@ final class OptimizationApi {
 	 */
 	record Result(double score, List<Object> cells, List<String> params) {
 
-		static Result of(OptimizerScore score, Account account) {
-			TradeStats stats = account.getStats();
-			long profitableMarkets = account.countProfitableMarkets();
-			long allMarkets = profitableMarkets + account.countUnprofitableMarkets();
-			double returnToDownsideDD = ReturnRatios.returnToMaxDrawdown(
-					account.getAccountHistory().getSessions().totalReturnPercent(), account.getMaxDownsideDD());
-			return new Result(score.score(), Arrays.asList(score.score(), account.getNAV(), account.getMaxDD(),
+		static Result of(OptimizerScore score) {
+			ResultStats stats = score.stats();
+			double returnToDownsideDD = stats.returnToMaxDownsideDD();
+			return new Result(score.score(), Arrays.asList(score.score(), stats.nav(), stats.maxDD(),
 					Double.isFinite(returnToDownsideDD) ? returnToDownsideDD : null, stats.trades(), stats.accuracy(),
 					stats.expectancy(), stats.profitFactor(), stats.profitPerTrade(),
-					100.0 * profitableMarkets / allMarkets), score.formatParamsAsJavaCode());
+					stats.profitableMarketsPercent()), score.formatParamsAsJavaCode());
 		}
 	}
 

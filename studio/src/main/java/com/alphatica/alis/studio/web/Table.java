@@ -2,6 +2,8 @@ package com.alphatica.alis.studio.web;
 
 import com.alphatica.alis.studio.logic.table.Column;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -16,6 +18,20 @@ public record Table(List<Column> columns, List<Object[]> rows, String emptyMessa
 		int from = Math.min(offset, rows.size());
 		int to = Math.min(rows.size(), from + limit);
 		return new TablePage(columns, rows.size(), from, rows.subList(from, to), emptyMessage);
+	}
+
+	public Table sortedBy(int column, boolean descending) {
+		if (column < 0 || column >= columns.size() || columns.get(column).kind() == Column.Kind.TEXT) {
+			throw new ValidationException("Column " + column + " cannot be sorted");
+		}
+		Comparator<Double> order = descending ? Comparator.reverseOrder() : Comparator.naturalOrder();
+		List<Object[]> sorted = new ArrayList<>(rows);
+		sorted.sort(Comparator.comparing(row -> sortKey(row[column]), Comparator.nullsLast(order)));
+		return new Table(columns, sorted, emptyMessage);
+	}
+
+	private static Double sortKey(Object value) {
+		return value instanceof Number number && !Double.isNaN(number.doubleValue()) ? number.doubleValue() : null;
 	}
 
 	/**

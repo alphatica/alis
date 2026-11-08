@@ -13,10 +13,10 @@ import { Modal } from '../components/Modal';
 import { StableLabel } from '../components/StableLabel';
 import { StatTiles } from '../components/StatTiles';
 import { Tabs } from '../components/Tabs';
-import { type ColumnSpec, formatRow, type Value } from '../format';
+import { type ColumnSpec, type Value } from '../format';
 import { createJob } from '../jobs';
 import { backtestOptions, type Equity, followDefaults, type Stat } from '../state';
-import { type LiveRows, liveRows, textColumns, VirtualTable } from '../table';
+import { type LiveRows, liveRows, textColumns, textRow, VirtualTable } from '../table';
 import { showError } from '../toasts';
 
 type Progress = { time: string; bar: number; bars: number };
@@ -46,9 +46,9 @@ function addRows(event: string, rows: Value[][]) {
   if (!options) {
     waitingRows.push({ event, rows });
   } else if (event === 'orders') {
-    orders.append(rows.map((row) => formatRow(options.orders, row)));
+    orders.append(rows.map((row) => textRow(options.orders, row)));
   } else {
-    trades.append(rows.map((row) => formatRow(options.trades, row)));
+    trades.append(rows.map((row) => textRow(options.trades, row)));
   }
 }
 

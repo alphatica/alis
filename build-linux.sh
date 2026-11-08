@@ -65,6 +65,7 @@ cp studio/src/main/resources/splash.png studio/target/splash.png
 
 jpackage \
     --java-options '-splash:$APPDIR/splash.png' \
+    --java-options '-Xmx128g' \
     --type app-image \
     --name "$LAUNCHER_NAME" \
     --input studio/target \

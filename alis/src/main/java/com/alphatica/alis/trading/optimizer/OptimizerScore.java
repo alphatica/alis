@@ -3,25 +3,16 @@ package com.alphatica.alis.trading.optimizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-public record OptimizerScore(double score, Map<String, Object> params) implements Comparable<OptimizerScore> {
+public record OptimizerScore(double score, Map<String, Object> params, ResultStats stats) implements Comparable<OptimizerScore> {
+
+	public OptimizerScore(double score, Map<String, Object> params) {
+		this(score, params, null);
+	}
+
 	@Override
 	public int compareTo(OptimizerScore o) {
 		return Double.compare(score, o.score);
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
-		OptimizerScore that = (OptimizerScore) o;
-		return Double.compare(score, that.score) == 0 && Objects.equals(params, that.params);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(score, params);
 	}
 
 	public List<String> formatParamsAsJavaCode() {

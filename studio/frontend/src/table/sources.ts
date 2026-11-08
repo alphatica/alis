@@ -3,7 +3,7 @@
 import { type Accessor, createSignal } from 'solid-js';
 import { api, type ErrorMessage, toErrorMessage } from '../api';
 import { type ColumnSpec, formatRow, type Value } from '../format';
-import type { RowSource } from './VirtualTable';
+import type { RowSource, Sort } from './VirtualTable';
 
 /** Table as sent by the backend (Table.java): one value per column in each row, formatted by the GUI. */
 export type TableData = {
@@ -11,6 +11,12 @@ export type TableData = {
   rows: Value[][];
   emptyMessage: string;
 };
+
+export type TextRow = { values: Value[]; text: string[] };
+
+export function textRow(columns: ColumnSpec[], values: Value[]): TextRow {
+  return { values, text: formatRow(columns, values) };
+}
 
 /** Everything except the rows; sent with every page (Table.TablePage). */
 export type TableMeta = {
@@ -31,7 +37,7 @@ export function staticSource<R>(rows: Accessor<R[]>): RowSource<R> {
 }
 
 /** Rows are formatted as text when their page arrives. */
-export type PagedSource = RowSource<string[]> & {
+export type PagedSource = RowSource<TextRow> & {
   /** Undefined until the first page arrives. */
   data: Accessor<TableMeta | undefined>;
   error: Accessor<ErrorMessage | undefined>;
@@ -53,9 +59,10 @@ export function pagedSource(url: string): PagedSource {
   const [meta, setMeta] = createSignal<TableMeta>();
   const [error, setError] = createSignal<ErrorMessage>();
   const [version, setVersion] = createSignal(0);
-  let pages = new Map<number, string[][]>();
+  const [sort, setSort] = createSignal<Sort>();
+  let pages = new Map<number, TextRow[]>();
   // Pages from before the last load(): shown until their fresh version arrives, so a reload does not flash.
-  let stale = new Map<number, string[][]>();
+  let stale = new Map<number, TextRow[]>();
   let inFlight = new Set<number>();
   let generation = 0;
   let wanted = { first: 0, last: 0 };
@@ -68,16 +75,18 @@ export function pagedSource(url: string): PagedSource {
     const requestGeneration = generation;
     requests.add(page);
     const separator = url.includes('?') ? '&' : '?';
+    const order = sort();
+    const sortQuery = order ? `&sort=${order.column}&descending=${order.descending}` : '';
     api
       .get<TableMeta & { offset: number; rows: Value[][] }>(
-        `${url}${separator}offset=${page * PAGE_SIZE}&limit=${PAGE_SIZE}`,
+        `${url}${separator}offset=${page * PAGE_SIZE}&limit=${PAGE_SIZE}${sortQuery}`,
       )
       .then(
         (response) => {
           if (requestGeneration !== generation) {
             return;
           }
-          pages.set(page, response.rows.map((row) => formatRow(response.columns, row)));
+          pages.set(page, response.rows.map((row) => textRow(response.columns, row)));
           stale.delete(page);
           evict();
           setMeta({ columns: response.columns, total: response.total, emptyMessage: response.emptyMessage });
@@ -146,6 +155,13 @@ export function pagedSource(url: string): PagedSource {
     load,
     clear,
     request,
+    sort: {
+      current: sort,
+      set: (next) => {
+        setSort(next);
+        load();
+      },
+    },
     count: () => meta()?.total ?? 0,
     row: (index) => {
       version();

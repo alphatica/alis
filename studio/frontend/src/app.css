@@ -332,6 +332,13 @@ textarea:focus-visible {
 	border-color: var(--loss);
 }
 
+.btn.btn-flash {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--on-accent);
+	transition: none;
+}
+
 .btn:disabled {
 	opacity: 0.45;
 	cursor: not-allowed;
@@ -459,6 +466,41 @@ table.data tbody tr:not(.spacer):not(.sizer):hover td {
 
 table.data .num {
 	text-align: right;
+}
+
+table.data th.sorted {
+	color: var(--text);
+}
+
+.sort-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: 0;
+	background: none;
+	border: 0;
+	color: inherit;
+	font: inherit;
+	letter-spacing: inherit;
+	text-transform: inherit;
+	vertical-align: top;
+	cursor: pointer;
+}
+
+.sort-button:hover {
+	color: var(--text);
+}
+
+.sort-button:focus-visible {
+	outline: 1px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.sort-mark {
+	display: inline-block;
+	width: 1em;
+	font-size: 9px;
+	text-align: center;
 }
 
 table.data td.num {

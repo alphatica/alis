@@ -11,6 +11,7 @@ import com.alphatica.alis.trading.account.actions.Trade;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ public class Account {
 	private final DownsideDrawdownCalc downsideDrawdownCalc;
 	private final AccountHistory accountHistory;
 	private double cash;
+	private final Map<MarketName, Position> positionsView = Collections.unmodifiableMap(positions);
 
 	public Account(double cash) {
 		this.downsideDrawdownCalc = new DownsideDrawdownCalc(cash);
@@ -63,7 +65,7 @@ public class Account {
 	}
 
 	public Map<MarketName, Position> getPositions() {
-		return new HashMap<>(positions);
+		return positionsView;
 	}
 
 	public void addPosition(MarketName market, PositionEntry entry, double commission) throws AccountActionException {
@@ -87,6 +89,13 @@ public class Account {
 
 	public void reducePosition(MarketName market, PositionExit exit, double commission) throws AccountActionException {
 		Position position = positions.get(market);
+		if (reduce(market, position, exit, commission)) {
+			positions.remove(market);
+			addToHistory(position);
+		}
+	}
+
+	private boolean reduce(MarketName market, Position position, PositionExit exit, double commission) throws AccountActionException {
 		if (position == null || position.getUnits() < exit.units) {
 			throw new AccountActionException(format("Unable to sell %s of %s on %s", Quantities.format(exit.quantity()), market, exit.time));
 		}
@@ -96,10 +105,7 @@ public class Account {
 		double value = exit.price * exit.quantity();
 		double cashReceived = value - commission;
 		cash += cashReceived;
-		if (position.getUnits() == 0) {
-			Position removed = positions.remove(market);
-			addToHistory(removed);
-		}
+		return position.getUnits() == 0;
 	}
 
 	public void addCash(double cash) {
@@ -188,12 +194,18 @@ public class Account {
 	}
 
 	public void close(double commissionRate) throws AccountActionException {
-		for (Map.Entry<MarketName, Position> next : getPositions().entrySet()) {
-			double price = next.getValue().getLastClose();
-			double quantity = next.getValue().getQuantity();
+		var entries = positions.entrySet().iterator();
+		while (entries.hasNext()) {
+			var next = entries.next();
+			Position position = next.getValue();
+			double price = position.getLastClose();
+			double quantity = position.getQuantity();
 			PositionExit exit = new PositionExit(null, quantity, price);
 			double commissionValue = quantity * price * commissionRate;
-			reducePosition(next.getKey(), exit, commissionValue);
+			if (reduce(next.getKey(), position, exit, commissionValue)) {
+				entries.remove();
+				addToHistory(position);
+			}
 		}
 		downsideDrawdownCalc.updateState(getClosedEquity(), getNAV());
 		accountHistory.getSessions().revalueLast(getNAV());

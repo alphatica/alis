@@ -117,13 +117,13 @@ public class StrategyOptimizer extends Optimizer {
 
 	private void score(Map<String, Object> params, boolean toSelector, BiConsumer<OptimizerScore, Account> onScore)
 			throws IllegalAccessException {
-		verifier.verify(resultVerifier, params)
-				.ifPresent(result -> registerScore(result.score(), result.account(), params, toSelector, onScore));
+		verifier.verify(resultVerifier, params).ifPresent(result -> registerScore(
+				new OptimizerScore(result.score(), params, ResultStats.of(result.account())), result.account(), toSelector,
+				onScore));
 	}
 
-	private synchronized void registerScore(double score, Account account, Map<String, Object> parameters,
-											boolean toSelector, BiConsumer<OptimizerScore, Account> onScore) {
-		OptimizerScore newScore = new OptimizerScore(score, parameters);
+	private synchronized void registerScore(OptimizerScore newScore, Account account, boolean toSelector,
+											BiConsumer<OptimizerScore, Account> onScore) {
 		if (toSelector) {
 			paramsSelector.registerScore(newScore);
 		}

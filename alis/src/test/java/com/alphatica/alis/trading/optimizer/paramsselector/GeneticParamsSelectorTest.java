@@ -4,6 +4,7 @@ import com.alphatica.alis.trading.optimizer.OptimizerScore;
 import com.alphatica.alis.trading.optimizer.ParametersSelection;
 import com.alphatica.alis.trading.optimizer.ParamSteps;
 import com.alphatica.alis.trading.optimizer.ParamsStepsSet;
+import com.alphatica.alis.trading.optimizer.ResultStats;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -302,6 +303,52 @@ class GeneticParamsSelectorTest {
 	}
 
 	@Test
+	void shouldIgnoreRepeatedResultOfOtherParamsInPopulation() {
+		GeneticParamsSelector selector = singleParamSelector(new Random(59));
+		selector.registerScore(new OptimizerScore(5, Map.of("value", 1), noTrades()));
+		selector.registerScore(new OptimizerScore(5, Map.of("value", 2), noTrades()));
+
+		assertEquals(Set.of(1), parentFrequencies(selector).keySet());
+	}
+
+	@Test
+	void shouldNotProposeParamsOfRepeatedResultAgain() {
+		GeneticParamsSelector selector = singleParamSelector(new Random(61));
+		selector.registerScore(new OptimizerScore(5, Map.of("value", 1), noTrades()));
+		selector.registerScore(new OptimizerScore(5, Map.of("value", 2), noTrades()));
+
+		assertEquals(Map.of("value", 3), selector.next());
+		assertEquals(Map.of(), selector.next());
+	}
+
+	@Test
+	void shouldKeepResultsWithStatsDifferentInLastBit() {
+		GeneticParamsSelector selector = singleParamSelector(new Random(67));
+		selector.registerScore(new OptimizerScore(5, Map.of("value", 1), stats(110_000)));
+		selector.registerScore(new OptimizerScore(5, Map.of("value", 2), stats(Math.nextUp(110_000.0))));
+
+		assertEquals(Set.of(1, 2), parentFrequencies(selector).keySet());
+	}
+
+	@Test
+	void shouldKeepResultsWithScoresDifferentInLastBit() {
+		GeneticParamsSelector selector = singleParamSelector(new Random(71));
+		selector.registerScore(new OptimizerScore(5, Map.of("value", 1), stats(110_000)));
+		selector.registerScore(new OptimizerScore(Math.nextUp(5.0), Map.of("value", 2), stats(110_000)));
+
+		assertEquals(Set.of(1, 2), parentFrequencies(selector).keySet());
+	}
+
+	@Test
+	void shouldKeepEqualScoresWithoutStats() {
+		GeneticParamsSelector selector = singleParamSelector(new Random(73));
+		selector.registerScore(score(5, 1));
+		selector.registerScore(score(5, 2));
+
+		assertEquals(Set.of(1, 2), parentFrequencies(selector).keySet());
+	}
+
+	@Test
 	void shouldKeepPopulationOfSixtyFourScores() {
 		ParamsStepsSet paramsStepsSet = new ParamsStepsSet();
 		paramsStepsSet.addParamSteps("value", new ParamSteps(1, 1, 64));
@@ -376,5 +423,13 @@ class GeneticParamsSelectorTest {
 
 	private static OptimizerScore score(double score, int value) {
 		return new OptimizerScore(score, Map.of("value", value));
+	}
+
+	private static ResultStats noTrades() {
+		return new ResultStats(100_000, -0.0, Double.NaN, 0, 0, 0, 0, 0, Double.NaN);
+	}
+
+	private static ResultStats stats(double nav) {
+		return new ResultStats(nav, -12.5, 0.8, 40, 55, 0.3, 1.7, 1.2, 60);
 	}
 }

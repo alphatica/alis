@@ -2,21 +2,22 @@
 // widest cells can be measured and scrolling does not format them again.
 
 import { type Accessor, createMemo } from 'solid-js';
-import { type ColumnSpec, formatCell, formatRow, isNumeric, type Value } from '../format';
-import { type PagedSource, staticSource, type TableData } from './sources';
+import { type ColumnSpec, formatCell, isNumeric, type Value } from '../format';
+import { type PagedSource, staticSource, type TableData, type TextRow, textRow } from './sources';
 import { type Column, VirtualTable } from './VirtualTable';
 
 /**
- * Columns showing cell i of a row formatted by formatRow. Recomputed only when titles or alignment change, so
+ * Columns showing cell i of a text row. Recomputed only when titles or alignment change, so
  * loading another page or refreshing the data does not rebuild the table.
  */
-export function textColumns(specs: Accessor<ColumnSpec[] | undefined>): Accessor<Column<string[]>[]> {
+export function textColumns(specs: Accessor<ColumnSpec[] | undefined>): Accessor<Column<TextRow>[]> {
   return createMemo(
     () =>
       (specs() ?? []).map((spec, i) => ({
         title: spec.title,
         numeric: isNumeric(spec),
-        cell: (row: string[]) => row[i],
+        cell: (row: TextRow) => row.text[i],
+        sortKey: isNumeric(spec) ? (row: TextRow) => sortKey(row.values[i]) : undefined,
       })),
     [],
     {
@@ -32,13 +33,21 @@ export function valueColumns<R>(specs: ColumnSpec[], cells: (row: R) => Value[])
     title: spec.title,
     numeric: isNumeric(spec),
     cell: (row: R) => formatCell(spec, cells(row)[i]),
+    sortKey: isNumeric(spec) ? (row: R) => sortKey(cells(row)[i]) : undefined,
   }));
+}
+
+function sortKey(value: Value | undefined): number | null {
+  if (typeof value === 'number') {
+    return value;
+  }
+  return value === 'Infinity' ? Infinity : value === '-Infinity' ? -Infinity : null;
 }
 
 /** Whole table already in memory. */
 export function TextTable(props: { table: TableData; class?: string }) {
   const columns = textColumns(() => props.table.columns);
-  const rows = createMemo(() => props.table.rows.map((row) => formatRow(props.table.columns, row)));
+  const rows = createMemo(() => props.table.rows.map((row) => textRow(props.table.columns, row)));
   const widest = createMemo(() => widestRows(rows(), props.table.columns.length));
   return (
     <VirtualTable
@@ -65,7 +74,7 @@ export function PagedTable(props: { source: PagedSource; class?: string }) {
 }
 
 /** For each column, the row with the longest text in it (close enough to the widest cell). */
-function widestRows(rows: string[][], columnCount: number): (string[] | undefined)[] {
+function widestRows(rows: TextRow[], columnCount: number): (TextRow | undefined)[] {
   const tracker = widestTracker(columnCount);
   for (const row of rows) {
     tracker.add(row);
@@ -78,17 +87,17 @@ function widestRows(rows: string[][], columnCount: number): (string[] | undefine
  * so the whole table is not scanned again on every batch.
  */
 export function widestTracker(columnCount = 0) {
-  let widest: (string[] | undefined)[] = new Array(columnCount).fill(undefined);
+  let widest: (TextRow | undefined)[] = new Array(columnCount).fill(undefined);
   let lengths: number[] = new Array(columnCount).fill(-1);
   return {
     get rows() {
       return widest;
     },
     /** True when the row is the widest in at least one column. */
-    add(row: string[]): boolean {
+    add(row: TextRow): boolean {
       let changed = false;
-      for (let i = 0; i < Math.max(widest.length, row.length); i++) {
-        const length = row[i]?.length ?? 0;
+      for (let i = 0; i < Math.max(widest.length, row.text.length); i++) {
+        const length = row.text[i]?.length ?? 0;
         if (length > (lengths[i] ?? -1)) {
           lengths[i] = length;
           widest[i] = row;

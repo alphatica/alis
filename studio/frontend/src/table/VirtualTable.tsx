@@ -5,6 +5,7 @@ import {
   createSignal,
   For,
   type JSX,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -17,7 +18,10 @@ export type Column<R> = {
   /** Right-aligned, monospace digits. */
   numeric?: boolean;
   cell: (row: R) => JSX.Element;
+  sortKey?: (row: R) => number | null;
 };
+
+export type Sort = { column: number; descending: boolean };
 
 /**
  * Where the rows come from: all in memory (staticSource), pages fetched while scrolling (pagedSource),
@@ -29,6 +33,7 @@ export type RowSource<R> = {
   row: (index: number) => R | undefined;
   /** Rows start..end are on screen (plus a margin); a source may fetch them now. */
   request?: (start: number, end: number) => void;
+  sort?: { current: Accessor<Sort | undefined>; set: (sort: Sort | undefined) => void };
 };
 
 const ESTIMATED_ROW_HEIGHT = 32;
@@ -56,6 +61,50 @@ export function VirtualTable<R>(props: {
   const [scrollTop, setScrollTop] = createSignal(0);
   const [viewHeight, setViewHeight] = createSignal(INITIAL_VIEW_HEIGHT);
   const [rowHeight, setRowHeight] = createSignal(ESTIMATED_ROW_HEIGHT);
+  const [localSort, setLocalSort] = createSignal<Sort>();
+  const sort = () => (props.source.sort ? props.source.sort.current() : localSort());
+  const setSort = (next: Sort | undefined) => (props.source.sort ? props.source.sort.set(next) : setLocalSort(next));
+  createEffect(
+    on(
+      () => props.columns,
+      (columns, previous) => {
+        const current = localSort();
+        if (current && (!columns[current.column]?.sortKey || columns[current.column].title !== previous?.[current.column]?.title)) {
+          setLocalSort(undefined);
+        }
+      },
+      { defer: true },
+    ),
+  );
+  const toggleSort = (column: number) => {
+    wrap.scrollTop = 0;
+    const current = sort();
+    if (current?.column !== column) {
+      setSort({ column, descending: true });
+    } else {
+      setSort(current.descending ? { column, descending: false } : undefined);
+    }
+  };
+
+  const order = createMemo(() => {
+    const current = localSort();
+    const key = current && props.columns[current.column]?.sortKey;
+    if (!key || props.source.sort) {
+      return undefined;
+    }
+    const total = props.source.count();
+    const keys: (number | null)[] = [];
+    for (let i = 0; i < total; i++) {
+      const row = props.source.row(i);
+      const value = row === undefined ? null : key(row);
+      keys.push(value === null || Number.isNaN(value) ? null : value);
+    }
+    return sortedIndices(keys, current.descending);
+  });
+  const rowAt = (index: number) => {
+    const indices = order();
+    return props.source.row(indices ? indices[index] : index);
+  };
 
   // Sizes are read in the ResizeObserver callback, after layout, so reading them does not force an extra layout.
   onMount(() => {
@@ -98,7 +147,23 @@ export function VirtualTable<R>(props: {
         <table class="data">
           <thead>
             <tr>
-              <For each={props.columns}>{(column) => <th classList={{ num: column.numeric }}>{column.title}</th>}</For>
+              <For each={props.columns}>
+                {(column, i) => {
+                  const direction = () => (sort()?.column === i() ? (sort()!.descending ? 'descending' : 'ascending') : undefined);
+                  return (
+                    <th classList={{ num: column.numeric, sorted: !!direction() }} aria-sort={direction()}>
+                      <Show when={column.sortKey} fallback={column.title}>
+                        <SortButton
+                          title={column.title}
+                          direction={direction()}
+                          markFirst={!!column.numeric}
+                          onClick={() => toggleSort(i())}
+                        />
+                      </Show>
+                    </th>
+                  );
+                }}
+              </For>
             </tr>
           </thead>
           <tbody ref={body}>
@@ -122,7 +187,7 @@ export function VirtualTable<R>(props: {
             <For each={indices()}>
               {(index) => (
                 <Show
-                  when={props.source.row(index)}
+                  when={rowAt(index)}
                   fallback={
                     <tr class="loading">
                       <td class="muted" colSpan={props.columns.length}>
@@ -147,6 +212,40 @@ export function VirtualTable<R>(props: {
       </Show>
     </div>
   );
+}
+
+function SortButton(props: {
+  title: string;
+  direction: 'ascending' | 'descending' | undefined;
+  markFirst: boolean;
+  onClick: () => void;
+}) {
+  const mark = () => (
+    <span class="sort-mark" aria-hidden="true">
+      {props.direction === 'descending' ? '▼' : props.direction === 'ascending' ? '▲' : ''}
+    </span>
+  );
+  return (
+    <button type="button" class="sort-button" onClick={() => props.onClick()}>
+      {props.markFirst && mark()}
+      {props.title}
+      {!props.markFirst && mark()}
+    </button>
+  );
+}
+
+function sortedIndices(keys: (number | null)[], descending: boolean): number[] {
+  const sign = descending ? -1 : 1;
+  return keys
+    .map((_, i) => i)
+    .sort((a, b) => {
+      const x = keys[a];
+      const y = keys[b];
+      if (x === null || y === null) {
+        return x === y ? 0 : x === null ? 1 : -1;
+      }
+      return x === y ? 0 : x < y ? -sign : sign;
+    });
 }
 
 function Spacer(props: { height: number; columns: number }) {

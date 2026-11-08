@@ -12,8 +12,8 @@ import java.util.Map;
  * Return on invested capital in percent per year, over all trades together:
  * {@code 365 * sum(profit) / sum(capital * days) * 100}. NAV plays no role.
  * <ul>
- *     <li>capital of a bought lot: its entry value (quantity * entry price), so the entry commission only lowers it,</li>
- *     <li>profit: net of the exit commission,</li>
+ *     <li>capital of a bought lot: its entry value (quantity * entry price), without the entry commission,</li>
+ *     <li>profit: net of entry and exit commissions,</li>
  *     <li>days: calendar days from the buy to the sell of each lot, at least 1 (a lot sold in the session it was
  *     bought).</li>
  * </ul>
@@ -37,7 +37,7 @@ public final class ReturnOnInvestedCapital implements AccountScorer {
 		}
 		double profit = 0;
 		for (PositionHistoryRecord trade : account.getAllHistoryRecords()) {
-			profit += trade.getProfitCash() - trade.exitCommission();
+			profit += trade.getNetProfitCash();
 		}
 		return Scores.finiteOrZero(DAYS_PER_YEAR * profit / capitalDays * 100);
 	}

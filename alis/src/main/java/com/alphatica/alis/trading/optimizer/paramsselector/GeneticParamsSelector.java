@@ -66,7 +66,7 @@ public class GeneticParamsSelector extends ParamsSelector {
 		}
 		synchronized (scores) {
 			seen.add(new HashMap<>(newScore.params()));
-			if (alreadyPresent(newScore.params())) {
+			if (alreadyPresent(newScore)) {
 				return;
 			}
 			scores.add(newScore);
@@ -164,8 +164,13 @@ public class GeneticParamsSelector extends ParamsSelector {
 		return paramsStepsSet.getParamStepsMap().get(name);
 	}
 
-	private boolean alreadyPresent(Map<String, Object> newParams) {
-		return scores.stream().anyMatch(s -> s.params().equals(newParams));
+	private boolean alreadyPresent(OptimizerScore newScore) {
+		return scores.stream().anyMatch(s -> s.params().equals(newScore.params()) || sameResult(s, newScore));
+	}
+
+	private static boolean sameResult(OptimizerScore present, OptimizerScore newScore) {
+		return present.stats() != null && Double.compare(present.score(), newScore.score()) == 0
+				&& present.stats().equals(newScore.stats());
 	}
 
 	private static long permutations(ParamsStepsSet paramsStepsSet) {

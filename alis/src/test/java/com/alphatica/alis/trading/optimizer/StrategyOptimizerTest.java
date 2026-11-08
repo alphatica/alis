@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
@@ -87,6 +88,25 @@ class StrategyOptimizerTest {
 		optimizer.optimize((score, account) -> scores.incrementAndGet());
 
 		assertEquals(2, scores.get());
+	}
+
+	@Test
+	void shouldGiveScoreAndStatsOfEveryScoredAccount() throws OptimizerException {
+		Map<Map<String, Object>, Double> scores = new ConcurrentHashMap<>();
+		List<ResultStats> given = Collections.synchronizedList(new ArrayList<>());
+		List<ResultStats> ofAccounts = Collections.synchronizedList(new ArrayList<>());
+		var optimizer = new StrategyOptimizer(OptimizedStrategy::new, new TestData("market"), StrategyExecutor::new,
+				() -> (account, stats) -> stats.get("enabled") + 2, ResultVerifier.NONE, ParametersSelection.GENETIC, 1_000);
+
+		optimizer.optimize((score, account) -> {
+			scores.put(score.params(), score.score());
+			given.add(score.stats());
+			ofAccounts.add(ResultStats.of(account));
+		});
+
+		assertEquals(Map.of(Map.of("enabled", true), 3.0, Map.of("enabled", false), 2.0), scores);
+		assertEquals(2, given.size());
+		assertEquals(ofAccounts, given);
 	}
 
 	@Test

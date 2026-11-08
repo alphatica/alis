@@ -43,14 +43,14 @@ class ReturnOnInvestedCapitalTest {
 		account.updateLastKnown(prices(62, MON_26));
 
 		// Lots sold first in, first out: 10 x 50 held 7 days, 5 x 60 held 11 days (not until the last session);
-		// profit 10 * 8 + 5 * 2 minus exit commissions 3 + 1, entry commissions left out
-		assertEquals(365.0 * 86 / (10 * 50 * 7 + 5 * 60 * 11) * 100, scorer.score(account, Map.of()), DELTA);
+		// profit 10 * 8 + 5 * 2 minus entry commissions 2 + 1 and exit commissions 3 + 1
+		assertEquals(365.0 * 83 /(10 * 50 * 7 + 5 * 60 * 11) * 100, scorer.score(account, Map.of()), DELTA);
 	}
 
 	@Test
 	void shouldValueOpenPositionAtLastCloseUntilLastSession() throws AccountActionException {
-		// 4 x 25 held 10 days, worth 4 x 30 at the last close
-		assertEquals(365.0 * 20 / (100 * 10) * 100, scorer.score(accountHoldingOpenPosition(10_000), Map.of()), DELTA);
+		// 4 x 25 held 10 days, worth 4 x 30 at the last close, entry commission 1
+		assertEquals(365.0 * (20 - 1) /(100 * 10) * 100, scorer.score(accountHoldingOpenPosition(10_000), Map.of()), DELTA);
 	}
 
 	@Test
@@ -60,7 +60,7 @@ class ReturnOnInvestedCapitalTest {
 		account.close(0.01);
 
 		// Sold at the last close 30, exit commission 4 x 30 x 0.01
-		assertEquals(365.0 * (20 - 1.2) / (100 * 10) * 100, scorer.score(account, Map.of()), DELTA);
+		assertEquals(365.0 * (20 - 1 - 1.2) /(100 * 10) * 100, scorer.score(account, Map.of()), DELTA);
 	}
 
 	@Test
@@ -76,7 +76,7 @@ class ReturnOnInvestedCapitalTest {
 		account.reducePosition(MARKET, new PositionExit(MON_5, 10, 53), 0.5);
 		account.updateLastKnown(prices(53, MON_5));
 
-		assertEquals(365.0 * (30 - 0.5) / (10 * 50) * 100, scorer.score(account, Map.of()), DELTA);
+		assertEquals(365.0 * (30 - 0.5 - 0.5) /(10 * 50) * 100, scorer.score(account, Map.of()), DELTA);
 	}
 
 	@Test

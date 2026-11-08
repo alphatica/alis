@@ -384,4 +384,69 @@ class AccountTest {
 		account.afterSells();
 	}
 
+	@Test
+	void shouldListPositionOpenedAfterPreviousCall() throws AccountActionException {
+		MarketName first = new MarketName("a");
+		MarketName second = new MarketName("b");
+		Account account = new Account(10_000);
+		account.addPosition(first, new PositionEntry(new Time(1), 10, 50), 0);
+		assertEquals(Map.of(first, account.getPosition(first)), account.getPositions());
+
+		account.addPosition(second, new PositionEntry(new Time(2), 5, 20), 0);
+
+		assertEquals(Map.of(first, account.getPosition(first), second, account.getPosition(second)), account.getPositions());
+	}
+
+	@Test
+	void shouldNotListPositionClosedAfterPreviousCall() throws AccountActionException {
+		MarketName first = new MarketName("a");
+		MarketName second = new MarketName("b");
+		Account account = new Account(10_000);
+		account.addPosition(first, new PositionEntry(new Time(1), 10, 50), 0);
+		account.addPosition(second, new PositionEntry(new Time(1), 5, 20), 0);
+		assertEquals(2, account.getPositions().size());
+
+		account.reducePosition(first, new PositionExit(new Time(2), 10, 55), 0);
+
+		assertEquals(Map.of(second, account.getPosition(second)), account.getPositions());
+	}
+
+	@Test
+	void shouldShowLaterChangesInReturnedPositions() throws AccountActionException {
+		MarketName first = new MarketName("a");
+		MarketName second = new MarketName("b");
+		Account account = new Account(10_000);
+		account.addPosition(first, new PositionEntry(new Time(1), 10, 50), 0);
+		Map<MarketName, Position> returned = account.getPositions();
+
+		account.addPosition(second, new PositionEntry(new Time(2), 5, 20), 0);
+		account.reducePosition(first, new PositionExit(new Time(3), 10, 55), 0);
+
+		assertEquals(List.of(second), List.copyOf(returned.keySet()));
+	}
+
+	@Test
+	void shouldReturnPositionsThatCannotBeModified() throws AccountActionException {
+		MarketName market = new MarketName("a");
+		Account account = new Account(10_000);
+		account.addPosition(market, new PositionEntry(new Time(1), 10, 50), 0);
+		Map<MarketName, Position> positions = account.getPositions();
+
+		assertThrows(UnsupportedOperationException.class, () -> positions.remove(market));
+		assertEquals(10, account.getPosition(market).getQuantity());
+	}
+
+	@Test
+	void shouldShowAddedQuantityInReturnedPosition() throws AccountActionException {
+		MarketName market = new MarketName("a");
+		Account account = new Account(10_000);
+		account.addPosition(market, new PositionEntry(new Time(1), 10, 50), 0);
+		Map<MarketName, Position> before = account.getPositions();
+
+		account.addPosition(market, new PositionEntry(new Time(2), 4, 60), 0);
+
+		assertEquals(14, account.getPositions().get(market).getQuantity());
+		assertEquals(14, before.get(market).getQuantity());
+	}
+
 }

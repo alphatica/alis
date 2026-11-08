@@ -1,4 +1,5 @@
 import { createSignal } from 'solid-js';
+import type { TextRow } from './sources';
 import type { RowSource } from './VirtualTable';
 import { widestTracker } from './TextTable';
 
@@ -7,12 +8,12 @@ import { widestTracker } from './TextTable';
  * Shown newest first: the table reads the array from its end, so appending does not copy it.
  */
 export function liveRows() {
-  let rows: string[][] = [];
+  let rows: TextRow[] = [];
   const [version, setVersion] = createSignal(0);
   // Widest row per column, kept up to date while rows arrive, so the column widths do not change while scrolling
   const tracker = widestTracker();
-  const [widest, setWidest] = createSignal<(string[] | undefined)[]>([]);
-  const source: RowSource<string[]> = {
+  const [widest, setWidest] = createSignal<(TextRow | undefined)[]>([]);
+  const source: RowSource<TextRow> = {
     count: () => {
       version();
       return rows.length;
@@ -25,7 +26,7 @@ export function liveRows() {
   return {
     source,
     widest,
-    append: (items: string[][]) => {
+    append: (items: TextRow[]) => {
       let widestChanged = false;
       // A loop, not push(...items): a batch may hold more rows than a call may take arguments
       for (const item of items) {

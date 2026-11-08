@@ -15,10 +15,10 @@ import { Select } from '../components/Select';
 import { StableLabel } from '../components/StableLabel';
 import { StatTiles } from '../components/StatTiles';
 import { Tabs } from '../components/Tabs';
-import { type ColumnSpec, formatRow, numberFormat, type Value } from '../format';
+import { type ColumnSpec, numberFormat, type Value } from '../format';
 import { createJob } from '../jobs';
 import { type Equity, followDefaults, type Stat, walkForwardOptions, type WalkForwardOptions } from '../state';
-import { type Column, type LiveRows, liveRows, staticSource, textColumns, VirtualTable } from '../table';
+import { type Column, type LiveRows, liveRows, staticSource, textColumns, textRow, VirtualTable } from '../table';
 
 /** The form as sent to the backend (WalkForwardApi.StartRequest). */
 type WalkForwardInput = {
@@ -89,9 +89,9 @@ function addRows(event: string, rows: Value[][]) {
   if (!options) {
     waitingRows.push({ event, rows });
   } else if (event === 'orders') {
-    orders.append(rows.map((row) => formatRow(options.orders, row)));
+    orders.append(rows.map((row) => textRow(options.orders, row)));
   } else {
-    trades.append(rows.map((row) => formatRow(options.trades, row)));
+    trades.append(rows.map((row) => textRow(options.trades, row)));
   }
 }
 
@@ -441,13 +441,18 @@ function WalkForwardEquity() {
 
 function WindowsTable() {
   const columns: Column<WindowRow>[] = [
-    { title: 'Window', numeric: true, cell: (row) => String(row.number) },
-    { title: 'Training', cell: (row) => `${formatDay(row.trainingStart)} – ${formatDay(row.trainingEnd)}` },
-    { title: 'Test', cell: (row) => `${formatDay(row.testStart)} – ${formatDay(row.testEnd)}` },
-    { title: 'Training score', numeric: true, cell: (row) => score.format(row.trainingScore) },
+    { title: 'Window', numeric: true, cell: (row) => String(row.number), sortKey: (row) => row.number },
+    {
+      title: 'Training',
+      cell: (row) => `${formatDay(row.trainingStart)} – ${formatDay(row.trainingEnd)}`,
+      sortKey: (row) => row.trainingStart,
+    },
+    { title: 'Test', cell: (row) => `${formatDay(row.testStart)} – ${formatDay(row.testEnd)}`, sortKey: (row) => row.testStart },
+    { title: 'Training score', numeric: true, cell: (row) => score.format(row.trainingScore), sortKey: (row) => row.trainingScore },
     {
       title: 'Test return',
       numeric: true,
+      sortKey: (row) => row.returnPercent,
       cell: (row) =>
         row.returnPercent === null ? (
           '—'
@@ -455,7 +460,12 @@ function WindowsTable() {
           <span classList={{ profit: row.returnPercent > 0, loss: row.returnPercent < 0 }}>{percent.format(row.returnPercent)} %</span>
         ),
     },
-    { title: 'Transactions', numeric: true, cell: (row) => (row.transactions === null ? '—' : count.format(row.transactions)) },
+    {
+      title: 'Transactions',
+      numeric: true,
+      cell: (row) => (row.transactions === null ? '—' : count.format(row.transactions)),
+      sortKey: (row) => row.transactions,
+    },
     {
       title: 'Params',
       cell: (row) => (

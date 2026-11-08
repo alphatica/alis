@@ -45,6 +45,7 @@ copy /y studio\src\main\resources\splash.png studio\target\splash.png >nul
 
 jpackage ^
     --java-options "-splash:$APPDIR\splash.png" ^
+    --java-options "-Xmx128g" ^
     --type app-image ^
     --name "%APP_NAME%" ^
     --input studio\target ^
