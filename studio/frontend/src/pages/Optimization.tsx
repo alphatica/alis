@@ -4,7 +4,7 @@
 // is shown again, with its settings in the form.
 
 import { createEffect, createMemo, createRoot, createSignal, on } from 'solid-js';
-import { api, type ErrorMessage } from '../api';
+import { api, download, type ErrorMessage } from '../api';
 import { JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
 import { Loaded } from '../components/Loaded';
@@ -13,6 +13,7 @@ import { Select } from '../components/Select';
 import { StableLabel } from '../components/StableLabel';
 import { type ColumnSpec, numberFormat, type Value } from '../format';
 import { createJob } from '../jobs';
+import { showError } from '../toasts';
 import { followDefaults, optimizationOptions } from '../state';
 import { type Column, staticSource, valueColumns, VirtualTable } from '../table';
 
@@ -47,6 +48,8 @@ const [iterations, setIterations] = createSignal<number>();
 const [results, setResults] = createSignal<Result[]>([]);
 const [lastError, setLastError] = createSignal<ErrorMessage>();
 const [shown, setShown] = createSignal<Result>();
+/** Strategy of the shown results, for the CSV file name. */
+const [resultStrategy, setResultStrategy] = createSignal('');
 
 const job = createJob<OptimizationInput>('optimization', {
   reset: () => {
@@ -56,6 +59,7 @@ const job = createJob<OptimizationInput>('optimization', {
   },
   // Max permutations last: changing the strategy or the parameters selection resets it (effect below)
   restore: (input) => {
+    setResultStrategy(input.strategy);
     setStrategy(input.strategy);
     setStartTime(input.startTime);
     setEndTime(input.endTime);
@@ -133,7 +137,16 @@ function start() {
     scorer: scorer(),
     maxPermutations: maxPermutations(),
   };
+  setResultStrategy(input.strategy);
   job.start(() => api.post<{ jobId: string }>('/api/optimization', input));
+}
+
+async function exportResults() {
+  try {
+    await download('/api/optimization/results.csv', `${resultStrategy() || 'optimization'}-results.csv`);
+  } catch (e) {
+    showError(e);
+  }
 }
 
 export function Optimization() {
@@ -210,6 +223,11 @@ function SettingsForm(props: { options: { strategies: string[]; resultVerifiers:
         </button>
         <button class="btn" type="button" disabled={!running() || stopping()} onClick={job.stop}>
           <StableLabel labels={['Stop', 'Stopping…']} current={stopping() && running() ? 1 : 0} />
+        </button>
+      </div>
+      <div class="sidebar-buttons sidebar-buttons-stack">
+        <button class="btn" type="button" disabled={results().length === 0} onClick={exportResults}>
+          Export to CSV
         </button>
       </div>
     </form>

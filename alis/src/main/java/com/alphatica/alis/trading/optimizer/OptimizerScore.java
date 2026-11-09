@@ -1,10 +1,13 @@
 package com.alphatica.alis.trading.optimizer;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public record OptimizerScore(double score, Map<String, Object> params, ResultStats stats) implements Comparable<OptimizerScore> {
+	private static final MathContext PARAM_PRECISION = new MathContext(12);
 
 	public OptimizerScore(double score, Map<String, Object> params) {
 		this(score, params, null);
@@ -24,20 +27,14 @@ public record OptimizerScore(double score, Map<String, Object> params, ResultSta
 	}
 
 	private String formatParamAsJavaCode(Map.Entry<String, Object> param) {
-		return param.getKey() + " = " + clearDoubleInaccuracies(param.getValue()) + "; ";
+		return param.getKey() + " = " + formatParamValue(param.getValue()) + "; ";
 	}
 
-	private String clearDoubleInaccuracies(Object value) {
-		String raw = value.toString();
-		int threeZerosIndex = raw.indexOf("000");
-		if (threeZerosIndex < 0) {
-			return raw;
+	public static String formatParamValue(Object value) {
+		if (value instanceof Double number && Double.isFinite(number)) {
+			String text = new BigDecimal(number).round(PARAM_PRECISION).stripTrailingZeros().toPlainString();
+			return text.contains(".") ? text : text + ".0";
 		}
-		int dotIndex = raw.indexOf("\\.");
-		if (threeZerosIndex > dotIndex) {
-			return raw.substring(0, threeZerosIndex);
-		} else {
-			return raw;
-		}
+		return String.valueOf(value);
 	}
 }

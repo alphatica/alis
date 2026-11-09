@@ -10,15 +10,12 @@ import com.alphatica.alis.studio.web.jobs.Job;
 import com.alphatica.alis.studio.web.jobs.JobRegistry;
 import com.alphatica.alis.tools.java.TopResults;
 import com.alphatica.alis.trading.optimizer.OptimizerException;
-import com.alphatica.alis.trading.optimizer.OptimizerScore;
 import com.alphatica.alis.trading.optimizer.ParametersSelection;
-import com.alphatica.alis.trading.optimizer.ResultStats;
 import com.alphatica.alis.trading.optimizer.StrategyOptimizer;
 import com.alphatica.alis.trading.strategy.Strategy;
 import io.javalin.config.RoutesConfig;
 import io.javalin.http.Context;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,6 +43,7 @@ final class OptimizationApi {
 			Column.percent("Profitable markets", 1));
 
 	private final JobRegistry jobs;
+	private volatile TopResults<OptimizationResult> lastResults;
 
 	OptimizationApi(JobRegistry jobs) {
 		this.jobs = jobs;
@@ -54,6 +52,7 @@ final class OptimizationApi {
 	void register(RoutesConfig routes) {
 		routes.get(PATH + "/options", ctx -> ctx.json(options()));
 		routes.post(PATH, this::start);
+		routes.get(PATH + "/results.csv", this::exportResults);
 	}
 
 	private static OptimizationOptions options() {
@@ -90,12 +89,27 @@ final class OptimizationApi {
 		ctx.json(Map.of("jobId", job.id()));
 	}
 
-	private static void run(Job job, StrategyOptimizer optimizer, ParametersSelection selection)
+	private void exportResults(Context ctx) {
+		TopResults<OptimizationResult> results = lastResults;
+		if (results == null) {
+			throw new ValidationException("Run an optimization first");
+		}
+		ctx.contentType("text/csv; charset=utf-8");
+		ctx.header("Content-Disposition", "attachment; filename=\"optimization-results.csv\"");
+		ctx.result(csv(results.list()));
+	}
+
+	static String csv(List<OptimizationResult> results) {
+		return OptimizationCsv.of(RESULTS, results);
+	}
+
+	private void run(Job job, StrategyOptimizer optimizer, ParametersSelection selection)
 			throws OptimizerException {
-		TopResults<Result> topResults = topResults(selection);
+		TopResults<OptimizationResult> topResults = topResults(selection);
+		lastResults = topResults;
 		job.onCancel(optimizer::stop);
 		optimizer.optimize((score, account) -> {
-			if (topResults.add(Result.of(score))) {
+			if (topResults.add(OptimizationResult.of(score))) {
 				job.channel().replace("results", topResults.list());
 			}
 			job.channel().replace("iterations", optimizer.getLoopCount());
@@ -103,27 +117,9 @@ final class OptimizationApi {
 		job.channel().replace("iterations", optimizer.getLoopCount());
 	}
 
-	static TopResults<Result> topResults(ParametersSelection selection) {
-		Comparator<Result> order = Comparator.comparingDouble(r -> -r.score());
-		return new TopResults<>(TOP_RESULTS, order, selection == GENETIC ? Result::cells : null);
-	}
-
-	/**
-	 * One row of the results table.
-	 *
-	 * @param cells  values of the {@link #RESULTS} columns
-	 * @param params the parameters as Java code, one field per line
-	 */
-	record Result(double score, List<Object> cells, List<String> params) {
-
-		static Result of(OptimizerScore score) {
-			ResultStats stats = score.stats();
-			double returnToDownsideDD = stats.returnToMaxDownsideDD();
-			return new Result(score.score(), Arrays.asList(score.score(), stats.nav(), stats.maxDD(),
-					Double.isFinite(returnToDownsideDD) ? returnToDownsideDD : null, stats.trades(), stats.accuracy(),
-					stats.expectancy(), stats.profitFactor(), stats.profitPerTrade(),
-					stats.profitableMarketsPercent()), score.formatParamsAsJavaCode());
-		}
+	static TopResults<OptimizationResult> topResults(ParametersSelection selection) {
+		Comparator<OptimizationResult> order = Comparator.comparingDouble(r -> -r.score());
+		return new TopResults<>(TOP_RESULTS, order, selection == GENETIC ? OptimizationResult::cells : null);
 	}
 
 	/**
