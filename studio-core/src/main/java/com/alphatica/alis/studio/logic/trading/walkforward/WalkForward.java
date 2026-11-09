@@ -7,13 +7,9 @@ import com.alphatica.alis.studio.logic.trading.backtest.BacktestRunner;
 import com.alphatica.alis.studio.logic.trading.backtest.BacktestSettings;
 import com.alphatica.alis.studio.logic.trading.optimize.OptimizationRequest;
 import com.alphatica.alis.studio.logic.trading.walkforward.WalkForwardWindows.Window;
-import com.alphatica.alis.trading.account.Account;
-import com.alphatica.alis.trading.account.actions.AccountAction;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
-import com.alphatica.alis.trading.account.actions.Trade;
 import com.alphatica.alis.trading.account.scorer.AccountScorer;
 import com.alphatica.alis.trading.optimizer.OptimizerException;
-import com.alphatica.alis.trading.optimizer.OptimizerScore;
 import com.alphatica.alis.trading.optimizer.ParametersSelection;
 import com.alphatica.alis.trading.optimizer.ResultVerifier;
 import com.alphatica.alis.trading.optimizer.StrategyOptimizer;
@@ -128,7 +124,7 @@ public final class WalkForward {
 			return new Result(List.of(), null);
 		}
 		BacktestResult backtest = backtest(optimized, bars);
-		return new Result(tested(optimized, backtest.account()), backtest);
+		return new Result(TestedWindows.of(optimized, backtest.account()), backtest);
 	}
 
 	private List<Map<String, Object>> seeds(List<OptimizedWindow> optimized) {
@@ -146,7 +142,7 @@ public final class WalkForward {
 		StrategyOptimizer optimizer = new OptimizationRequest(training, marketData, scorerFactory, resultVerifier,
 				parametersSelection, maxPermutations).createOptimizer();
 		current = optimizer;
-		Best best = new Best();
+		BestParams best = new BestParams();
 		if (!stopped) {
 			optimizer.optimize((score, account) -> {
 				best.offer(score);
@@ -159,11 +155,11 @@ public final class WalkForward {
 		if (stopped) {
 			return null;
 		}
-		if (best.score == null) {
+		if (best.isEmpty()) {
 			throw new OptimizerException("No parameters were scored in the training window " + window.trainingStart()
 					+ " - " + window.trainingEnd());
 		}
-		return new OptimizedWindow(window, best.score.params(), best.code, best.score.score(), optimizer.getLoopCount());
+		return new OptimizedWindow(window, best.params(), best.code(), best.score(), optimizer.getLoopCount());
 	}
 
 	private BacktestResult backtest(List<OptimizedWindow> optimized, BarExecutedConsumer bars)
@@ -177,49 +173,5 @@ public final class WalkForward {
 				optimized.getLast().window().testEnd(), settings.commissionRate(), settings.initialCapital(),
 				() -> strategy);
 		return BacktestRunner.run(test, marketData, bars);
-	}
-
-	private static List<TestedWindow> tested(List<OptimizedWindow> optimized, Account account) {
-		List<Time> times = account.getAccountHistory().getSessions().times();
-		double[] returns = account.getAccountHistory().getSessions().returns();
-		List<AccountAction> actions = account.getAccountHistory().getActions();
-		List<TestedWindow> result = new ArrayList<>(optimized.size());
-		for (OptimizedWindow window : optimized) {
-			Time from = window.window().testStart();
-			Time to = window.window().testEnd();
-			double growth = 1;
-			for (int i = 0; i < times.size(); i++) {
-				if (isWithin(times.get(i), from, to)) {
-					growth *= 1 + returns[i];
-				}
-			}
-			int transactions = 0;
-			for (AccountAction action : actions) {
-				if (action.actionType() instanceof Trade && isWithin(action.time(), from, to)) {
-					transactions++;
-				}
-			}
-			result.add(new TestedWindow(window, (growth - 1) * 100, transactions));
-		}
-		return result;
-	}
-
-	private static boolean isWithin(Time time, Time from, Time to) {
-		return !time.isBefore(from) && !time.isAfter(to);
-	}
-
-	/** Highest score so far; of equal scores, the first by Java code. */
-	private static final class Best {
-		private OptimizerScore score;
-		private List<String> code;
-
-		void offer(OptimizerScore candidate) {
-			List<String> candidateCode = candidate.formatParamsAsJavaCode();
-			if (score == null || candidate.score() > score.score()
-					|| (candidate.score() == score.score() && String.join("\n", candidateCode).compareTo(String.join("\n", code)) < 0)) {
-				score = candidate;
-				code = candidateCode;
-			}
-		}
 	}
 }
