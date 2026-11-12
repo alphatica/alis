@@ -24,7 +24,8 @@ import java.util.stream.Collectors;
 
 /**
  * Strategies → Backtest: runs a strategy over a time range and streams its orders and trades, then shows stats and
- * equity. The last result can be exported as CSV, checked for drawdown and compared with a random strategy.
+ * equity. The last result can be exported as CSV, checked for drawdown, analysed for the sources of its edge and
+ * compared with a random strategy.
  */
 final class BacktestApi {
 	private static final String PATH = "/api/backtest";
@@ -56,6 +57,10 @@ final class BacktestApi {
 				RecentDrawdownChecker.checkDrawdown(
 						requireLastRun().result().account().getAccountHistory().getSessions().nav()))));
 		routes.post(PATH + "/compare-random", this::compareWithRandom);
+		routes.post(PATH + "/edge", ctx -> {
+			LastRun run = requireLastRun();
+			ctx.json(EdgeAnalysis.of(run.result().account(), run.marketData()));
+		});
 	}
 
 	private void start(Context ctx) {

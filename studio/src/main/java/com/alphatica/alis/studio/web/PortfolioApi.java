@@ -6,6 +6,8 @@ import com.alphatica.alis.studio.dao.AccountActionCSVFacade;
 import com.alphatica.alis.studio.logic.trading.account.AccountProvider;
 import com.alphatica.alis.studio.state.AppState;
 import com.alphatica.alis.studio.web.live.LiveHub;
+import com.alphatica.alis.trading.account.Account;
+import com.alphatica.alis.trading.account.AccountReplayer;
 import com.alphatica.alis.trading.account.Quantities;
 import com.alphatica.alis.trading.account.actions.AccountAction;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
@@ -29,7 +31,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Portfolio: account statistics, actions and trade history. Computed once per portfolio or market data change.
- * Adding a trade, a deposit / withdrawal or importing a file tells open GUI tabs to reload the portfolio.
+ * Adding a trade, a deposit / withdrawal or importing a file tells open GUI tabs to reload the portfolio. The edge
+ * analysis is computed on request, also once per portfolio or market data change.
  */
 final class PortfolioApi {
 	private static final String PATH = "/api/portfolio";
@@ -38,6 +41,8 @@ final class PortfolioApi {
 	/** Changed by every save, so the cached portfolio is computed again. */
 	private final AtomicLong revision = new AtomicLong();
 	private final StateCache<String> json = new StateCache<>(() -> Json.write(PortfolioView.load()),
+			() -> new PortfolioState(AppState.getMarketData(), revision.get()));
+	private final StateCache<String> edgeJson = new StateCache<>(PortfolioApi::edge,
 			() -> new PortfolioState(AppState.getMarketData(), revision.get()));
 
 	PortfolioApi(LiveHub hub) {
@@ -49,6 +54,14 @@ final class PortfolioApi {
 		routes.post(PATH + "/trade", ctx -> save(ctx, trade(ctx.bodyAsClass(TradeRequest.class))));
 		routes.post(PATH + "/cash", ctx -> save(ctx, cash(ctx.bodyAsClass(CashRequest.class))));
 		routes.post(PATH + "/import", this::importFile);
+		routes.post(PATH + "/edge", ctx -> ctx.contentType("application/json").result(edgeJson.get()));
+	}
+
+	private static String edge() throws IOException, AccountActionException {
+		MarketData marketData = Inputs.marketData();
+		Account account = new Account(0);
+		AccountReplayer.replayInto(account, marketData, AccountProvider.getAccountActions());
+		return Json.write(EdgeAnalysis.of(account, marketData));
 	}
 
 	/**

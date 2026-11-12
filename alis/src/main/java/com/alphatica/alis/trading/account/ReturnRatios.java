@@ -138,6 +138,16 @@ public final class ReturnRatios {
 		return totalReturnPercent / -maxDrawdownPercent;
 	}
 
+	public static double[] cumulativePercent(double[] returns) {
+		double[] result = new double[returns.length];
+		double growth = 1;
+		for (int i = 0; i < returns.length; i++) {
+			growth *= 1 + returns[i];
+			result[i] = (growth - 1) * 100;
+		}
+		return result;
+	}
+
 	private static List<Moments> joinPeriodsWithoutBeta(List<Moments> groups) {
 		List<Moments> result = new ArrayList<>();
 		Moments leading = new Moments();

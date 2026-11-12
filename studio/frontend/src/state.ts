@@ -36,6 +36,19 @@ export type PortfolioData = {
   equity: Equity;
 };
 
+export type EdgeSeries = { name: string; values: (number | null)[] };
+
+export type EdgeTimeline = {
+  title: string;
+  subtitle: string;
+  help: string;
+  times: number[];
+  series: EdgeSeries[];
+  difference: EdgeSeries;
+};
+
+export type EdgeView = { timelines: EdgeTimeline[] };
+
 export type Store<T> = {
   data: Accessor<T | undefined>;
   error: Accessor<ErrorMessage | undefined>;

@@ -18,6 +18,8 @@
 	--accent-hover: #6ea2ff;
 	--on-accent: #0b0d10;
 
+	--series-2: #e0a526;
+
 	--profit: #22c55e;
 	--loss: #ef4444;
 
@@ -1218,4 +1220,122 @@ h2 {
 
 .link-button:hover {
 	color: var(--accent-hover);
+}
+
+/* ---------- Edge analysis ---------- */
+
+.edge-report {
+	container: edge-report / inline-size;
+}
+
+.edge-cards {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--space-4);
+}
+
+@container edge-report (min-width: 900px) {
+	.edge-cards {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@container edge-report (min-width: 1800px) {
+	.edge-cards {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+}
+
+.edge-card {
+	min-width: 0;
+}
+
+.edge-subtitle {
+	margin: 0 0 var(--space-3);
+	font-size: var(--text-sm);
+}
+
+.edge-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin: 0 0 var(--space-2);
+}
+
+.info-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+	width: 16px;
+	height: 16px;
+	padding: 0;
+	background: none;
+	border: 1px solid var(--border-strong);
+	color: var(--text-muted);
+	font: 600 var(--text-xs) var(--font-ui);
+	line-height: 1;
+	cursor: pointer;
+}
+
+.info-button:hover,
+.info-button:focus-visible {
+	border-color: var(--accent);
+	color: var(--accent-hover);
+	outline: none;
+}
+
+.info-popover {
+	inset: auto;
+	width: max-content;
+	max-width: min(360px, calc(100vw - 16px));
+	margin: 0;
+	padding: var(--space-3);
+	background: var(--surface-raised);
+	border: 1px solid var(--border-strong);
+	color: var(--text);
+	font-size: var(--text-sm);
+	font-weight: 400;
+	letter-spacing: normal;
+	line-height: 1.5;
+	text-transform: none;
+	white-space: normal;
+	box-shadow: 0 4px 16px rgb(0 0 0 / 50%);
+}
+
+.edge-dialog {
+	width: min(1400px, 90vw);
+	max-height: 75vh;
+	overflow-y: auto;
+}
+
+.edge-tab {
+	flex: 1 1 0;
+	min-height: 0;
+	overflow-y: auto;
+	padding-right: var(--space-2);
+}
+
+@media (max-width: 900px) {
+	.edge-tab {
+		flex: none;
+		overflow-y: visible;
+		padding-right: 0;
+	}
+}
+
+.timeline-pane {
+	width: 100%;
+	overflow: hidden;
+}
+
+.timeline-pane .u-legend {
+	color: var(--text);
+	font-size: var(--text-xs);
+}
+
+.timeline-chart {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
 }

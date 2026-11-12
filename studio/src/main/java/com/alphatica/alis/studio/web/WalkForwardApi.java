@@ -6,6 +6,7 @@ import com.alphatica.alis.studio.logic.table.Column;
 import com.alphatica.alis.studio.logic.trading.backtest.BacktestSettings;
 import com.alphatica.alis.studio.logic.trading.optimize.MaxPermutations;
 import com.alphatica.alis.studio.logic.trading.walkforward.WalkForward;
+import com.alphatica.alis.studio.logic.trading.walkforward.WalkForward.Result;
 import com.alphatica.alis.studio.logic.trading.walkforward.WalkForwardWindows;
 import com.alphatica.alis.studio.logic.trading.walkforward.WalkForwardWindows.Window;
 import com.alphatica.alis.studio.strategy.StrategyList;
@@ -32,7 +33,7 @@ import static com.alphatica.alis.trading.optimizer.ParametersSelection.FULL_PERM
  * Events: {@code window} (the window being optimized), {@code iterations}, {@code windows} (rows of the windows
  * optimized so far; at the end with their test results), then as in a backtest {@code progress}, {@code orders},
  * {@code trades} and {@code result}. Stop ends the optimization of the current window and backtests the windows
- * optimized before it.
+ * optimized before it. The last finished result can be analysed for the sources of its edge.
  */
 final class WalkForwardApi {
 	static final int DEFAULT_TRAINING_MONTHS = 36;
@@ -41,6 +42,7 @@ final class WalkForwardApi {
 	private static final String JOB_TYPE = "walk-forward";
 
 	private final JobRegistry jobs;
+	private volatile LastRun lastRun;
 
 	WalkForwardApi(JobRegistry jobs) {
 		this.jobs = jobs;
@@ -50,6 +52,13 @@ final class WalkForwardApi {
 		routes.get(PATH + "/options", ctx -> ctx.json(options()));
 		routes.get(PATH + "/windows", this::windows);
 		routes.post(PATH, this::start);
+		routes.post(PATH + "/edge", ctx -> {
+			LastRun run = lastRun;
+			if (run == null) {
+				throw new ValidationException("Run a walk-forward first");
+			}
+			ctx.json(EdgeAnalysis.of(run.result().backtest().account(), run.marketData()));
+		});
 	}
 
 	private static WalkForwardOptions options() {
@@ -95,7 +104,13 @@ final class WalkForwardApi {
 		WalkForward walkForward = new WalkForward(settings, marketData, Inputs.scorer(SCORERS, request.scorer(), marketData),
 				Inputs.option(RESULT_VERIFIERS, request.resultVerifier(), "result verifier"), selection, maxPermutations,
 				windows);
-		Job job = jobs.start(JOB_TYPE, request, running -> WalkForwardJob.run(running, walkForward, windows, marketData));
+		lastRun = null;
+		Job job = jobs.start(JOB_TYPE, request, running -> {
+			Result result = WalkForwardJob.run(running, walkForward, windows, marketData);
+			if (result.backtest() != null) {
+				lastRun = new LastRun(result, marketData);
+			}
+		});
 		ctx.json(Map.of("jobId", job.id()));
 	}
 
@@ -147,6 +162,9 @@ final class WalkForwardApi {
 							  List<String> scorers, String fullPermutation, Map<String, Map<String, Long>> maxPermutations,
 							  RunDefaults defaults, int trainingMonths, int testMonths, List<Column> orders,
 							  List<Column> trades) {
+	}
+
+	private record LastRun(Result result, MarketData marketData) {
 	}
 
 	record StartRequest(String strategy, String startTime, String endTime, String commissionRate, String initialCapital,

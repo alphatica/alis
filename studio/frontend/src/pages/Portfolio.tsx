@@ -1,4 +1,5 @@
 import { createSignal, Show } from 'solid-js';
+import { EdgeReport } from '../components/EdgeReport';
 import { EquityChart, type EquityMode, EquityModeSwitch } from '../components/EquityChart';
 import { Loaded } from '../components/Loaded';
 import { StatTable } from '../components/StatTable';
@@ -33,6 +34,7 @@ export function Portfolio() {
                 },
                 { label: 'Positions', content: () => <TextTable table={data().history} /> },
                 { label: 'History', content: () => <TextTable table={data().actions} /> },
+                { label: 'Edge analysis', content: () => <Edge data={data()} /> },
               ]}
             />
           </div>
@@ -44,17 +46,31 @@ export function Portfolio() {
 
 const hasEquity = (data: PortfolioData) => data.equity.times.length > 0;
 
+function Edge(props: { data: PortfolioData }) {
+  return (
+    <div class="edge-tab">
+      <Show when={hasEquity(props.data)} fallback={<NoEquity data={props.data} />}>
+        <EdgeReport url="/api/portfolio/edge" />
+      </Show>
+    </div>
+  );
+}
+
+function NoEquity(props: { data: PortfolioData }) {
+  return (
+    <p class="muted chart-placeholder">
+      {props.data.actions.rows.length === 0 ? 'No account actions yet.' : 'Load market data to see the equity.'}
+    </p>
+  );
+}
+
 function Equity(props: { data: PortfolioData }) {
   return (
     <>
       <div class="chart-with-stats">
         <Show
           when={hasEquity(props.data)}
-          fallback={
-            <p class="muted chart-placeholder">
-              {props.data.actions.rows.length === 0 ? 'No account actions yet.' : 'Load market data to see the equity.'}
-            </p>
-          }
+          fallback={<NoEquity data={props.data} />}
         >
           <EquityChart equity={props.data.equity} mode={equityMode()} stats={props.data.summary} fileName="portfolio" />
         </Show>

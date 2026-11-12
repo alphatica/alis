@@ -166,7 +166,7 @@ public class Account {
 		var nav = getNAV();
 		ddCalc.updateNav(nav);
 		downsideDrawdownCalc.updateState(getClosedEquity(), nav);
-		accountHistory.getSessions().record(data.getTime(), nav);
+		accountHistory.getSessions().record(data.getTime(), nav, nav - cash);
 	}
 
 	public AccountHistory getAccountHistory() {
@@ -208,7 +208,7 @@ public class Account {
 			}
 		}
 		downsideDrawdownCalc.updateState(getClosedEquity(), getNAV());
-		accountHistory.getSessions().revalueLast(getNAV());
+		accountHistory.getSessions().revalueLast(getNAV(), getNAV() - cash);
 	}
 
 	/**
@@ -231,7 +231,7 @@ public class Account {
 			double nav = getNAV();
 			ddCalc.updateNav(nav);
 			downsideDrawdownCalc.updateState(getClosedEquity(), nav);
-			accountHistory.getSessions().revalueLast(nav);
+			accountHistory.getSessions().revalueLast(nav, nav - cash);
 		}
 		return trades;
 	}

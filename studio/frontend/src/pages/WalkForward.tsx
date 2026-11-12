@@ -6,6 +6,7 @@
 
 import { createEffect, createRoot, createSignal, on, onCleanup, Show } from 'solid-js';
 import { api, type ErrorMessage } from '../api';
+import { EdgeDialog } from '../components/EdgeDialog';
 import { EquityChart, type EquityMode, EquityModeSwitch } from '../components/EquityChart';
 import { JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
@@ -78,6 +79,7 @@ const [resultStrategy, setResultStrategy] = createSignal('');
 const [shown, setShown] = createSignal<{ params: string[]; title: string }>();
 const [tab, setTab] = createSignal(0);
 const [equityMode, setEquityMode] = createSignal<EquityMode>('nav');
+const [edgeOpen, setEdgeOpen] = createSignal(false);
 
 const orders = liveRows();
 const trades = liveRows();
@@ -252,9 +254,15 @@ export function WalkForward() {
   return (
     <div class="page-fill">
       <ParamsDialog params={shown()?.params} title={shown()?.title ?? ''} onClose={() => setShown(undefined)} />
+      <EdgeDialog open={edgeOpen()} url="/api/walk-forward/edge" onClose={() => setEdgeOpen(false)} />
       <div class="split split-medium split-stretch">
         <div class="sidebar">
           <Loaded store={walkForwardOptions}>{(options) => <SettingsForm options={options()} />}</Loaded>
+          <div class="sidebar-buttons sidebar-buttons-stack">
+            <button class="btn" type="button" disabled={running() || !result()} onClick={() => setEdgeOpen(true)}>
+              Edge analysis…
+            </button>
+          </div>
         </div>
         <div class="fill-column">
           <Loaded store={walkForwardOptions}>

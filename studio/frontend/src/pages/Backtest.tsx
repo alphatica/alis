@@ -4,6 +4,7 @@
 
 import { createEffect, createRoot, createSignal, Show } from 'solid-js';
 import { api, download, type ErrorMessage, toErrorMessage } from '../api';
+import { EdgeDialog } from '../components/EdgeDialog';
 import { EquityChart, type EquityMode, EquityModeSwitch } from '../components/EquityChart';
 import { ErrorBox, JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
@@ -89,7 +90,7 @@ const running = job.running;
 
 const [tab, setTab] = createSignal(0);
 const [equityMode, setEquityMode] = createSignal<EquityMode>('nav');
-const [dialog, setDialog] = createSignal<'drawdown' | 'random'>();
+const [dialog, setDialog] = createSignal<'drawdown' | 'random' | 'edge'>();
 
 // Defaults from the backend: the first strategy, the last 10 years of data, commission and capital
 // (dates and amounts are set again when new data is loaded).
@@ -148,6 +149,7 @@ export function Backtest() {
     <div class="page-fill">
       <DrawdownDialog open={dialog() === 'drawdown'} onClose={() => setDialog(undefined)} />
       <RandomDialog open={dialog() === 'random'} onClose={() => setDialog(undefined)} />
+      <EdgeDialog open={dialog() === 'edge'} url="/api/backtest/edge" onClose={() => setDialog(undefined)} />
       <div class="split split-narrow split-stretch">
         <div class="sidebar">
           <Loaded store={backtestOptions}>{(options) => <SettingsForm strategies={options().strategies} />}</Loaded>
@@ -161,6 +163,9 @@ export function Backtest() {
             </button>
             <button class="btn" type="button" disabled={!canAnalyze()} onClick={() => setDialog('drawdown')}>
               Drawdown check…
+            </button>
+            <button class="btn" type="button" disabled={!canAnalyze()} onClick={() => setDialog('edge')}>
+              Edge analysis…
             </button>
             <button class="btn" type="button" disabled={!canAnalyze()} onClick={() => setDialog('random')}>
               Compare to random…

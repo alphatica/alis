@@ -18,7 +18,7 @@ final class WalkForwardJob {
 	private WalkForwardJob() {
 	}
 
-	static void run(Job job, WalkForward walkForward, List<Window> windows, MarketData marketData)
+	static Result run(Job job, WalkForward walkForward, List<Window> windows, MarketData marketData)
 			throws Exception {
 		job.onCancel(walkForward::stop);
 		Time from = windows.getFirst().testStart();
@@ -44,7 +44,7 @@ final class WalkForwardJob {
 			}
 		}, output);
 		if (result.backtest() == null) {
-			return;
+			return result;
 		}
 		// Positions closed at the end of the backtest
 		output.sendNewTrades(result.backtest().account());
@@ -52,6 +52,7 @@ final class WalkForwardJob {
 				.toList());
 		job.channel().replace("result", new BacktestView(BacktestStats.of(result.backtest(), marketData),
 				Equity.of(result.backtest().account().getAccountHistory().getSessions())));
+		return result;
 	}
 
 	/**

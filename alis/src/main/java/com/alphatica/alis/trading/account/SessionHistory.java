@@ -18,6 +18,7 @@ public final class SessionHistory {
 	private final double startValue;
 	private final List<Time> times = new ArrayList<>();
 	private double[] nav = new double[64];
+	private double[] positions = new double[64];
 	private double[] netDeposits = new double[64];
 	private double pendingFlow;
 
@@ -31,10 +32,14 @@ public final class SessionHistory {
 
 	/** Values the session: a new one, or the last one again. */
 	void record(Time time, double value) {
+		record(time, value, 0);
+	}
+
+	void record(Time time, double value, double positionsValue) {
 		if (!times.isEmpty()) {
 			int comparison = time.compareTo(times.getLast());
 			if (comparison == 0) {
-				revalueLast(value);
+				revalueLast(value, positionsValue);
 				return;
 			}
 			if (comparison < 0) {
@@ -44,21 +49,28 @@ public final class SessionHistory {
 		int index = times.size();
 		if (index == nav.length) {
 			nav = Arrays.copyOf(nav, index * 2);
+			positions = Arrays.copyOf(positions, index * 2);
 			netDeposits = Arrays.copyOf(netDeposits, index * 2);
 		}
 		times.add(time);
 		nav[index] = value;
+		positions[index] = positionsValue;
 		netDeposits[index] = pendingFlow;
 		pendingFlow = 0;
 	}
 
 	/** Values the last session again, e.g. after selling at a delisting; nothing without sessions. */
 	void revalueLast(double value) {
+		revalueLast(value, 0);
+	}
+
+	void revalueLast(double value, double positionsValue) {
 		if (times.isEmpty()) {
 			return;
 		}
 		int last = times.size() - 1;
 		nav[last] = value;
+		positions[last] = positionsValue;
 		netDeposits[last] += pendingFlow;
 		pendingFlow = 0;
 	}
@@ -71,6 +83,14 @@ public final class SessionHistory {
 	/** NAV at the end of every session. */
 	public double[] nav() {
 		return Arrays.copyOf(nav, times.size());
+	}
+
+	public double[] exposure() {
+		double[] result = new double[times.size()];
+		for (int i = 0; i < result.length; i++) {
+			result[i] = nav[i] > 0 ? positions[i] / nav[i] : 0;
+		}
+		return result;
 	}
 
 	/**
