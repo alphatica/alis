@@ -16,7 +16,6 @@ import com.alphatica.alis.trading.order.TradePrice;
 import java.util.Iterator;
 import java.util.List;
 
-import static com.alphatica.alis.data.layer.Layer.TURNOVER;
 import static com.alphatica.alis.tools.java.NumberTools.percentChange;
 import static com.alphatica.alis.trading.order.Direction.BUY;
 import static com.alphatica.alis.trading.order.Direction.SELL;
@@ -25,14 +24,14 @@ final class StrategyTradeExecutor {
 
 	private final double commissionRate;
 	private final TradePrice tradePrice;
-	private final Double limitOrderSize;
+	private final OrderQuantities quantities;
 	private final StrategyExecutionLogger logger;
 
 	StrategyTradeExecutor(double commissionRate, TradePrice tradePrice, Double limitOrderSize,
 						  StrategyExecutionLogger logger) {
 		this.commissionRate = commissionRate;
 		this.tradePrice = tradePrice;
-		this.limitOrderSize = limitOrderSize;
+		this.quantities = new OrderQuantities(commissionRate, limitOrderSize);
 		this.logger = logger;
 	}
 
@@ -78,7 +77,7 @@ final class StrategyTradeExecutor {
 	private BuyResult executeBuy(Order order, TimeMarketData marketData, TimeMarketDataSet current,
 								 Account account) throws AccountActionException {
 		double price = tradePrice.getPrice(marketData);
-		double quantity = possibleQuantity(requestedQuantity(order, account, price), marketData);
+		double quantity = quantities.possibleQuantity(order, marketData, account, price);
 		if (quantity == 0) {
 			logger.log("Ignoring buy order for %s. Quantity = 0", order.market());
 			return BuyResult.IGNORED;
@@ -99,7 +98,7 @@ final class StrategyTradeExecutor {
 	private boolean executeSell(Order order, TimeMarketData marketData, TimeMarketDataSet current,
 								Account account) throws AccountActionException {
 		double price = tradePrice.getPrice(marketData);
-		double quantity = possibleQuantity(requestedQuantity(order, account, price), marketData);
+		double quantity = quantities.possibleQuantity(order, marketData, account, price);
 		if (quantity <= 0) {
 			return false;
 		}
@@ -117,46 +116,6 @@ final class StrategyTradeExecutor {
 	private static TimeMarketData currentMarket(Order order, TimeMarketDataSet current) {
 		TimeMarketData marketData = current.get(order.market());
 		return marketData != null && marketData.getTime().equals(current.getTime()) ? marketData : null;
-	}
-
-	/**
-	 * Requested quantity, not rounded yet.
-	 */
-	private double requestedQuantity(Order order, Account account, double price) {
-		return switch (order.size()) {
-			case PERCENTAGE -> percentageQuantity(order, account, price);
-			case COUNT -> order.sizeValue();
-			case VALUE -> valueQuantity(order, account, price);
-		};
-	}
-
-	private double percentageQuantity(Order order, Account account, double price) {
-		return switch (order.direction()) {
-			case BUY -> order.sizeValue() * account.getNAV() / 100.0 / unitCostIncludingCommission(price);
-			case SELL -> order.sizeValue() * account.getPosition(order.market()).getQuantity() / 100;
-		};
-	}
-
-	private double valueQuantity(Order order, Account account, double price) {
-		return switch (order.direction()) {
-			case BUY -> order.sizeValue() / unitCostIncludingCommission(price);
-			case SELL -> Math.min(order.sizeValue() / price, account.getPosition(order.market()).getQuantity());
-		};
-	}
-
-	private double unitCostIncludingCommission(double price) {
-		return price * (1.0 + commissionRate);
-	}
-
-	/**
-	 * Requested quantity limited by turnover (if set) and rounded down to the smallest quantity the account can hold.
-	 */
-	private double possibleQuantity(double quantity, TimeMarketData marketData) {
-		if (limitOrderSize.isNaN()) {
-			return Quantities.roundDown(quantity);
-		}
-		double traded = marketData.getData(TURNOVER, 0) / marketData.getAveragePrice(0);
-		return Quantities.roundDown(Math.min(traded * limitOrderSize, quantity));
 	}
 
 	private static void recordTrade(Account account, TimeMarketDataSet current, TimeMarketData marketData,
