@@ -22,6 +22,7 @@ public final class StrategyList {
 		Map<String, Supplier<Strategy>> map = new LinkedHashMap<>();
 		map.put("DonchianChannel", DonchianChannel::new);
 		map.put("BuyATH", BuyATH::new);
+		map.put("SmaCross", SmaCross::new);
 		map.put("RandomStrategy", RandomStrategy::new);
 		return Collections.unmodifiableMap(map);
 	}
