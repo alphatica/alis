@@ -1,7 +1,8 @@
 import { createSignal, Show } from 'solid-js';
 import { EdgeReport } from '../components/EdgeReport';
-import { EquityChart, type EquityMode, EquityModeSwitch } from '../components/EquityChart';
+import { EquityChart, EquityChartSwitches, type EquityMode } from '../components/EquityChart';
 import { Loaded } from '../components/Loaded';
+import type { ChartScale } from '../components/logAxis';
 import { StatTable } from '../components/StatTable';
 import { StatTiles } from '../components/StatTiles';
 import { Tabs } from '../components/Tabs';
@@ -13,6 +14,7 @@ import { AddTradeDialog, CashDialog, portfolioDialog, setPortfolioDialog } from 
 const [tab, setTab] = createSignal(0);
 const closeDialog = () => setPortfolioDialog(undefined);
 const [equityMode, setEquityMode] = createSignal<EquityMode>('nav');
+const [equityScale, setEquityScale] = createSignal<ChartScale>('linear');
 
 export function Portfolio() {
   return (
@@ -30,7 +32,7 @@ export function Portfolio() {
                   label: 'Equity',
                   content: () => <Equity data={data()} />,
                   actions: () =>
-                    hasEquity(data()) ? <EquityModeSwitch mode={equityMode()} onChange={setEquityMode} /> : undefined,
+                    hasEquity(data()) ? <EquitySwitches /> : undefined,
                 },
                 { label: 'Positions', content: () => <TextTable table={data().history} /> },
                 { label: 'History', content: () => <TextTable table={data().actions} /> },
@@ -72,11 +74,22 @@ function Equity(props: { data: PortfolioData }) {
           when={hasEquity(props.data)}
           fallback={<NoEquity data={props.data} />}
         >
-          <EquityChart equity={props.data.equity} mode={equityMode()} stats={props.data.summary} fileName="portfolio" />
+          <EquityChart equity={props.data.equity} mode={equityMode()} scale={equityScale()} stats={props.data.summary} fileName="portfolio" />
         </Show>
         <StatTable stats={props.data.stats} />
       </div>
       <StatTiles stats={props.data.summary} wide />
     </>
+  );
+}
+
+function EquitySwitches() {
+  return (
+    <EquityChartSwitches
+      mode={equityMode()}
+      onModeChange={setEquityMode}
+      scale={equityScale()}
+      onScaleChange={setEquityScale}
+    />
   );
 }

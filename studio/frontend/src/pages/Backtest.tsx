@@ -5,11 +5,12 @@
 import { createEffect, createRoot, createSignal, Show } from 'solid-js';
 import { api, download, type ErrorMessage, toErrorMessage } from '../api';
 import { EdgeDialog } from '../components/EdgeDialog';
-import { EquityChart, type EquityMode, EquityModeSwitch } from '../components/EquityChart';
+import { EquityChart, EquityChartSwitches, type EquityMode } from '../components/EquityChart';
 import { ErrorBox, JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
 import { Select } from '../components/Select';
 import { Loaded } from '../components/Loaded';
+import type { ChartScale } from '../components/logAxis';
 import { Modal } from '../components/Modal';
 import { StableLabel } from '../components/StableLabel';
 import { StatTiles } from '../components/StatTiles';
@@ -90,6 +91,7 @@ const running = job.running;
 
 const [tab, setTab] = createSignal(0);
 const [equityMode, setEquityMode] = createSignal<EquityMode>('nav');
+const [equityScale, setEquityScale] = createSignal<ChartScale>('linear');
 const [dialog, setDialog] = createSignal<'drawdown' | 'random' | 'edge'>();
 
 // Defaults from the backend: the first strategy, the last 10 years of data, commission and capital
@@ -183,7 +185,7 @@ export function Backtest() {
                     label: 'Equity',
                     content: () => <BacktestEquity />,
                     actions: () =>
-                      result() ? <EquityModeSwitch mode={equityMode()} onChange={setEquityMode} /> : undefined,
+                      result() ? <EquitySwitches /> : undefined,
                   },
                   {
                     label: 'Trades',
@@ -257,7 +259,7 @@ function BacktestEquity() {
       {(view) => (
         <>
           <Show when={view().equity.times.length > 0} fallback={<p class="muted">No sessions in the time range.</p>}>
-            <EquityChart equity={view().equity} mode={equityMode()} stats={view().stats} fileName={resultStrategy() || 'backtest'} />
+            <EquityChart equity={view().equity} mode={equityMode()} scale={equityScale()} stats={view().stats} fileName={resultStrategy() || 'backtest'} />
           </Show>
           <StatTiles stats={view().stats} results />
         </>
@@ -384,5 +386,16 @@ function RandomDialog(props: { open: boolean; onClose: () => void }) {
         </button>
       </div>
     </Modal>
+  );
+}
+
+function EquitySwitches() {
+  return (
+    <EquityChartSwitches
+      mode={equityMode()}
+      onModeChange={setEquityMode}
+      scale={equityScale()}
+      onScaleChange={setEquityScale}
+    />
   );
 }

@@ -1228,6 +1228,13 @@ h2 {
 	container: edge-report / inline-size;
 }
 
+/* The scale switch, above the cards on the right */
+.edge-toolbar {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: var(--space-3);
+}
+
 .edge-cards {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);

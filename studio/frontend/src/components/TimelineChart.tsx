@@ -1,16 +1,15 @@
-import { onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, onCleanup, onMount, Show } from 'solid-js';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { numberFormat } from '../format';
 import type { EdgeSeries, EdgeTimeline } from '../state';
+import { type ChartScale, logSplits, RETURN_LOG, toPositions } from './logAxis';
 
 const MAIN_HEIGHT = 260;
 const DIFFERENCE_HEIGHT = 150;
 const VALUE_AXIS_WIDTH = 72;
 const SERIES_COLORS = ['--text-muted', '--accent'];
 const DIFFERENCE_COLOR = '--series-2';
-const TICK_SPACING = 30;
-const NICE_CHANGES = [-99, -95, -90, -80, -70, -50, -30, -20, -10, -5, -2, -1, 1, 2, 5, 10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 5000, 10000];
 const percent = numberFormat(0, 1);
 const cursorPercent = numberFormat(2);
 let charts = 0;
@@ -21,8 +20,6 @@ type ValueScale = {
   splits?: (u: uPlot, axisIdx: number, min: number, max: number) => number[];
 };
 
-const fromLog = (value: number) => Math.expm1(value / 100) * 100;
-const toLog = (change: number) => 100 * Math.log1p(change / 100);
 const signed = (format: Intl.NumberFormat, change: number) => `${change > 0 ? '+' : ''}${format.format(change)} %`;
 
 const CUMULATIVE: ValueScale = {
@@ -30,46 +27,19 @@ const CUMULATIVE: ValueScale = {
   cursor: (value) => `${cursorPercent.format(value)} %`,
 };
 
-const RELATIVE: ValueScale = {
-  axis: (value) => signed(percent, fromLog(value)),
-  cursor: (value) => signed(cursorPercent, fromLog(value)),
-  splits: relativeSplits,
+/** Cumulative return in log scale: the values are positions on the axis (RETURN_LOG). */
+const CUMULATIVE_LOG: ValueScale = {
+  axis: (value) => CUMULATIVE.axis(RETURN_LOG.fromLog(value)),
+  cursor: (value) => CUMULATIVE.cursor(RETURN_LOG.fromLog(value)),
+  splits: logSplits(RETURN_LOG),
 };
 
-function niceStep(raw: number) {
-  const power = 10 ** Math.floor(Math.log10(raw));
-  return [1, 2, 5, 10].map((factor) => factor * power).find((step) => step >= raw) ?? 10 * power;
-}
-
-function relativeSplits(u: uPlot, _axisIdx: number, min: number, max: number) {
-  const height = u.bbox.height / devicePixelRatio || u.height;
-  const minGap = ((max - min) * TICK_SPACING) / height;
-  const low = fromLog(min);
-  const high = fromLog(max);
-  const step = niceStep((high - low) / Math.max(2, height / (2 * TICK_SPACING)));
-  const candidates = new Set(NICE_CHANGES);
-  for (let i = Math.ceil(low / step); i * step <= high; i++) {
-    candidates.add(i * step);
-  }
-  const positions = [...candidates].map(toLog).filter((value) => value >= min && value <= max);
-  const anchor = min <= 0 && max >= 0 ? 0 : positions.reduce((best, value) => (Math.abs(value) < Math.abs(best) ? value : best), max);
-  const kept = [anchor];
-  let last = anchor;
-  for (const value of positions.filter((value) => value > anchor).sort((a, b) => a - b)) {
-    if (value - last >= minGap) {
-      kept.push(value);
-      last = value;
-    }
-  }
-  last = anchor;
-  for (const value of positions.filter((value) => value < anchor).sort((a, b) => b - a)) {
-    if (last - value >= minGap) {
-      kept.push(value);
-      last = value;
-    }
-  }
-  return kept.sort((a, b) => a - b);
-}
+/** The values are already 100 × ln of the ratio, so this axis is always in log scale. */
+const RELATIVE: ValueScale = {
+  axis: (value) => signed(percent, RETURN_LOG.fromLog(value)),
+  cursor: (value) => signed(cursorPercent, RETURN_LOG.fromLog(value)),
+  splits: logSplits(RETURN_LOG),
+};
 
 function color(token: string) {
   return getComputedStyle(document.documentElement).getPropertyValue(token).trim();
@@ -142,41 +112,44 @@ function lines(series: EdgeSeries[], colors: string[]) {
   return series.map((line, i) => ({ name: line.name, color: color(colors[i % colors.length]) }));
 }
 
-export function TimelineChart(props: { timeline: EdgeTimeline }) {
+/** Cumulative returns of the series above (in the scale), and the difference between them below (always log). */
+export function TimelineChart(props: { timeline: EdgeTimeline; scale: ChartScale }) {
   let main!: HTMLDivElement;
   let difference!: HTMLDivElement;
-  const plots: uPlot[] = [];
+  let mainPlot: uPlot | undefined;
   const sync = `edge-timeline-${++charts}`;
   const hasSeries = () => props.timeline.series.length > 0;
   onMount(() => {
     const times = props.timeline.times.map(seconds);
     const differenceHeight = hasSeries() ? DIFFERENCE_HEIGHT : MAIN_HEIGHT + DIFFERENCE_HEIGHT;
-    if (hasSeries()) {
-      plots.push(
-        new uPlot(
-          options(main.clientWidth, MAIN_HEIGHT, sync, lines(props.timeline.series, SERIES_COLORS), CUMULATIVE),
-          [times, ...props.timeline.series.map((line) => line.values)],
-          main,
-        ),
+    // Rebuilt when the scale changes; it stays in the cursor sync with the difference below
+    createEffect(() => {
+      if (!hasSeries()) {
+        return;
+      }
+      const log = props.scale === 'log';
+      mainPlot?.destroy();
+      mainPlot = new uPlot(
+        options(main.clientWidth, MAIN_HEIGHT, sync, lines(props.timeline.series, SERIES_COLORS), log ? CUMULATIVE_LOG : CUMULATIVE),
+        [times, ...props.timeline.series.map((line) => (log ? toPositions(RETURN_LOG, line.values) : line.values))],
+        main,
       );
-    }
+    });
     const differencePlot = new uPlot(
       options(difference.clientWidth, differenceHeight, sync, lines([props.timeline.difference], [DIFFERENCE_COLOR]), RELATIVE),
       [times, props.timeline.difference.values],
       difference,
     );
-    plots.push(differencePlot);
     const resize = new ResizeObserver(() => {
-      if (hasSeries()) {
-        plots[0].setSize({ width: main.clientWidth, height: MAIN_HEIGHT });
-      }
+      mainPlot?.setSize({ width: main.clientWidth, height: MAIN_HEIGHT });
       differencePlot.setSize({ width: difference.clientWidth, height: differenceHeight });
     });
     resize.observe(difference);
     onCleanup(() => {
       resize.disconnect();
-      plots.forEach((plot) => plot.destroy());
-      plots.length = 0;
+      mainPlot?.destroy();
+      mainPlot = undefined;
+      differencePlot.destroy();
     });
   });
   return (

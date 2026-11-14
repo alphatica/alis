@@ -7,10 +7,11 @@
 import { createEffect, createRoot, createSignal, on, onCleanup, Show } from 'solid-js';
 import { api, type ErrorMessage } from '../api';
 import { EdgeDialog } from '../components/EdgeDialog';
-import { EquityChart, type EquityMode, EquityModeSwitch } from '../components/EquityChart';
+import { EquityChart, EquityChartSwitches, type EquityMode } from '../components/EquityChart';
 import { JobFailed } from '../components/ErrorBox';
 import { Field } from '../components/Field';
 import { Loaded } from '../components/Loaded';
+import type { ChartScale } from '../components/logAxis';
 import { ParamsDialog } from '../components/ParamsDialog';
 import { Select } from '../components/Select';
 import { StableLabel } from '../components/StableLabel';
@@ -79,6 +80,7 @@ const [resultStrategy, setResultStrategy] = createSignal('');
 const [shown, setShown] = createSignal<{ params: string[]; title: string }>();
 const [tab, setTab] = createSignal(0);
 const [equityMode, setEquityMode] = createSignal<EquityMode>('nav');
+const [equityScale, setEquityScale] = createSignal<ChartScale>('linear');
 const [edgeOpen, setEdgeOpen] = createSignal(false);
 
 const orders = liveRows();
@@ -274,7 +276,7 @@ export function WalkForward() {
                   {
                     label: 'Equity',
                     content: () => <WalkForwardEquity />,
-                    actions: () => (result() ? <EquityModeSwitch mode={equityMode()} onChange={setEquityMode} /> : undefined),
+                    actions: () => (result() ? <EquitySwitches /> : undefined),
                   },
                   { label: 'Windows', content: () => <WindowsTable /> },
                   { label: 'Trades', content: () => <LiveTable columns={options().trades} rows={trades} empty="No trades." /> },
@@ -436,6 +438,7 @@ function WalkForwardEquity() {
             <EquityChart
               equity={view().equity}
               mode={equityMode()}
+              scale={equityScale()}
               stats={view().stats}
               fileName={`${resultStrategy() || 'strategy'}-walk-forward`}
             />
@@ -500,6 +503,17 @@ function LiveTable(props: { columns: ColumnSpec[]; rows: LiveRows; empty: string
       source={props.rows.source}
       widest={props.rows.widest()}
       emptyMessage={running() ? 'Running…' : result() ? props.empty : 'Start a walk-forward to see the trades of its test windows.'}
+    />
+  );
+}
+
+function EquitySwitches() {
+  return (
+    <EquityChartSwitches
+      mode={equityMode()}
+      onModeChange={setEquityMode}
+      scale={equityScale()}
+      onScaleChange={setEquityScale}
     />
   );
 }

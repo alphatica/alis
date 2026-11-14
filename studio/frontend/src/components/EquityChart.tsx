@@ -1,10 +1,12 @@
-import { createEffect, For, onCleanup, onMount } from 'solid-js';
+import { createEffect, onCleanup, onMount } from 'solid-js';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { numberFormat } from '../format';
 import { type Equity, formatStat, type Stat } from '../state';
 import { showError } from '../toasts';
 import { openContextMenu } from './ContextMenu';
+import { AMOUNT_LOG, type ChartScale, type LogAxis, logSplits, RETURN_LOG, toPositions } from './logAxis';
+import { ScaleSwitch, Segmented, type SegmentedOption } from './Segmented';
 
 /** nav: account value, jumps with deposits and withdrawals; return: cumulative return in %, without them. */
 export type EquityMode = 'nav' | 'return';
@@ -14,8 +16,19 @@ function toSeconds(time: number) {
   return Date.UTC(Math.floor(time / 10000), (Math.floor(time / 100) % 100) - 1, time % 100) / 1000;
 }
 
-function toData(equity: Equity, mode: EquityMode): uPlot.AlignedData {
-  return [equity.times.map(toSeconds), mode === 'nav' ? equity.nav : equity.returnPercent];
+/** The value axis in log scale; undefined in linear. */
+function logAxis(mode: EquityMode, scale: ChartScale): LogAxis | undefined {
+  if (scale === 'linear') {
+    return undefined;
+  }
+  return mode === 'nav' ? AMOUNT_LOG : RETURN_LOG;
+}
+
+/** The plotted values: in log scale, their positions on the axis. */
+function plotted(equity: Equity, mode: EquityMode, scale: ChartScale): (number | null)[] {
+  const values = mode === 'nav' ? equity.nav : equity.returnPercent;
+  const log = logAxis(mode, scale);
+  return log ? toPositions(log, values) : values;
 }
 
 /** Colors come from the CSS tokens, so the chart follows the app's theme. */
@@ -108,27 +121,39 @@ function cursorLabelWidth(text: string) {
 }
 
 /** Width of the widest cursor label for the values; the widest is the one farthest from 0, so the min or the max. */
-function widestCursorLabel(values: number[], format: (value: number) => string) {
-  if (values.length === 0) {
-    return 0;
-  }
+function widestCursorLabel(values: (number | null)[], format: (value: number) => string) {
   let min = Infinity;
   let max = -Infinity;
   for (const v of values) {
-    min = Math.min(min, v);
-    max = Math.max(max, v);
+    if (v != null) {
+      min = Math.min(min, v);
+      max = Math.max(max, v);
+    }
+  }
+  if (min > max) {
+    return 0;
   }
   return Math.max(cursorLabelWidth(format(min)), cursorLabelWidth(format(max)));
 }
 
-function options(width: number, height: number, mode: EquityMode, values: number[]): uPlot.Options {
+function options(
+  width: number,
+  height: number,
+  mode: EquityMode,
+  scale: ChartScale,
+  values: (number | null)[],
+): uPlot.Options {
   const muted = color('--text-muted');
   const grid = { stroke: color('--border'), width: 1 };
   const accent = color('--accent');
   const axisFont = `11px ${color('--font-ui')}`;
   const axis = { stroke: muted, grid, ticks: grid, font: axisFont };
-  const format = mode === 'nav' ? (v: number) => formatNav.format(v) : (v: number) => `${formatPercent.format(v)} %`;
-  const formatCursor = mode === 'nav' ? format : (v: number) => `${formatCursorPercent.format(v)} %`;
+  const log = logAxis(mode, scale);
+  // In log scale the plotted values are positions on the axis: labels show the values back
+  const value = log ? log.fromLog : (v: number) => v;
+  const format =
+    mode === 'nav' ? (v: number) => formatNav.format(value(v)) : (v: number) => `${formatPercent.format(value(v))} %`;
+  const formatCursor = mode === 'nav' ? format : (v: number) => `${formatCursorPercent.format(value(v))} %`;
   // The cursor's label sits left of the plot, over the axis: the axis is wide enough for any value, so it is not cut off
   const cursorLabelSpace = CURSOR_LABEL_GAP + widestCursorLabel(values, formatCursor);
   const valueAxisSize = (_: uPlot, ticks: string[] | null) =>
@@ -148,14 +173,17 @@ function options(width: number, height: number, mode: EquityMode, values: number
     cursor: { drag: { x: true, y: false }, move: snapToPoint },
     plugins: [cursorLabels(formatCursor)],
     scales: { x: { time: true } },
-    axes: [axis, { ...axis, size: valueAxisSize, values: (_, values) => values.map(format) }],
+    axes: [
+      axis,
+      { ...axis, size: valueAxisSize, splits: log && logSplits(log), values: (_, values) => values.map(format) },
+    ],
     series: [
       {},
       {
         label: mode === 'nav' ? 'NAV' : 'Return',
         stroke: accent,
         width: 1.5,
-        // NAV is filled down to the axis; return is filled to 0 %, so gains and losses are visible.
+        // NAV is filled down to the axis; return is filled to 0 % (also 0 in log scale), so gains and losses are visible.
         fill: `${accent}1f`,
         fillTo: mode === 'nav' ? undefined : 0,
       },
@@ -334,18 +362,24 @@ async function saveImage(u: uPlot, stats: Stat[], fileName: string) {
  * Account value or return over time. Drag to zoom, double-click to zoom out. Right click: copy or save as PNG,
  * together with the stats (shown under the chart by StatTiles). The plot fills its container and follows its size.
  */
-export function EquityChart(props: { equity: Equity; mode: EquityMode; stats: Stat[]; fileName: string }) {
+export function EquityChart(props: {
+  equity: Equity;
+  mode: EquityMode;
+  scale: ChartScale;
+  stats: Stat[];
+  fileName: string;
+}) {
   let container!: HTMLDivElement;
   let plot: uPlot | undefined;
 
   onMount(() => {
-    // Rebuilt when the data or the mode change: axis formats and series differ between modes.
+    // Rebuilt when the data, the mode or the scale change: axis formats and series differ between them.
     createEffect(() => {
-      const data = toData(props.equity, props.mode);
+      const values = plotted(props.equity, props.mode, props.scale);
       plot?.destroy();
       plot = new uPlot(
-        options(container.clientWidth, container.clientHeight, props.mode, data[1] as number[]),
-        data,
+        options(container.clientWidth, container.clientHeight, props.mode, props.scale, values),
+        [props.equity.times.map(toSeconds), values],
         container,
       );
     });
@@ -363,7 +397,7 @@ export function EquityChart(props: { equity: Equity; mode: EquityMode; stats: St
     if (!u) {
       return;
     }
-    const fileName = `${props.fileName}-${props.mode === 'nav' ? 'nav' : 'return'}.png`;
+    const fileName = `${props.fileName}-${props.mode === 'nav' ? 'nav' : 'return'}${props.scale === 'log' ? '-log' : ''}.png`;
     openContextMenu(event, [
       { label: 'Copy image', run: () => copyImage(u, props.stats) },
       { label: 'Save image…', run: () => saveImage(u, props.stats, fileName) },
@@ -373,27 +407,27 @@ export function EquityChart(props: { equity: Equity; mode: EquityMode; stats: St
   return <div ref={container} class="chart" onContextMenu={showMenu} />;
 }
 
-const EQUITY_MODES: { mode: EquityMode; label: string; title: string }[] = [
-  { mode: 'nav', label: 'NAV', title: 'Account value; deposits and withdrawals show as jumps' },
-  { mode: 'return', label: 'Return %', title: 'Cumulative return, not affected by deposits and withdrawals' },
+const EQUITY_MODES: SegmentedOption<EquityMode>[] = [
+  { value: 'nav', label: 'NAV', title: 'Account value; deposits and withdrawals show as jumps' },
+  { value: 'return', label: 'Return %', title: 'Cumulative return, not affected by deposits and withdrawals' },
 ];
 
-/** NAV / Return % switch, e.g. in the tab bar above the chart. */
-export function EquityModeSwitch(props: { mode: EquityMode; onChange: (mode: EquityMode) => void }) {
+/** NAV / Return % switch. */
+function EquityModeSwitch(props: { mode: EquityMode; onChange: (mode: EquityMode) => void }) {
+  return <Segmented label="Chart" options={EQUITY_MODES} value={props.mode} onChange={props.onChange} />;
+}
+
+/** NAV / Return % and Linear / Log switches, e.g. in the tab bar above the chart. */
+export function EquityChartSwitches(props: {
+  mode: EquityMode;
+  onModeChange: (mode: EquityMode) => void;
+  scale: ChartScale;
+  onScaleChange: (scale: ChartScale) => void;
+}) {
   return (
-    <div class="segmented" role="group" aria-label="Chart">
-      <For each={EQUITY_MODES}>
-        {(item) => (
-          <button
-            type="button"
-            aria-pressed={props.mode === item.mode}
-            title={item.title}
-            onClick={() => props.onChange(item.mode)}
-          >
-            {item.label}
-          </button>
-        )}
-      </For>
-    </div>
+    <>
+      <EquityModeSwitch mode={props.mode} onChange={props.onModeChange} />
+      <ScaleSwitch scale={props.scale} onChange={props.onScaleChange} />
+    </>
   );
 }
