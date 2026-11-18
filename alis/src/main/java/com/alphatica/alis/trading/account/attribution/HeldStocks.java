@@ -8,6 +8,7 @@ import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.trading.account.Account;
 import com.alphatica.alis.trading.account.PositionPricesRecord;
+import com.alphatica.alis.trading.account.SessionHistory;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -19,15 +20,34 @@ import java.util.Map;
 import static com.alphatica.alis.data.layer.Layer.CLOSE;
 import static com.alphatica.alis.data.layer.Layer.OPEN;
 
+/**
+ * The stocks held by an account against a benchmark, from open to open of the account's sessions, in 100 × ln of
+ * the ratios added up.
+ * <p>
+ * Both portfolios below hold every stock while the account does and let it grow and shrink with its price, as
+ * bought and held; they are never rebalanced to fixed weights:
+ * <ul>
+ *     <li>equal positions: every position (from the first purchase of a stock until it is sold out) starts at the
+ *     same share of the account (its value at the start of the session), whatever its size, and buying more or
+ *     selling part of it does not change it;</li>
+ *     <li>the account's positions: the value of the shares held.</li>
+ * </ul>
+ *
+ * @param versusBenchmark equal positions against the benchmark
+ * @param sizeEffect      the account's positions against equal positions
+ */
 public record HeldStocks(double[] versusBenchmark, double[] sizeEffect) {
 
-	public static HeldStocks of(Account account, MarketData marketData, Market benchmark, List<Time> sessions) {
+	public static HeldStocks of(Account account, MarketData marketData, Market benchmark) {
+		SessionHistory history = account.getAccountHistory().getSessions();
+		List<Time> sessions = history.times();
+		double[] startValues = history.startValues();
 		int count = sessions.size();
 		DailyChanges changes = new DailyChanges(count);
 		for (Map.Entry<MarketName, Held> entry : held(account, marketData, sessions).entrySet()) {
 			Market market = marketData.getMarket(entry.getKey());
 			if (market != null) {
-				entry.getValue().addChanges(market, sessions, changes);
+				entry.getValue().addChanges(market, sessions, startValues, changes);
 			}
 		}
 		double[] benchmarkOpens = opens(benchmark, sessions, 0, count - 1, null);
@@ -36,10 +56,10 @@ public record HeldStocks(double[] versusBenchmark, double[] sizeEffect) {
 		for (int day = 0; day + 1 < count; day++) {
 			double benchmarkChange = Math.log(benchmarkOpens[day + 1] / benchmarkOpens[day]);
 			double equal = changes.equal(day);
-			double weighted = changes.weighted(day);
+			double held = changes.account(day);
 			versusBenchmark[day + 1] = versusBenchmark[day]
 					+ percentOrZero(equal - (Double.isFinite(benchmarkChange) ? benchmarkChange : 0));
-			sizeEffect[day + 1] = sizeEffect[day] + percentOrZero(weighted - equal);
+			sizeEffect[day + 1] = sizeEffect[day] + percentOrZero(held - equal);
 		}
 		return new HeldStocks(versusBenchmark, sizeEffect);
 	}
@@ -93,7 +113,7 @@ public record HeldStocks(double[] versusBenchmark, double[] sizeEffect) {
 		return previous == null ? Double.NaN : previous.getData(CLOSE, 0);
 	}
 
-	private record Lot(int entry, int exit, double capital) {
+	private record Lot(int entry, int exit, double quantity) {
 	}
 
 	private static final class Held {
@@ -112,65 +132,86 @@ public record HeldStocks(double[] versusBenchmark, double[] sizeEffect) {
 			}
 			if (entry < exit) {
 				days.set(entry, exit);
-				lots.add(new Lot(entry, exit, lot.quantity() * lot.entry()));
+				lots.add(new Lot(entry, exit, lot.quantity()));
 			}
 		}
 
-		void addChanges(Market market, List<Time> sessions, DailyChanges changes) {
+		void addChanges(Market market, List<Time> sessions, double[] startValues, DailyChanges changes) {
 			int first = days.nextSetBit(0);
 			if (first < 0) {
 				return;
 			}
 			double[] opens = opens(market, sessions, first, days.length(), this);
 			double[] values = values(opens, first);
+			double[] equalValues = equalValues(opens, first, startValues);
 			for (int day = first; day >= 0; day = days.nextSetBit(day + 1)) {
 				double change = opens[day + 1 - first] / opens[day - first] - 1;
 				if (Double.isFinite(change)) {
-					changes.add(day, change, values[day - first]);
+					changes.add(day, change, values[day - first], equalValues[day - first]);
 				}
 			}
 		}
 
+		/** The value of the shares held at the open of every session. */
 		private double[] values(double[] opens, int first) {
 			double[] values = new double[opens.length];
 			for (Lot lot : lots) {
-				double entryOpen = opens[lot.entry() - first];
 				for (int day = lot.entry(); day < lot.exit(); day++) {
-					values[day - first] += lot.capital() * opens[day - first] / entryOpen;
+					values[day - first] += lot.quantity() * opens[day - first];
 				}
+			}
+			return values;
+		}
+
+		/**
+		 * An equal position at the open of every session: from the start of every run of held sessions, the account's
+		 * start value then, changing with the price.
+		 */
+		private double[] equalValues(double[] opens, int first, double[] startValues) {
+			double[] values = new double[opens.length];
+			for (int start = days.nextSetBit(0); start >= 0; ) {
+				int end = days.nextClearBit(start);
+				double shares = startValues[start] / opens[start - first];
+				for (int day = start; day < end; day++) {
+					values[day - first] = shares * opens[day - first];
+				}
+				start = days.nextSetBit(end);
 			}
 			return values;
 		}
 	}
 
+	/** Changes of the held stocks in every session, weighted by the values of the two portfolios. */
 	private static final class DailyChanges {
-		private final double[] sum;
-		private final int[] stocks;
-		private final double[] weightedSum;
-		private final double[] value;
+		private final double[] equalSum;
+		private final double[] equalValue;
+		private final double[] accountSum;
+		private final double[] accountValue;
 
 		DailyChanges(int count) {
-			sum = new double[count];
-			stocks = new int[count];
-			weightedSum = new double[count];
-			value = new double[count];
+			equalSum = new double[count];
+			equalValue = new double[count];
+			accountSum = new double[count];
+			accountValue = new double[count];
 		}
 
-		void add(int day, double change, double positionValue) {
-			sum[day] += change;
-			stocks[day]++;
-			if (Double.isFinite(positionValue) && positionValue > 0) {
-				weightedSum[day] += positionValue * change;
-				value[day] += positionValue;
+		void add(int day, double change, double value, double equalPositionValue) {
+			if (Double.isFinite(value) && value > 0) {
+				accountSum[day] += value * change;
+				accountValue[day] += value;
+			}
+			if (Double.isFinite(equalPositionValue) && equalPositionValue > 0) {
+				equalSum[day] += equalPositionValue * change;
+				equalValue[day] += equalPositionValue;
 			}
 		}
 
 		double equal(int day) {
-			return stocks[day] == 0 ? Double.NaN : Math.log1p(sum[day] / stocks[day]);
+			return equalValue[day] > 0 ? Math.log1p(equalSum[day] / equalValue[day]) : Double.NaN;
 		}
 
-		double weighted(int day) {
-			return value[day] > 0 ? Math.log1p(weightedSum[day] / value[day]) : Double.NaN;
+		double account(int day) {
+			return accountValue[day] > 0 ? Math.log1p(accountSum[day] / accountValue[day]) : Double.NaN;
 		}
 	}
 }

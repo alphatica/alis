@@ -4,6 +4,7 @@ import com.alphatica.alis.data.riskfreerate.RatePeriod;
 import com.alphatica.alis.data.time.Time;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -80,23 +81,50 @@ public final class ReturnRatios {
 	 */
 	public static BenchmarkRatios versusBenchmark(double[] returns, double[] benchmark, List<Time> times,
 												  List<RatePeriod> periods) {
+		return benchmarkSessions(returns, benchmark, times, periods).ratios();
+	}
+
+	/**
+	 * The sessions of {@link #versusBenchmark}, e.g. to split its alpha: the excess returns, the beta period of every
+	 * session (with the periods without a beta joined as described there) and the period betas, with the ratios.
+	 * Arguments as in {@link #versusBenchmark}.
+	 */
+	public static BenchmarkSessions benchmarkSessions(double[] returns, double[] benchmark, List<Time> times,
+													  List<RatePeriod> periods) {
 		if (returns.length != benchmark.length) {
 			throw new IllegalArgumentException("returns and benchmark must have the same length");
 		}
 		RiskFreeCursor riskFree = new RiskFreeCursor(returns.length, times, periods);
+		double[] riskFreeReturns = new double[returns.length];
+		int[] group = new int[returns.length];
 		List<Moments> groups = new ArrayList<>();
 		int groupPeriod = -1;
 		for (int i = 0; i < returns.length; i++) {
-			double rf = riskFree.next(i);
+			riskFreeReturns[i] = riskFree.next(i);
 			if (riskFree.period() != groupPeriod) {
 				groups.add(new Moments());
 				groupPeriod = riskFree.period();
 			}
 			if (!Double.isNaN(returns[i]) && !Double.isNaN(benchmark[i])) {
-				groups.getLast().add(returns[i] - rf, benchmark[i] - rf);
+				groups.getLast().add(returns[i] - riskFreeReturns[i], benchmark[i] - riskFreeReturns[i]);
+				group[i] = groups.size() - 1;
+			} else {
+				group[i] = -1;
 			}
 		}
-		return BenchmarkRatios.of(joinPeriodsWithoutBeta(groups));
+		int[] joinedGroup = new int[groups.size()];
+		List<Moments> joined = joinPeriodsWithoutBeta(groups, joinedGroup);
+		int[] period = new int[returns.length];
+		double[] excessReturns = new double[returns.length];
+		double[] excessBenchmark = new double[returns.length];
+		for (int i = 0; i < returns.length; i++) {
+			period[i] = group[i] < 0 ? -1 : joinedGroup[group[i]];
+			excessReturns[i] = returns[i] - riskFreeReturns[i];
+			excessBenchmark[i] = benchmark[i] - riskFreeReturns[i];
+		}
+		double[] betas = joined.stream().mapToDouble(Moments::beta).toArray();
+		return new BenchmarkSessions(excessReturns, excessBenchmark, riskFreeReturns, period, betas,
+				BenchmarkRatios.of(joined));
 	}
 
 	/**
@@ -148,13 +176,18 @@ public final class ReturnRatios {
 		return result;
 	}
 
-	private static List<Moments> joinPeriodsWithoutBeta(List<Moments> groups) {
+	/**
+	 * @param joinedGroup filled with the index in the result of every group; -1 for every group when none has a beta
+	 */
+	private static List<Moments> joinPeriodsWithoutBeta(List<Moments> groups, int[] joinedGroup) {
 		List<Moments> result = new ArrayList<>();
 		Moments leading = new Moments();
-		for (Moments group : groups) {
+		for (int i = 0; i < groups.size(); i++) {
+			Moments group = groups.get(i);
 			if (group.hasBeta()) {
 				if (result.isEmpty()) {
 					group.add(leading);
+					Arrays.fill(joinedGroup, 0, i, 0);
 				}
 				result.add(group);
 			} else if (result.isEmpty()) {
@@ -162,6 +195,7 @@ public final class ReturnRatios {
 			} else {
 				result.getLast().add(group);
 			}
+			joinedGroup[i] = result.size() - 1;
 		}
 		return result;
 	}
@@ -198,6 +232,20 @@ public final class ReturnRatios {
 			double treynor = beta == 0 ? Double.NaN : meanExcess * SESSIONS_PER_YEAR * 100 / beta;
 			return new BenchmarkRatios(beta, alpha * SESSIONS_PER_YEAR * 100, treynor);
 		}
+	}
+
+	/**
+	 * Sessions of {@link #versusBenchmark}.
+	 *
+	 * @param excessReturns   return minus the risk-free return of every session
+	 * @param excessBenchmark benchmark's return minus the risk-free return of every session
+	 * @param riskFree        risk-free return of every session
+	 * @param period          beta period of every session, an index of {@code periodBetas}; -1 for a session left out
+	 *                        (a NaN return, or no period with a beta)
+	 * @param periodBetas     beta of every period
+	 */
+	public record BenchmarkSessions(double[] excessReturns, double[] excessBenchmark, double[] riskFree, int[] period,
+									double[] periodBetas, BenchmarkRatios ratios) {
 	}
 
 	/** Risk-free return of each session in turn: sessions are visited in order, with the periods. */

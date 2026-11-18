@@ -3,12 +3,14 @@ package com.alphatica.alis.trading.account;
 import com.alphatica.alis.data.riskfreerate.RatePeriod;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.trading.account.ReturnRatios.BenchmarkRatios;
+import com.alphatica.alis.trading.account.ReturnRatios.BenchmarkSessions;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static java.lang.Double.NaN;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -120,6 +122,29 @@ class ReturnRatiosTest {
 
 		assertRatios(expected, ReturnRatios.versusBenchmark(portfolio, benchmark, times, shortLast));
 		assertRatios(expected, ReturnRatios.versusBenchmark(portfolio, benchmark, times, shortFirst));
+	}
+
+	@Test
+	void shouldGiveBetaPeriodOfEverySession() {
+		List<Time> times = times(20260105, 20260106, 20260107, 20260108, 20260109, 20260112, 20260113);
+		// Sessions 0-1 start in the first period, where the benchmark is flat: joined to the second one (sessions 2-4,
+		// session 3 without the benchmark); sessions 5-6 start in the third period
+		List<RatePeriod> periods = List.of(
+				new RatePeriod(new Time(20260105), new Time(20260105), RATE),
+				new RatePeriod(new Time(20260106), new Time(20260108), RATE),
+				new RatePeriod(new Time(20260109), new Time(20260113), RATE));
+		double[] benchmark = {0.01, 0.01, -0.02, NaN, 0.03, 0.02, -0.01};
+		double[] portfolio = {0.02, -0.03, 0.05, 0.01, 0.0, 0.01, 0.004};
+
+		BenchmarkSessions sessions = ReturnRatios.benchmarkSessions(portfolio, benchmark, times, periods);
+
+		assertArrayEquals(new int[]{0, 0, 0, -1, 0, 1, 1}, sessions.period());
+		assertEquals(2, sessions.periodBetas().length);
+		// 0.0001 per calendar day: 3 days from Friday to Monday
+		assertArrayEquals(new double[]{0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0003, 0.0001}, sessions.riskFree(), DELTA);
+		assertEquals(0.05 - 0.0001, sessions.excessReturns()[2], DELTA);
+		assertEquals(0.02 - 0.0003, sessions.excessBenchmark()[5], DELTA);
+		assertRatios(ReturnRatios.versusBenchmark(portfolio, benchmark, times, periods), sessions.ratios());
 	}
 
 	@Test

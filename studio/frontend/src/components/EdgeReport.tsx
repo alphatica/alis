@@ -1,14 +1,11 @@
 import { createEffect, createSignal, For, Show } from 'solid-js';
 import { api, type ErrorMessage, toErrorMessage } from '../api';
-import type { EdgeView } from '../state';
+import { formatCell, isNumeric } from '../format';
+import { type EdgeTable, type EdgeView, formatStat } from '../state';
+import { BridgeChart } from './BridgeChart';
 import { ErrorBox } from './ErrorBox';
 import { InfoButton } from './InfoButton';
-import type { ChartScale } from './logAxis';
-import { ScaleSwitch } from './Segmented';
 import { TimelineChart } from './TimelineChart';
-
-// Shared by every report (the portfolio's tab and the dialogs), like the equity chart's switches on each screen
-const [scale, setScale] = createSignal<ChartScale>('linear');
 
 export function EdgeReport(props: { url: string }) {
   const [view, setView] = createSignal<EdgeView>();
@@ -28,21 +25,29 @@ export function EdgeReport(props: { url: string }) {
       <Show when={view()} fallback={<Show when={!error()}><p class="muted">Analyzing…</p></Show>}>
         {(shown) => (
           <div class="edge-report">
-            <Show when={shown().timelines.some((timeline) => timeline.series.length > 0)}>
-              <div class="edge-toolbar">
-                <ScaleSwitch scale={scale()} onChange={setScale} />
-              </div>
-            </Show>
             <div class="edge-cards">
-              <For each={shown().timelines}>
-                {(timeline) => (
+              <For each={shown().cards}>
+                {(card) => (
                   <section class="panel edge-card">
                     <h3 class="edge-title">
-                      {timeline.title}
-                      <InfoButton text={timeline.help} label={timeline.title} />
+                      {card.title}
+                      <InfoButton text={card.help} label={card.title} />
                     </h3>
-                    <p class="muted edge-subtitle">{timeline.subtitle}</p>
-                    <TimelineChart timeline={timeline} scale={scale()} />
+                    <p class="muted edge-subtitle">{card.subtitle}</p>
+                    <Show when={card.table}>{(table) => <Table table={table()} />}</Show>
+                    <For each={card.bridges}>{(bridge) => <BridgeChart bridge={bridge} />}</For>
+                    <Show when={card.facts.length > 0}>
+                      <div class="edge-facts">
+                        <For each={card.facts}>
+                          {(fact) => (
+                            <span>
+                              <span class="muted">{fact.name}</span> <span class="mono">{formatStat(fact)}</span>
+                            </span>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
+                    <Show when={card.chart}>{(chart) => <TimelineChart chart={chart()} />}</Show>
                   </section>
                 )}
               </For>
@@ -52,5 +57,30 @@ export function EdgeReport(props: { url: string }) {
       </Show>
       <Show when={error()}>{(e) => <ErrorBox error={e()} />}</Show>
     </>
+  );
+}
+
+function Table(props: { table: EdgeTable }) {
+  return (
+    <table class="edge-table">
+      <thead>
+        <tr>
+          <For each={props.table.columns}>{(column) => <th classList={{ numeric: isNumeric(column) }}>{column.title}</th>}</For>
+        </tr>
+      </thead>
+      <tbody>
+        <For each={props.table.rows}>
+          {(row) => (
+            <tr>
+              <For each={props.table.columns}>
+                {(column, i) => (
+                  <td classList={{ numeric: isNumeric(column) }}>{formatCell(column, row[i()]) || '—'}</td>
+                )}
+              </For>
+            </tr>
+          )}
+        </For>
+      </tbody>
+    </table>
   );
 }

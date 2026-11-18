@@ -1,8 +1,9 @@
 # Stopa wolna od ryzyka a Sharpe, alfa Jensena i Treynor
 
-Notatka techniczna: jak Alis liczy miary zależne od stopy wolnej od ryzyka (rf). Stan na 2026-10-29.
+Notatka techniczna: jak Alis liczy miary zależne od stopy wolnej od ryzyka (rf). Stan na 2026-11-17.
 
 - rf i miary z rf działają w `alis` i `studio` (portfel i backtest).
+- Alfa, Sharpe i Treynor są rozbite na składowe w Edge analysis (zob. [Rozbicie alfy](#rozbicie-alfy-edge-analysis), [Rozbicie Sharpe’a](#rozbicie-na-zwrot-i-zmienność-edge-analysis) i [Rozbicie Treynora](#rozbicie-treynora-edge-analysis)).
 - Sharpe, Sortino, Calmar, zwrot / max downside DD i alfa Jensena są też celami optymalizacji i better exit (zob. [Cele optymalizacji](#cele-optymalizacji)).
 - Plik `nbp_stopy_procentowe.csv` w tym katalogu to źródłowe stopy NBP (zob. [Źródło rf](#źródło-rf)).
 
@@ -27,14 +28,19 @@ Notatka techniczna: jak Alis liczy miary zależne od stopy wolnej od ryzyka (rf)
 | `alis/.../data/riskfreerate/RatePeriod` | `(from, to, rate)`: `from` i `to` włącznie, `rate` jako ułamek |
 | `alis/.../data/riskfreerate/RateFile` | parsowanie, łączenie z danymi wbudowanymi, zapis (niepubliczna) |
 | `alis/src/main/resources/.../riskfreerate/pl.csv` | dane wbudowane: stopa referencyjna NBP, 94 zmiany od 1998-02-26 do 2026-03-05 |
-| `alis/.../trading/account/ReturnRatios` | `sharpe`, `sortino`, `versusBenchmark` (beta, alfa, Treynor), `calmar` |
+| `alis/.../trading/account/ReturnRatios` | `sharpe`, `sortino`, `versusBenchmark` (beta, alfa, Treynor), `calmar`; `benchmarkSessions`: nadwyżki, rf i okres bety każdej sesji, z których liczy się `versusBenchmark` |
+| `alis/.../trading/account/SessionHistory` | `exposureAtStart()`: zainwestowana część konta na początku każdej sesji |
+| `alis/.../trading/account/attribution/AlphaAttribution` | rozbicie alfy na dobór spółek, timing i gotówkę |
+| `alis/.../trading/account/attribution/SharpeAttribution` | nadwyżka i zmienność konta i WIG-u, rozbicie różnicy Sharpe’a na efekt zwrotu i efekt zmienności |
+| `alis/.../trading/account/attribution/TreynorAttribution` | rozbicie różnicy Treynora konta i WIG-u na efekt zwrotu i efekt bety |
 | `alis/.../trading/account/BenchmarkReturns` | stopy zwrotu benchmarku w sesjach konta, dobierane po dacie sesji |
 | `alis/.../data/time/Time` | dodane `Time.of(LocalDate)` i `epochDay()` |
 | `studio-core/.../logic/riskfreerate/RiskFreeRatesProvider` | trzyma stopy z `~/Alphatica/rf` |
 | `studio-core/.../logic/stats/RatioStats` | statystyki wspólne dla portfela i backtestu; na sztywno `COUNTRY = PL`, `BENCHMARK = wig` |
+| `studio-core/.../logic/stats/edge/EdgeStats`, `EdgeCards` | karty Edge analysis, z rf z `RiskFreeRatesProvider` |
 | `studio/.../web/WebStart`, `LicenseGate` | wczytanie przy starcie (gdy licencja jest zaakceptowana) albo przy akceptacji |
 
-Testy: `RiskFreeRatesTest`, `ReturnRatiosTest`, `SessionHistoryTest`, `RatioScorersTest`, `BenchmarkReturnsTest`, `StudioOptionsTest`.
+Testy: `RiskFreeRatesTest`, `ReturnRatiosTest`, `SessionHistoryTest`, `RatioScorersTest`, `BenchmarkReturnsTest`, `StudioOptionsTest`, `AlphaAttributionTest`, `SharpeAttributionTest`, `TreynorAttributionTest`.
 
 ### Plik `~/Alphatica/rf/pl.csv`
 
@@ -73,6 +79,7 @@ Testy: `RiskFreeRatesTest`, `ReturnRatiosTest`, `SessionHistoryTest`, `RatioScor
 ### Studio
 
 - **Portfel i backtest** pokazują: Total return, CAGR (252 sesje = rok), Sharpe, Sortino, Calmar, Return / max downside DD, Jensen's alpha, Beta i Treynor ratio (benchmark WIG, bez dopisku w nazwie).
+- **Edge analysis** (portfel, backtest, walk-forward) ma karty Jensen's alpha (wykres pomostowy) i Sharpe & Treynor (tabela nadwyżki, zmienności, bety, Sharpe’a i Treynora konta i WIG-u oraz dwa wykresy pomostowe). Wartości są te same co w statystykach, bo liczą się z tych samych sesji, rf i bet okresów.
 - **Backtest**: seria sesji pochodzi z konta (`AccountHistory.getSessions()`), pierwsza sesja liczy się od gotówki początkowej konta.
 - **`RiskFreeRatesProvider.get()`** rzuca `IllegalStateException`, jeśli stopy nie zostały wczytane. Do API nie da się wejść przed akceptacją licencji, a wczytanie następuje przy starcie albo przy akceptacji.
 - **Przykład** (portfel użytkownika, 747 sesji, 2023-10-30 – 2026-10-26):
@@ -102,9 +109,7 @@ Testy: `RiskFreeRatesTest`, `ReturnRatiosTest`, `SessionHistoryTest`, `RatioScor
 1. **Kraj i benchmark według danych.**
    - Teraz `RatioStats` ma na sztywno PL i WIG. Backtest na danych US (`load-us`) liczy Sharpe'a i Sortino z polską stopą, a beta, alfa i Treynor wychodzą „unknown”, bo w danych US nie ma WIG-u.
    - Do zrobienia: `Country.US` z wbudowanymi danymi (np. 3-miesięczne T-bille) i wybór kraju oraz benchmarku według załadowanych danych.
-2. **Do rozważenia (nieuzgodnione):**
-   - rozbicie alfy na dobór spółek i wybór momentu (opis w [Timing w alfie](#timing-w-alfie-opcjonalne-rozbicie));
-   - Sharpe z danych miesięcznych, porównywalny z Morningstarem.
+2. **Do rozważenia (nieuzgodnione):** Sharpe z danych miesięcznych, porównywalny z Morningstarem.
 
 ## Źródło rf
 
@@ -164,6 +169,37 @@ Uwagi o źródłach:
 - Błąd standardowy Sharpe’a ≈ `√((1 + SR²/2)/n)` na okres.
 - Sortino: ta sama seria `e_t`, w mianowniku odchylenie poniżej 0.
 
+### Rozbicie na zwrot i zmienność (Edge analysis)
+
+Pokazuje, które składowe dają Sharpe’a konta wyższego (albo niższego) niż Sharpe WIG-u. Część karty „Sharpe & Treynor”, razem z [rozbiciem Treynora](#rozbicie-treynora-edge-analysis).
+
+- Oznaczenia: `μ = mean(e)`, `σ = std(e)` (z próby) jak w `ReturnRatios.sharpe`; `a` to konto, `m` to WIG. Obie serie na sesjach z `benchmarkSessions` (te same co przy becie) i z tą samą rf: sesje bez notowania WIG-u pomijane po obu stronach, więc przy takich sesjach Sharpe konta może się minimalnie różnić od statystyk.
+- Rozbicie symetryczne (Shapley), sumuje się dokładnie do `SR_a − SR_m`:
+  - efekt zwrotu: `(μ_a − μ_m) · ½(1/σ_a + 1/σ_m) · √252`;
+  - efekt zmienności: `½(μ_a + μ_m) · (1/σ_a − 1/σ_m) · √252`.
+- Efekt zwrotu w Sharpe’ie i w Treynorze to różne liczby (różne mianowniki), więc karta ma dwa wykresy pomostowe.
+- Odrzucone warianty:
+  - sekwencyjny (najpierw zwrot, potem σ) daje inne liczby przy odwrotnej kolejności;
+  - `ln(SR_a/SR_m) = ln(μ_a/μ_m) + ln(σ_m/σ_a)` nie działa przy `μ ≤ 0`, a nadwyżka WIG-u nad rf bywa ujemna (np. 2007–2013).
+- Przy `½(μ_a + μ_m) < 0` mniejsze odchylenie obniża Sharpe’a. To właściwość samego Sharpe’a (ujemny Sharpe „rośnie” z odchyleniem); mówi o tym pomoc karty.
+- Widok: karta „Sharpe & Treynor”:
+  - tabela konta i WIG-u: nadwyżka rocznie (`μ · 252`), zmienność rocznie (`σ · √252`), beta, Sharpe, Treynor;
+  - wykres pomostowy Sharpe’a: Sharpe WIG-u → + efekt zwrotu → + efekt zmienności → = Sharpe konta;
+  - wykres pomostowy Treynora (opis niżej). Bez wykresów w czasie.
+- Gdy beta pomaga Treynorowi, a zmienność szkodzi Sharpe’owi, duża część ryzyka konta nie idzie z WIG-iem: Treynor jej nie widzi, Sharpe tak.
+- Wyniki:
+
+  | | nadwyżka / rok | zmienność / rok | beta | Sharpe: WIG → zwrot → zmienność → konto | Treynor konta / WIG-u |
+  |---|---|---|---|---|---|
+  | SmaCross 2015–2026 | 25,4% (WIG 8,4%) | 29,0% (WIG 18,6%) | 0,62 | 0,45 → +0,75 → −0,33 → 0,87 | 40,6% / 8,4% |
+  | portfel, 2026-11-17 | 29,3% (WIG 24,2%) | 22,5% (WIG 17,8%) | 0,49 | 1,36 → +0,26 → −0,31 → 1,30 | 59,5% / 24,2% |
+
+  Portfel ma Treynora 2,5 raza wyższego niż WIG, a Sharpe’a niższego, bo przy becie 0,49 jego zmienność jest większa niż WIG-u.
+- Nieużywane (gdyby potrzebny był wykres w czasie): wkład sesji t (`x = e_a`, `y = e_m`, N sesji), skumulowane kończą się dokładnie na obu efektach:
+  - zwrot: `(x_t − y_t)/N · ½(1/σ_a + 1/σ_m) · √252`;
+  - zmienność: `½(μ_a + μ_m) · √252 · [(y_t − μ_m)² − (x_t − μ_a)²] / ((N−1) · σ_a · σ_m · (σ_a + σ_m))`, z tożsamości `1/σ_a − 1/σ_m = (σ_m² − σ_a²) / (σ_a · σ_m · (σ_a + σ_m))` i wariancji jako sumy kwadratów odchyleń.
+- Możliwe rozszerzenie: efekt zmienności rozbity na część z gotówki (ekspozycja) i część z mniej zmiennych spółek.
+
 ## Alfa Jensena
 
 - `r_p − [rf + β(r_m − rf)]` = `e_p − β·e_m`. Średnia tego wyrażenia równa się wyrazowi wolnemu regresji OLS `e_p = α + β·e_m + ε`, jeśli β pochodzi z tej samej regresji na tych samych danych. Zmienne rf jest tu standardowym przypadkiem (Jensen 1968).
@@ -191,14 +227,45 @@ Przyjęte podejście: β_k z regresji dziennych `e_p` względem `e_m` w okresach
 - Raporty dla inwestorów (Morningstar) podają betę z jednej regresji na całym okresie albo w oknie 36-miesięcznym. Przez to nasze wartości nie są z nimi wprost porównywalne.
 - OLS ze stałym β na okresie, w którym ekspozycja się zmienia, nie daje średniej bety, tylko średnią β_t ważoną `(e_m,t − mean e_m)²`, czyli z większą wagą okresów dużych ruchów rynku.
 
-### Timing w alfie (opcjonalne rozbicie)
+### Rozbicie alfy (Edge analysis)
 
-W przyjętym wariancie timing jest częścią alfy, czyli alfa to całkowita wartość dodana ponad średnią betę. Jeśli trzeba będzie rozdzielić wybór spółek od wyboru momentu, bez bet spółek:
+Timing jest częścią alfy: alfa to całkowita wartość dodana ponad średnią betę. Karta w Edge analysis rozdziela ją na trzy części, bez bet spółek.
 
-- `e_p,t = α_k + b_k·(x_t·e_m,t) + ε_t`, gdzie `x_t` to zainwestowana część konta na początku dnia (znana z backtestu), a `b_k` beta wybieranych spółek na jednostkę ekspozycji, szacowana regresją. Przy `x_t ≡ 1` model sprowadza się do przyjętego wariantu.
-- `alfa doboru = mean(e_p − b·x_t·e_m)`, `timing = mean(b·x_t·e_m) − β̄·mean(e_m)`. Ogólnie: `mean(e_p) − β̄·mean(e_m) = α + cov(β_t, e_m,t)`.
-- Przykład: strategia w połowie dni w pełni zainwestowana, rynek rośnie (o G) tylko w te dni, beta spółek 1. Przyjęty wariant: β ≈ 0,5, α = 0,5·G. Rozbicie: α = 0, timing = 0,5·G.
-- Klasyczne modele timingu: Treynor–Mazuy (`+γ·e_m²`) i Henriksson–Merton (`+γ·max(0, e_m)`).
+- Oznaczenia sesji t w okresie bety k: `e_a`, `e_m` nadwyżki konta i WIG-u, `rf` stopa wolna od ryzyka sesji, `x_t` zainwestowana część konta na początku sesji (`SessionHistory.exposureAtStart()`: pozycje z poprzedniej wyceny przez poprzedni NAV plus wpłaty netto sesji), β_k beta okresu jak w `versusBenchmark`.
+- Gotówka w kontach Alis nie przynosi odsetek, więc jej część nadwyżki to `cash_t = −(1 − x_t)·rf_t`. Reszta: `y_t = e_a,t − cash_t`.
+- `b_k`: nachylenie regresji OLS `y` względem `z = x·e_m` w okresie, czyli beta wybieranych spółek na jednostkę zainwestowanej części. Gdy `z` się nie zmienia (np. cały okres w gotówce), `b_k = 0`.
+- Wkład sesji (rocznie: `· 252 · 100 / N`, N to sesje z okresem bety):
+  - **dobór spółek:** `y_t − b_k·x_t·e_m,t`: o ile spółki przebiły WIG przy części zainwestowanej tej sesji;
+  - **timing:** `b_k·x_t·e_m,t − β_k·e_m,t`: zainwestowana część tej sesji zamiast bety okresu; ogólnie ≈ `b·cov(x_t, e_m,t)`, czyli dodatni, gdy konto jest zainwestowane w dni wzrostów i w gotówce w dni spadków;
+  - **gotówka:** `cash_t`.
+- W każdej sesji trzy wkłady sumują się do `e_a,t − β_k·e_m,t`, więc ich suma to dokładnie alfa z `versusBenchmark` (`α = Σ_k (n_k/N)·α_k`).
+- Wykres pomostowy: Index × beta (`mean(β_k·e_m)`) → + dobór → + timing → + gotówka → = nadwyżka konta, pod nim alfa i beta. Bez wykresu w czasie.
+- Przykłady (dwie sesje, beta spółek 1):
+  - konto w 100% w dniu wzrostu WIG-u o 2% i w gotówce w dniu spadku o 2%: β ≈ 0,5, alfa = 1 pp dziennie, cała z timingu;
+  - konto zawsze w 100%, spółki o 1 pp lepsze od WIG-u: β = 1, alfa = 1 pp dziennie, cała z doboru.
+- Ograniczenia:
+  - `x_t` jest z poprzedniej wyceny, a transakcje są na otwarciu: ruch spółki kupionej na otwarciu w dniu kupna (otwarcie → zamknięcie) trafia do doboru, a w dniu sprzedaży WIG liczy się dla całej sesji;
+  - model zna tylko ilość gotówki: zmiana bety samych spółek w czasie (np. bardziej ryzykowne spółki w hossie) trafia do doboru;
+  - Index × beta to średnia `β_k·e_m` po okresach, więc może mieć inny znak niż nadwyżka WIG-u (SmaCross 2007–2013: +1,6% przy nadwyżce WIG-u −2,6% rocznie).
+- Wyniki (SmaCross, parametry domyślne, GPW, prowizja 0,3%), % rocznie:
+
+  | okres | alfa | dobór | timing | gotówka | beta |
+  |---|---|---|---|---|---|
+  | 2015–2026 | 20,1 | 20,1 | 0,1 | −0,1 | 0,62 |
+  | 2007–2013 | −4,9 | −2,3 | −1,9 | −0,8 | 0,53 |
+
+- Klasyczne modele timingu (nieużywane): Treynor–Mazuy (`+γ·e_m²`) i Henriksson–Merton (`+γ·max(0, e_m)`).
+
+### Rozbicie Treynora (Edge analysis)
+
+- Treynor WIG-u to jego średnia nadwyżka `μ_m` (beta 1). Różnica `T_a − T_m` jest rozbita symetrycznie (Shapley), tak jak Sharpe, z betą zamiast odchylenia:
+  - efekt zwrotu: `(μ_a − μ_m) · ½(1/β̄ + 1)`;
+  - efekt bety: `½(μ_a + μ_m) · (1/β̄ − 1)`;
+  - w % rocznie (`· 252 · 100`); suma jest dokładnie `T_a − T_m`, a `T_a` to Treynor ze statystyk.
+- Wykres pomostowy w karcie „Sharpe & Treynor”: Treynor WIG-u → + efekt zwrotu → + efekt bety → = Treynor konta. Wykresu w czasie nie da się zrobić, bo β̄ to średnia ilorazów `cov_k/var_k` i nie rozkłada się na wkłady sesji.
+- `T_a − T_m = (μ_a − β̄·μ_m)/β̄`. Przy jednym okresie bety to alfa / beta, więc przy niskiej becie (dużo gotówki) nawet mała alfa daje wysoki Treynor. Przy betach liczonych w okresach rf może się to bardzo różnić od alfy / bety (SmaCross 2007–2013: −3,8 pp przy alfie / becie −9,4), dlatego karta tego nie pokazuje.
+- Przy `½(μ_a + μ_m) < 0` niższa beta obniża Treynora.
+- Przykład (portfel użytkownika, 2026-11-17), % rocznie: WIG 24,2 → efekt zwrotu +7,8 → efekt bety +27,6 → konto 59,5; beta 0,49. Przewaga nad WIG-iem pochodzi głównie z niskiej bety.
 
 ## Jak liczą inne programy (z pamięci, kodu nie sprawdzano)
 

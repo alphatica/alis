@@ -85,10 +85,29 @@ public final class SessionHistory {
 		return Arrays.copyOf(nav, times.size());
 	}
 
-	public double[] exposure() {
+	/**
+	 * Account value at the start of every session: the previous NAV (the start value for the first session) plus the
+	 * session's net deposits.
+	 */
+	public double[] startValues() {
 		double[] result = new double[times.size()];
+		double previous = startValue;
 		for (int i = 0; i < result.length; i++) {
-			result[i] = nav[i] > 0 ? positions[i] / nav[i] : 0;
+			result[i] = previous + netDeposits[i];
+			previous = nav[i];
+		}
+		return result;
+	}
+
+	/**
+	 * Invested part of the account at the start of every session: positions at the previous valuation over the
+	 * {@link #startValues() start value}; 0 for the first session and for a session that starts with nothing.
+	 */
+	public double[] exposureAtStart() {
+		double[] start = startValues();
+		double[] result = new double[start.length];
+		for (int i = 1; i < result.length; i++) {
+			result[i] = start[i] > 0 ? positions[i - 1] / start[i] : 0;
 		}
 		return result;
 	}

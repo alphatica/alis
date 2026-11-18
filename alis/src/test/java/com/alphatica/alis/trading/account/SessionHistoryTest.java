@@ -54,6 +54,18 @@ class SessionHistoryTest {
 	}
 
 	@Test
+	void shouldMeasureExposureAtStartWithSessionsDeposits() throws AccountActionException {
+		Account account = accountWithPosition();
+		account.updateLastKnown(prices(50, 1)); // 500 of 1000 in the position
+
+		account.addCash(1000);
+		account.updateLastKnown(prices(60, 2)); // starts with 500 of 2000 in the position
+
+		assertArrayEquals(new double[]{1000, 2000}, account.getAccountHistory().getSessions().startValues(), DELTA);
+		assertArrayEquals(new double[]{0, 0.25}, account.getAccountHistory().getSessions().exposureAtStart(), DELTA);
+	}
+
+	@Test
 	void shouldCountWithdrawalAtStartOfNextSession() throws AccountActionException {
 		Account account = accountWithPosition();
 		account.updateLastKnown(prices(50, 1)); // 1000

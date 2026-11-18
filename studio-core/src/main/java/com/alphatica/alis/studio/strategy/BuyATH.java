@@ -27,7 +27,13 @@ public class BuyATH extends Strategy {
 	@IntParam(start = 5, step = 1, end = 250)
 	int sessions = 59;
 
-	private static final int POSITIONS = 20;
+	/** Sessions in a month: the growth over them sets the position size */
+	private static final int MONTH = 20;
+	/** Position size in percent of the account for no growth over the month */
+	private static final double MAX_SIZE = 10;
+	/** Position size in percent of the account for {@link #HIGH_GROWTH} or more over the month */
+	private static final double MIN_SIZE = 5;
+	private static final double HIGH_GROWTH = 0.3;
 	private final Map<MarketName, Integer> counters = new HashMap<>();
 	private final Condition allTimeHigh = new AllTimeHigh();
 
@@ -54,6 +60,12 @@ public class BuyATH extends Strategy {
 		}
 	}
 
+	/** From {@link #MAX_SIZE} at no growth over the last month down to {@link #MIN_SIZE} at {@link #HIGH_GROWTH}, linearly. */
+	private static double positionSize(FloatArraySlice closes) {
+		double growth = closes.get(0) / closes.get(Math.min(MONTH, closes.size() - 1)) - 1;
+		return MAX_SIZE - (MAX_SIZE - MIN_SIZE) * Math.clamp(growth / HIGH_GROWTH, 0.0, 1.0);
+	}
+
 	private void checkSell(MarketName marketName, boolean havePosition, List<Order> orders) {
 		int counterNow = counters.get(marketName) + 1;
 		if (counterNow > sessions && havePosition) {
@@ -66,7 +78,7 @@ public class BuyATH extends Strategy {
 		counters.put(marketName, 0);
 		if (!havePosition) {
 			double priority = orderPriority(closes);
-			orders.add(new Order(marketName, BUY, PERCENTAGE, 100 / POSITIONS, priority));
+			orders.add(new Order(marketName, BUY, PERCENTAGE, positionSize(closes), priority));
 		}
 	}
 

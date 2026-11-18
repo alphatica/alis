@@ -38,16 +38,30 @@ export type PortfolioData = {
 
 export type EdgeSeries = { name: string; values: (number | null)[] };
 
-export type EdgeTimeline = {
+/** A step of a bridge chart (EdgeBridge.java): a total drawn from 0, or a change; null when unknown. */
+export type EdgeStep = { name: string; value: number | null; total: boolean };
+
+/** Bridge chart: the first total, the changes, and the last total, which is the first plus the changes. */
+export type EdgeBridge = { title: string | null; steps: EdgeStep[]; decimals: number; suffix: string };
+
+/** A small table of a card, shown whole; numbers that are not finite are null. */
+export type EdgeTable = { columns: ColumnSpec[]; rows: Value[][] };
+
+/** Lines over the sessions (yyyymmdd). RELATIVE: 100 × ln of a ratio, shown as how many percent one is ahead of the other. */
+export type EdgeChart = { times: number[]; lines: EdgeSeries[]; scale: 'RELATIVE' };
+
+export type EdgeCard = {
   title: string;
   subtitle: string;
   help: string;
-  times: number[];
-  series: EdgeSeries[];
-  difference: EdgeSeries;
+  table: EdgeTable | null;
+  bridges: EdgeBridge[];
+  /** Shown under the bridges */
+  facts: Stat[];
+  chart: EdgeChart | null;
 };
 
-export type EdgeView = { timelines: EdgeTimeline[] };
+export type EdgeView = { cards: EdgeCard[] };
 
 export type Store<T> = {
   data: Accessor<T | undefined>;

@@ -29,14 +29,4 @@ public final class BenchmarkReturns {
 		}
 		return result;
 	}
-
-	public static double[] atOrZero(Market benchmark, List<Time> times) {
-		double[] result = at(benchmark, times);
-		for (int i = 0; i < result.length; i++) {
-			if (Double.isNaN(result[i])) {
-				result[i] = 0;
-			}
-		}
-		return result;
-	}
 }

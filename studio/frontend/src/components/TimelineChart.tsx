@@ -1,44 +1,57 @@
-import { createEffect, onCleanup, onMount, Show } from 'solid-js';
+import { onCleanup, onMount } from 'solid-js';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { numberFormat } from '../format';
-import type { EdgeSeries, EdgeTimeline } from '../state';
-import { type ChartScale, logSplits, RETURN_LOG, toPositions } from './logAxis';
+import type { EdgeChart } from '../state';
+import { logSplits, RETURN_LOG } from './logAxis';
 
-const MAIN_HEIGHT = 260;
-const DIFFERENCE_HEIGHT = 150;
+const HEIGHT = 300;
 const VALUE_AXIS_WIDTH = 72;
-const SERIES_COLORS = ['--text-muted', '--accent'];
-const DIFFERENCE_COLOR = '--series-2';
-const percent = numberFormat(0, 1);
+const LINE_COLORS = ['--series-2', '--accent', '--text', '--text-muted'];
+const AXIS_DECIMALS = 1;
+const MAX_AXIS_DECIMALS = 4;
 const cursorPercent = numberFormat(2);
 let charts = 0;
 
 type ValueScale = {
-  axis: (value: number) => string;
+  /** Labels of the axis values, e.g. with the same fraction digits */
+  axis: (values: number[]) => string[];
   cursor: (value: number) => string;
   splits?: (u: uPlot, axisIdx: number, min: number, max: number) => number[];
 };
 
-const signed = (format: Intl.NumberFormat, change: number) => `${change > 0 ? '+' : ''}${format.format(change)} %`;
+/** A change in percent with its sign; a change that shows as 0 has none (not "+0 %" or "-0 %"). */
+function signed(format: Intl.NumberFormat, change: number) {
+  const text = format.format(change);
+  if (!/[1-9]/.test(text)) {
+    return `${format.format(0)} %`;
+  }
+  return `${change > 0 ? '+' : ''}${text} %`;
+}
 
-const CUMULATIVE: ValueScale = {
-  axis: (value) => `${percent.format(value)} %`,
-  cursor: (value) => `${cursorPercent.format(value)} %`,
-};
+/** Enough fraction digits to show every label as it is (2 for 0.02 %), so labels of a small range differ. */
+function axisFormat(values: number[]) {
+  let decimals = AXIS_DECIMALS;
+  for (const value of values) {
+    const tolerance = 1e-9 * Math.max(1, Math.abs(value));
+    while (decimals < MAX_AXIS_DECIMALS && Math.abs(Math.round(value * 10 ** decimals) / 10 ** decimals - value) > tolerance) {
+      decimals++;
+    }
+  }
+  return numberFormat(0, decimals);
+}
 
-/** Cumulative return in log scale: the values are positions on the axis (RETURN_LOG). */
-const CUMULATIVE_LOG: ValueScale = {
-  axis: (value) => CUMULATIVE.axis(RETURN_LOG.fromLog(value)),
-  cursor: (value) => CUMULATIVE.cursor(RETURN_LOG.fromLog(value)),
-  splits: logSplits(RETURN_LOG),
-};
-
-/** The values are already 100 × ln of the ratio, so this axis is always in log scale. */
-const RELATIVE: ValueScale = {
-  axis: (value) => signed(percent, RETURN_LOG.fromLog(value)),
-  cursor: (value) => signed(cursorPercent, RETURN_LOG.fromLog(value)),
-  splits: logSplits(RETURN_LOG),
+const SCALES: Record<EdgeChart['scale'], ValueScale> = {
+  /** The values are already 100 × ln of the ratio, so this axis is always in log scale. */
+  RELATIVE: {
+    axis: (values) => {
+      const changes = values.map((value) => RETURN_LOG.fromLog(value));
+      const format = axisFormat(changes);
+      return changes.map((change) => signed(format, change));
+    },
+    cursor: (value) => signed(cursorPercent, RETURN_LOG.fromLog(value)),
+    splits: logSplits(RETURN_LOG),
+  },
 };
 
 function color(token: string) {
@@ -64,28 +77,24 @@ function lastValue(u: uPlot, seriesIdx: number): number | null {
   return null;
 }
 
+/** The value under the cursor, or the last one when the cursor is not on the chart. */
 function shown(u: uPlot, value: number | null, seriesIdx: number, idx: number | null) {
   return idx == null ? lastValue(u, seriesIdx) : value;
 }
 
-function options(
-  width: number,
-  height: number,
-  sync: string,
-  series: { name: string; color: string }[],
-  scale: ValueScale,
-): uPlot.Options {
+function options(width: number, chart: EdgeChart): uPlot.Options {
+  const scale = SCALES[chart.scale];
   const grid = { stroke: color('--border'), width: 1 };
   const axis = { stroke: color('--text-muted'), grid, ticks: grid, font: `11px ${color('--font-ui')}` };
   return {
     width,
-    height,
+    height: HEIGHT,
     tzDate: (value) => uPlot.tzDate(new Date(value * 1000), 'Etc/UTC'),
-    cursor: { drag: { x: false, y: false }, sync: { key: sync } },
+    cursor: { drag: { x: false, y: false }, sync: { key: `edge-chart-${++charts}` } },
     scales: { x: { time: true } },
     axes: [
       axis,
-      { ...axis, size: VALUE_AXIS_WIDTH, splits: scale.splits, values: (_, values) => values.map((value) => scale.axis(value)) },
+      { ...axis, size: VALUE_AXIS_WIDTH, splits: scale.splits, values: (_, values) => scale.axis(values) },
     ],
     series: [
       {
@@ -95,9 +104,9 @@ function options(
           return time == null ? '—' : formatDate(time);
         },
       },
-      ...series.map((line) => ({
+      ...chart.lines.map((line, i) => ({
         label: line.name,
-        stroke: line.color,
+        stroke: color(LINE_COLORS[i % LINE_COLORS.length]),
         width: 1.5,
         value: (u: uPlot, value: number | null, seriesIdx: number, idx: number | null) => {
           const point = shown(u, value, seriesIdx, idx);
@@ -108,56 +117,21 @@ function options(
   };
 }
 
-function lines(series: EdgeSeries[], colors: string[]) {
-  return series.map((line, i) => ({ name: line.name, color: color(colors[i % colors.length]) }));
-}
-
-/** Cumulative returns of the series above (in the scale), and the difference between them below (always log). */
-export function TimelineChart(props: { timeline: EdgeTimeline; scale: ChartScale }) {
-  let main!: HTMLDivElement;
-  let difference!: HTMLDivElement;
-  let mainPlot: uPlot | undefined;
-  const sync = `edge-timeline-${++charts}`;
-  const hasSeries = () => props.timeline.series.length > 0;
+/** Lines of an edge card over the sessions, in the chart's scale. */
+export function TimelineChart(props: { chart: EdgeChart }) {
+  let pane!: HTMLDivElement;
   onMount(() => {
-    const times = props.timeline.times.map(seconds);
-    const differenceHeight = hasSeries() ? DIFFERENCE_HEIGHT : MAIN_HEIGHT + DIFFERENCE_HEIGHT;
-    // Rebuilt when the scale changes; it stays in the cursor sync with the difference below
-    createEffect(() => {
-      if (!hasSeries()) {
-        return;
-      }
-      const log = props.scale === 'log';
-      mainPlot?.destroy();
-      mainPlot = new uPlot(
-        options(main.clientWidth, MAIN_HEIGHT, sync, lines(props.timeline.series, SERIES_COLORS), log ? CUMULATIVE_LOG : CUMULATIVE),
-        [times, ...props.timeline.series.map((line) => (log ? toPositions(RETURN_LOG, line.values) : line.values))],
-        main,
-      );
-    });
-    const differencePlot = new uPlot(
-      options(difference.clientWidth, differenceHeight, sync, lines([props.timeline.difference], [DIFFERENCE_COLOR]), RELATIVE),
-      [times, props.timeline.difference.values],
-      difference,
+    const plot = new uPlot(
+      options(pane.clientWidth, props.chart),
+      [props.chart.times.map(seconds), ...props.chart.lines.map((line) => line.values)],
+      pane,
     );
-    const resize = new ResizeObserver(() => {
-      mainPlot?.setSize({ width: main.clientWidth, height: MAIN_HEIGHT });
-      differencePlot.setSize({ width: difference.clientWidth, height: differenceHeight });
-    });
-    resize.observe(difference);
+    const resize = new ResizeObserver(() => plot.setSize({ width: pane.clientWidth, height: HEIGHT }));
+    resize.observe(pane);
     onCleanup(() => {
       resize.disconnect();
-      mainPlot?.destroy();
-      mainPlot = undefined;
-      differencePlot.destroy();
+      plot.destroy();
     });
   });
-  return (
-    <div class="timeline-chart">
-      <Show when={hasSeries()}>
-        <div ref={main} class="timeline-pane" />
-      </Show>
-      <div ref={difference} class="timeline-pane" />
-    </div>
-  );
+  return <div ref={pane} class="timeline-pane" />;
 }

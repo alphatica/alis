@@ -1228,13 +1228,6 @@ h2 {
 	container: edge-report / inline-size;
 }
 
-/* The scale switch, above the cards on the right */
-.edge-toolbar {
-	display: flex;
-	justify-content: flex-end;
-	margin-bottom: var(--space-3);
-}
-
 .edge-cards {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
@@ -1341,8 +1334,100 @@ h2 {
 	font-size: var(--text-xs);
 }
 
-.timeline-chart {
+/* A small table of a card: names left, numbers right */
+.edge-table {
+	width: 100%;
+	margin-bottom: var(--space-4);
+	border-collapse: collapse;
+	font-size: var(--text-sm);
+}
+
+.edge-table th,
+.edge-table td {
+	padding: var(--space-1) var(--space-2);
+	border-bottom: 1px solid var(--border);
+	text-align: left;
+	white-space: nowrap;
+}
+
+.edge-table th {
+	color: var(--text-muted);
+	font-weight: 400;
+}
+
+.edge-table .numeric {
+	text-align: right;
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+}
+
+.edge-table th.numeric {
+	font-family: inherit;
+}
+
+.edge-bridge-title {
+	margin: 0 0 var(--space-2);
+	font-size: var(--text-sm);
+	font-weight: 600;
+}
+
+/* Bridge chart: a row per step with its name, its bar and its value */
+.edge-bridge {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr) max-content;
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+	margin-bottom: var(--space-3);
+	font-size: var(--text-sm);
+}
+
+.edge-bridge-row {
+	display: contents;
+}
+
+.edge-bridge-name {
+	color: var(--text-muted);
+}
+
+.edge-bridge-total .edge-bridge-name {
+	color: var(--text);
+}
+
+.edge-bridge-track {
+	position: relative;
+	height: 14px;
+}
+
+.edge-bridge-zero {
+	position: absolute;
+	top: -4px;
+	bottom: -4px;
+	width: 1px;
+	background: var(--border-strong);
+}
+
+.edge-bar {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	min-width: 1px;
+}
+
+.edge-bar-total { background: var(--text-muted); }
+.edge-bar-result { background: var(--accent); }
+.edge-bar-up { background: var(--profit); }
+.edge-bar-down { background: var(--loss); }
+
+.edge-bridge-value {
+	text-align: right;
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+}
+
+.edge-facts {
 	display: flex;
-	flex-direction: column;
-	gap: var(--space-2);
+	flex-wrap: wrap;
+	gap: var(--space-1) var(--space-4);
+	margin-bottom: var(--space-3);
+	font-size: var(--text-sm);
 }
