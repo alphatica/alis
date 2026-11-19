@@ -1168,6 +1168,10 @@ h2 {
 	transform: translate(calc(-100% - 4px), -50%);
 }
 
+.chart-cursor-closed {
+	background: var(--series-2);
+}
+
 /* Buttons above the two columns of stat tiles, one per column */
 .sidebar-buttons {
 	display: grid;

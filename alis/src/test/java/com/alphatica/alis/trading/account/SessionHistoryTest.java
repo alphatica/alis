@@ -175,6 +175,21 @@ class SessionHistoryTest {
 	}
 
 	@Test
+	void shouldRecordClosedEquity() throws AccountActionException {
+		Account account = accountWithPosition();
+		account.updateLastKnown(prices(60, 1)); // open profit not counted: 1000
+		account.updateLastKnown(prices(40, 2)); // open loss not counted: 1000
+
+		account.addCash(1000);
+		account.reducePosition(MARKET, new PositionExit(new Time(3), 10, 45), 0);
+		account.updateLastKnown(prices(45, 3)); // loss of 50 realized: 1950 of 2000 invested
+
+		SessionHistory sessions = account.getAccountHistory().getSessions();
+		assertArrayEquals(new double[]{1000, 1000, 1950}, sessions.closedEquity(), DELTA);
+		assertArrayEquals(new double[]{0, 0, -2.5}, sessions.cumulativeClosedReturnPercent(), 1e-9);
+	}
+
+	@Test
 	void shouldRejectEarlierSession() {
 		Account account = new Account(1000);
 		account.updateLastKnown(prices(50, 2));

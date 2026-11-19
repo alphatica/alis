@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * NAV at the end of every session and the session's net deposits, for time-weighted session returns: deposits and
+ * NAV and closed equity at the end of every session and the session's net deposits, for time-weighted session returns: deposits and
  * withdrawals are not profit. Closing positions and delistings after a session's valuation count in that session.
  * <p>
  * Cash flows are counted in the next valued session, i.e. as made at its start (as the account replay applies them
@@ -19,6 +19,7 @@ public final class SessionHistory {
 	private final List<Time> times = new ArrayList<>();
 	private double[] nav = new double[64];
 	private double[] positions = new double[64];
+	private double[] closed = new double[64];
 	private double[] netDeposits = new double[64];
 	private double pendingFlow;
 
@@ -30,16 +31,16 @@ public final class SessionHistory {
 		pendingFlow += amount;
 	}
 
-	/** Values the session: a new one, or the last one again. */
-	void record(Time time, double value) {
-		record(time, value, 0);
-	}
-
-	void record(Time time, double value, double positionsValue) {
+	/**
+	 * Values the session: a new one, or the last one again.
+	 *
+	 * @param closedValue {@link Account#getClosedEquity() closed equity}
+	 */
+	void record(Time time, double value, double positionsValue, double closedValue) {
 		if (!times.isEmpty()) {
 			int comparison = time.compareTo(times.getLast());
 			if (comparison == 0) {
-				revalueLast(value, positionsValue);
+				revalueLast(value, positionsValue, closedValue);
 				return;
 			}
 			if (comparison < 0) {
@@ -50,27 +51,26 @@ public final class SessionHistory {
 		if (index == nav.length) {
 			nav = Arrays.copyOf(nav, index * 2);
 			positions = Arrays.copyOf(positions, index * 2);
+			closed = Arrays.copyOf(closed, index * 2);
 			netDeposits = Arrays.copyOf(netDeposits, index * 2);
 		}
 		times.add(time);
 		nav[index] = value;
 		positions[index] = positionsValue;
+		closed[index] = closedValue;
 		netDeposits[index] = pendingFlow;
 		pendingFlow = 0;
 	}
 
 	/** Values the last session again, e.g. after selling at a delisting; nothing without sessions. */
-	void revalueLast(double value) {
-		revalueLast(value, 0);
-	}
-
-	void revalueLast(double value, double positionsValue) {
+	void revalueLast(double value, double positionsValue, double closedValue) {
 		if (times.isEmpty()) {
 			return;
 		}
 		int last = times.size() - 1;
 		nav[last] = value;
 		positions[last] = positionsValue;
+		closed[last] = closedValue;
 		netDeposits[last] += pendingFlow;
 		pendingFlow = 0;
 	}
@@ -83,6 +83,11 @@ public final class SessionHistory {
 	/** NAV at the end of every session. */
 	public double[] nav() {
 		return Arrays.copyOf(nav, times.size());
+	}
+
+	/** {@link Account#getClosedEquity() Closed equity} at the end of every session: the effect of closed positions. */
+	public double[] closedEquity() {
+		return Arrays.copyOf(closed, times.size());
 	}
 
 	/**
@@ -117,19 +122,35 @@ public final class SessionHistory {
 	 * invested.
 	 */
 	public double[] returns() {
-		double[] result = new double[times.size()];
-		double previous = startValue;
-		for (int i = 0; i < result.length; i++) {
-			double invested = previous + netDeposits[i];
-			result[i] = invested > 0 ? nav[i] / invested - 1 : 0;
-			previous = nav[i];
-		}
-		return result;
+		return returns(nav);
 	}
 
 	/** Compounded session returns in percent at the end of every session. */
 	public double[] cumulativeReturnPercent() {
-		double[] result = returns();
+		return compound(returns());
+	}
+
+	/**
+	 * Compounded session returns of the {@link #closedEquity() closed equity} in percent at the end of every session,
+	 * time-weighted like {@link #cumulativeReturnPercent()}.
+	 */
+	public double[] cumulativeClosedReturnPercent() {
+		return compound(returns(closed));
+	}
+
+	private double[] returns(double[] values) {
+		double[] result = new double[times.size()];
+		double previous = startValue;
+		for (int i = 0; i < result.length; i++) {
+			double invested = previous + netDeposits[i];
+			result[i] = invested > 0 ? values[i] / invested - 1 : 0;
+			previous = values[i];
+		}
+		return result;
+	}
+
+	private static double[] compound(double[] returns) {
+		double[] result = returns.clone();
 		double growth = 1;
 		for (int i = 0; i < result.length; i++) {
 			growth *= 1 + result[i];

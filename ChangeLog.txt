@@ -1,3 +1,4 @@
+19 Nov 2026: Closed trades line
 12 Nov 2026: Edge analysis
 9 Nov 2026: Walk-forward optimization
 26 Oct 2026: Adjust trade length in RandomStrategy

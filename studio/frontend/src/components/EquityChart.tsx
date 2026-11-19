@@ -11,6 +11,10 @@ import { ScaleSwitch, Segmented, type SegmentedOption } from './Segmented';
 /** nav: account value, jumps with deposits and withdrawals; return: cumulative return in %, without them. */
 export type EquityMode = 'nav' | 'return';
 
+// The closed positions line is drawn first, so where it is the same as the main line (nothing open), the main line covers it
+const CLOSED = 1;
+const MAIN = 2;
+
 /** yyyymmdd → seconds since the epoch at midnight UTC (uPlot's time unit). */
 function toSeconds(time: number) {
   return Date.UTC(Math.floor(time / 10000), (Math.floor(time / 100) % 100) - 1, time % 100) / 1000;
@@ -24,11 +28,15 @@ function logAxis(mode: EquityMode, scale: ChartScale): LogAxis | undefined {
   return mode === 'nav' ? AMOUNT_LOG : RETURN_LOG;
 }
 
-/** The plotted values: in log scale, their positions on the axis. */
-function plotted(equity: Equity, mode: EquityMode, scale: ChartScale): (number | null)[] {
-  const values = mode === 'nav' ? equity.nav : equity.returnPercent;
+type Plotted = { closed: (number | null)[]; main: (number | null)[] };
+
+/** The plotted values of both lines: in log scale, their positions on the axis. */
+function plotted(equity: Equity, mode: EquityMode, scale: ChartScale): Plotted {
   const log = logAxis(mode, scale);
-  return log ? toPositions(log, values) : values;
+  const positions = (values: number[]) => (log ? toPositions(log, values) : values);
+  return mode === 'nav'
+    ? { closed: positions(equity.closed), main: positions(equity.nav) }
+    : { closed: positions(equity.closedReturnPercent), main: positions(equity.returnPercent) };
 }
 
 /** Colors come from the CSS tokens, so the chart follows the app's theme. */
@@ -52,29 +60,34 @@ function snapToPoint(u: uPlot, left: number, top: number): [number, number] {
     return [left, top];
   }
   const idx = u.posToIdx(left);
-  const y = u.data[1][idx];
+  const y = u.data[MAIN][idx];
   if (y == null) {
     return [left, top];
   }
   return [Math.round(u.valToPos(u.data[0][idx], 'x')), Math.round(u.valToPos(y, 'y'))];
 }
 
-/** Date and value of the point under the cursor, shown on the axes where the crosshair meets them. */
+/**
+ * Date and value of the point under the cursor, shown on the axes where the crosshair meets them, and the closed positions
+ * line's value at its height, unless it would cover the main line's label.
+ */
 function cursorLabels(formatValue: (value: number) => string): uPlot.Plugin {
   const xLabel = document.createElement('div');
   const yLabel = document.createElement('div');
+  const closedLabel = document.createElement('div');
   xLabel.className = 'chart-cursor-label chart-cursor-x';
   yLabel.className = 'chart-cursor-label chart-cursor-y';
+  closedLabel.className = 'chart-cursor-label chart-cursor-y chart-cursor-closed';
   return {
     hooks: {
       init: (u) => {
-        u.over.parentElement!.append(xLabel, yLabel);
+        u.over.parentElement!.append(xLabel, closedLabel, yLabel);
       },
       setCursor: (u) => {
         const { left, top, idx } = u.cursor;
-        const y = idx == null ? null : u.data[1][idx];
+        const y = idx == null ? null : u.data[MAIN][idx];
         const visible = left != null && top != null && left >= 0 && y != null;
-        xLabel.hidden = yLabel.hidden = !visible;
+        xLabel.hidden = yLabel.hidden = closedLabel.hidden = !visible;
         if (!visible) {
           return;
         }
@@ -89,6 +102,14 @@ function cursorLabels(formatValue: (value: number) => string): uPlot.Plugin {
         yLabel.textContent = formatValue(y);
         yLabel.style.left = `${plotLeft}px`;
         yLabel.style.top = `${plotTop + top}px`;
+        const closed = u.data[CLOSED][idx!];
+        const closedTop = closed == null ? null : u.valToPos(closed, 'y');
+        closedLabel.hidden = closedTop == null || Math.abs(closedTop - top) < yLabel.offsetHeight;
+        if (!closedLabel.hidden) {
+          closedLabel.textContent = formatValue(closed!);
+          closedLabel.style.left = `${plotLeft}px`;
+          closedLabel.style.top = `${plotTop + closedTop!}px`;
+        }
       },
     },
   };
@@ -108,6 +129,51 @@ const TICK_SPACE = 15;
 // .chart-cursor-y's offset from the axis (app.css)
 const CURSOR_LABEL_GAP = 4;
 
+/** Names and colors of the lines, drawn in the plot's top left corner, so they are also in the copied image. */
+function legend(items: { label: string; color: string }[]): uPlot.Plugin {
+  return {
+    hooks: {
+      draw: (u) => {
+        const ratio = uPlot.pxRatio;
+        const context = u.ctx;
+        const padding = 6 * ratio;
+        const swatch = 14 * ratio;
+        const gap = 5 * ratio;
+        const spacing = 12 * ratio;
+        const height = 20 * ratio;
+        context.save();
+        context.font = `${11 * ratio}px ${color('--font-ui')}`;
+        const widths = items.map((item) => context.measureText(item.label).width);
+        const width = widths.reduce((sum, w) => sum + swatch + gap + w, 0) + spacing * (items.length - 1) + 2 * padding;
+        const left = u.bbox.left + 8 * ratio;
+        const top = u.bbox.top + 8 * ratio;
+        context.globalAlpha = 0.85;
+        context.fillStyle = color('--bg');
+        context.fillRect(left, top, width, height);
+        context.globalAlpha = 1;
+        // uPlot leaves the alignment of its last axis labels (centered or right) in the context
+        context.textAlign = 'left';
+        context.textBaseline = 'middle';
+        const middle = top + height / 2;
+        let x = left + padding;
+        items.forEach((item, i) => {
+          context.strokeStyle = item.color;
+          context.lineWidth = 2 * ratio;
+          context.beginPath();
+          context.moveTo(x, middle);
+          context.lineTo(x + swatch, middle);
+          context.stroke();
+          x += swatch + gap;
+          context.fillStyle = color('--text-muted');
+          context.fillText(item.label, x, middle);
+          x += widths[i] + spacing;
+        });
+        context.restore();
+      },
+    },
+  };
+}
+
 /** Width of a cursor label with the text, measured on the page, so it is exactly what the browser draws. */
 function cursorLabelWidth(text: string) {
   const label = document.createElement('div');
@@ -121,10 +187,10 @@ function cursorLabelWidth(text: string) {
 }
 
 /** Width of the widest cursor label for the values; the widest is the one farthest from 0, so the min or the max. */
-function widestCursorLabel(values: (number | null)[], format: (value: number) => string) {
+function widestCursorLabel(lines: (number | null)[][], format: (value: number) => string) {
   let min = Infinity;
   let max = -Infinity;
-  for (const v of values) {
+  for (const v of lines.flat()) {
     if (v != null) {
       min = Math.min(min, v);
       max = Math.max(max, v);
@@ -141,11 +207,13 @@ function options(
   height: number,
   mode: EquityMode,
   scale: ChartScale,
-  values: (number | null)[],
+  values: Plotted,
 ): uPlot.Options {
   const muted = color('--text-muted');
   const grid = { stroke: color('--border'), width: 1 };
   const accent = color('--accent');
+  const closedColor = color('--series-2');
+  const mainLabel = mode === 'nav' ? 'NAV' : 'Return';
   const axisFont = `11px ${color('--font-ui')}`;
   const axis = { stroke: muted, grid, ticks: grid, font: axisFont };
   const log = logAxis(mode, scale);
@@ -155,7 +223,7 @@ function options(
     mode === 'nav' ? (v: number) => formatNav.format(value(v)) : (v: number) => `${formatPercent.format(value(v))} %`;
   const formatCursor = mode === 'nav' ? format : (v: number) => `${formatCursorPercent.format(value(v))} %`;
   // The cursor's label sits left of the plot, over the axis: the axis is wide enough for any value, so it is not cut off
-  const cursorLabelSpace = CURSOR_LABEL_GAP + widestCursorLabel(values, formatCursor);
+  const cursorLabelSpace = CURSOR_LABEL_GAP + widestCursorLabel([values.main, values.closed], formatCursor);
   const valueAxisSize = (_: uPlot, ticks: string[] | null) =>
     Math.ceil(
       Math.max(
@@ -171,7 +239,13 @@ function options(
     tzDate: (seconds) => uPlot.tzDate(new Date(seconds * 1000), 'Etc/UTC'),
     legend: { show: false },
     cursor: { drag: { x: true, y: false }, move: snapToPoint },
-    plugins: [cursorLabels(formatCursor)],
+    plugins: [
+      cursorLabels(formatCursor),
+      legend([
+        { label: mainLabel, color: accent },
+        { label: 'Closed positions', color: closedColor },
+      ]),
+    ],
     scales: { x: { time: true } },
     axes: [
       axis,
@@ -179,8 +253,9 @@ function options(
     ],
     series: [
       {},
+      { label: 'Closed positions', stroke: closedColor, width: 1.25 },
       {
-        label: mode === 'nav' ? 'NAV' : 'Return',
+        label: mainLabel,
         stroke: accent,
         width: 1.5,
         // NAV is filled down to the axis; return is filled to 0 % (also 0 in log scale), so gains and losses are visible.
@@ -359,7 +434,7 @@ async function saveImage(u: uPlot, stats: Stat[], fileName: string) {
 }
 
 /**
- * Account value or return over time. Drag to zoom, double-click to zoom out. Right click: copy or save as PNG,
+ * Account value or return over time, with the effect of closed positions (open ones at entry value). Drag to zoom, double-click to zoom out. Right click: copy or save as PNG,
  * together with the stats (shown under the chart by StatTiles). The plot fills its container and follows its size.
  */
 export function EquityChart(props: {
@@ -379,7 +454,7 @@ export function EquityChart(props: {
       plot?.destroy();
       plot = new uPlot(
         options(container.clientWidth, container.clientHeight, props.mode, props.scale, values),
-        [props.equity.times.map(toSeconds), values],
+        [props.equity.times.map(toSeconds), values.closed, values.main],
         container,
       );
     });
@@ -408,8 +483,16 @@ export function EquityChart(props: {
 }
 
 const EQUITY_MODES: SegmentedOption<EquityMode>[] = [
-  { value: 'nav', label: 'NAV', title: 'Account value; deposits and withdrawals show as jumps' },
-  { value: 'return', label: 'Return %', title: 'Cumulative return, not affected by deposits and withdrawals' },
+  {
+    value: 'nav',
+    label: 'NAV',
+    title: 'Account value; deposits and withdrawals show as jumps. Closed positions line: open positions at entry value',
+  },
+  {
+    value: 'return',
+    label: 'Return %',
+    title: 'Cumulative return, not affected by deposits and withdrawals. Closed positions line: open positions at entry value',
+  },
 ];
 
 /** NAV / Return % switch. */

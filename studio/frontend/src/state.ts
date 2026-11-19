@@ -24,6 +24,10 @@ export type Equity = {
   nav: number[];
   /** Cumulative time-weighted return: deposits and withdrawals do not change it. */
   returnPercent: number[];
+  /** Closed equity: cash + positions at entry value, i.e. the effect of closed positions. */
+  closed: number[];
+  /** Cumulative time-weighted return of the closed equity. */
+  closedReturnPercent: number[];
 };
 
 export type PortfolioData = {
