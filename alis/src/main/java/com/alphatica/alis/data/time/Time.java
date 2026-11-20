@@ -31,12 +31,15 @@ public record Time(int time) implements Comparable<Time> {
 		return String.format("%d", time);
 	}
 
-    public LocalDate toLocalDate() {
-        int day = time % 1_00;
-        int month = (time / 1_00) % 100;
-        int year = (time / 1_00_00);
-        return LocalDate.of(year, month, day);
-    }
+	public int year() {
+		return time / 1_00_00;
+	}
+
+	public LocalDate toLocalDate() {
+		int day = time % 1_00;
+		int month = (time / 1_00) % 100;
+		return LocalDate.of(year(), month, day);
+	}
 
 	/** Calendar days from 1970-01-01. */
 	public long epochDay() {

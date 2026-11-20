@@ -164,4 +164,21 @@ public final class SessionHistory {
 		double[] cumulative = cumulativeReturnPercent();
 		return cumulative.length == 0 ? Double.NaN : cumulative[cumulative.length - 1];
 	}
+
+	/**
+	 * Compounded session returns in percent of the sessions in the year of the last session, i.e. since the end of
+	 * the previous year (or since the start when there is no session before); NaN without sessions.
+	 */
+	public double yearToDateReturnPercent() {
+		if (times.isEmpty()) {
+			return Double.NaN;
+		}
+		int year = times.getLast().year();
+		double[] returns = returns();
+		double growth = 1;
+		for (int i = returns.length - 1; i >= 0 && times.get(i).year() == year; i--) {
+			growth *= 1 + returns[i];
+		}
+		return (growth - 1) * 100;
+	}
 }

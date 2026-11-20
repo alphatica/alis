@@ -41,7 +41,7 @@ final class TestMarkets {
 			float[] newestFirst = new float[times.size()];
 			double price = 100;
 			for (int i = 0; i < times.size(); i++) {
-				price *= growth.applyAsDouble(times.get(i).time() / 10000);
+				price *= growth.applyAsDouble(times.get(i).year());
 				newestFirst[times.size() - 1 - i] = (float) price;
 			}
 			TreeMap<Time, List<FloatArraySlice>> ranges = new TreeMap<>();

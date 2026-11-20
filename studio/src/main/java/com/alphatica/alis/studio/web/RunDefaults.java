@@ -24,7 +24,7 @@ record RunDefaults(String startTime, String endTime, String commissionRate, Stri
 			return new RunDefaults("", "", "0.01", "100000");
 		}
 		List<Time> times = marketData.getTimes();
-		int startYear = times.getLast().toLocalDate().getYear() - DEFAULT_YEARS;
+		int startYear = times.getLast().year() - DEFAULT_YEARS;
 		Time newYear = Time.of(LocalDate.of(startYear, 1, 1));
 		Time start = times.stream().filter(time -> !time.isBefore(newYear)).findFirst().orElseThrow();
 		return new RunDefaults(start.toString(), times.getLast().toString(), "0.01", "100000");

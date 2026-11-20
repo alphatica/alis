@@ -210,6 +210,30 @@ class SessionHistoryTest {
 		assertEquals(200, account.getAccountHistory().getSessions().returns().length);
 	}
 
+	@Test
+	void shouldCompoundYearToDateFromEndOfPreviousYear() throws AccountActionException {
+		Account account = accountWithPosition();
+		account.updateLastKnown(prices(55, 20251230)); // 1050: +5% last year
+		account.updateLastKnown(prices(60, 20260102)); // 1100
+		account.updateLastKnown(prices(66, 20260105)); // 1160
+
+		assertEquals((1160.0 / 1050 - 1) * 100, account.getAccountHistory().getSessions().yearToDateReturnPercent(),
+				1e-9);
+	}
+
+	@Test
+	void shouldHaveYearToDateFromStartWithoutPreviousYear() throws AccountActionException {
+		Account account = accountWithPosition();
+		account.updateLastKnown(prices(60, 20260102)); // 1100
+
+		assertEquals(10, account.getAccountHistory().getSessions().yearToDateReturnPercent(), 1e-9);
+	}
+
+	@Test
+	void shouldHaveNoYearToDateWithoutSessions() throws AccountActionException {
+		assertTrue(Double.isNaN(accountWithPosition().getAccountHistory().getSessions().yearToDateReturnPercent()));
+	}
+
 	private static TimeMarketDataSet prices(float price, int time) {
 		FloatArraySlice prices = new FloatArraySlice(new float[]{price}, 0);
 		FloatArraySlice volume = new FloatArraySlice(new float[]{1}, 0);
