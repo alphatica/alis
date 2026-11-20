@@ -1,9 +1,13 @@
 package com.alphatica.alis.data.time;
 
+import com.alphatica.alis.data.FloatArraySlice;
+import com.alphatica.alis.data.market.MarketName;
+import com.alphatica.alis.data.market.MarketType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -18,7 +22,50 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 class TimeMarketDataSetTest {
 
+	private static final MarketName A = new MarketName("a");
+	private static final MarketName B = new MarketName("b");
+	private static final MarketName C = new MarketName("c");
+
 	private final TimeMarketDataSet set = new TimeMarketDataSet(Map.of(), new Time(1));
+
+	@Test
+	void shouldHideExcludedMarketsInView() {
+		TimeMarketData a = marketData(A, 2);
+		TimeMarketData b = marketData(B, 2);
+		TimeMarketData c = marketData(C, 1);
+		TimeMarketDataSet full = new TimeMarketDataSet(Map.of(A, a, B, b, C, c), new Time(2));
+
+		TimeMarketDataSet view = full.without(Set.of(B));
+
+		assertSame(a, view.get(A));
+		assertNull(view.get(B));
+		assertSame(c, view.get(C));
+		assertEquals(Set.of(a, c), Set.copyOf(view.listAllKnownMarkets(m -> true)));
+		assertEquals(List.of(a), view.listUpToDateMarkets(m -> true));
+		assertEquals(new Time(2), view.getTime());
+		assertSame(b, full.get(B));
+	}
+
+	@Test
+	void shouldAccumulateExclusionsOfNestedViews() {
+		TimeMarketDataSet full = new TimeMarketDataSet(Map.of(A, marketData(A, 1), B, marketData(B, 1)), new Time(1));
+
+		TimeMarketDataSet view = full.without(Set.of(A)).without(Set.of(B));
+
+		assertNull(view.get(A));
+		assertNull(view.get(B));
+		assertTrue(view.listAllKnownMarkets(m -> true).isEmpty());
+	}
+
+	@Test
+	void shouldNotShareCacheWithView() {
+		TimeMarketDataSet view = set.without(Set.of(A));
+
+		assertEquals("full", set.cached(new Key("a", 1), data -> "full"));
+
+		assertEquals("view", view.cached(new Key("a", 1), data -> "view"));
+		assertSame(view, view.cached(new Key("b", 2), data -> data));
+	}
 
 	@Test
 	void shouldComputeOnceForEqualKeys() {
@@ -115,6 +162,11 @@ class TimeMarketDataSetTest {
 			}
 			Thread.onSpinWait();
 		}
+	}
+
+	private static TimeMarketData marketData(MarketName name, int time) {
+		FloatArraySlice prices = new FloatArraySlice(new float[]{1}, 0);
+		return new TimeMarketData(name, MarketType.STOCK, new Time(time), List.of(prices, prices, prices, prices));
 	}
 
 	private static void awaitQuietly(CountDownLatch latch) {

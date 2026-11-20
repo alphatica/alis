@@ -9,8 +9,11 @@ import com.alphatica.alis.trading.strategy.Strategy;
 import com.alphatica.alis.trading.strategy.StrategyExecutor;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -39,6 +42,52 @@ class StrategyResultVerifierTest {
 
 		assertEquals(49, score.get());
 		assertEquals(25.0, result.orElseThrow().score());
+	}
+
+	@Test
+	void shouldReturnMedianScoreForReducedMarketsVerification() throws IllegalAccessException {
+		AtomicInteger score = new AtomicInteger();
+		var verifier = new StrategyResultVerifier(OptimizedStrategy::new, new TestData("a", "b", "c"),
+				StrategyExecutor::new, () -> (account, stats) -> score.incrementAndGet(), exception -> { });
+
+		var result = verifier.verify(ResultVerifier.REMOVE_MARKETS, Map.of("enabled", true));
+
+		assertEquals(49, score.get());
+		assertEquals(25.0, result.orElseThrow().score());
+	}
+
+	@Test
+	void shouldReuseReducedMarketsSnapshotsAcrossVerifications() throws IllegalAccessException {
+		Set<TimeMarketDataSet> snapshots = Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
+		AtomicInteger calls = new AtomicInteger();
+		var verifier = new StrategyResultVerifier(() -> new RecordingStrategy(snapshots, calls), new TestData("a", "b", "c"),
+				() -> new StrategyExecutor().useCachedMarketData(), () -> (account, stats) -> 0.0, exception -> { });
+
+		verifier.verify(ResultVerifier.REMOVE_MARKETS, Map.of());
+		int afterFirst = snapshots.size();
+		int callsAfterFirst = calls.get();
+		verifier.verify(ResultVerifier.REMOVE_MARKETS, Map.of());
+
+		assertTrue(callsAfterFirst > 0);
+		assertEquals(2 * callsAfterFirst, calls.get());
+		assertEquals(afterFirst, snapshots.size());
+	}
+
+	private static final class RecordingStrategy extends Strategy {
+		private final Set<TimeMarketDataSet> snapshots;
+		private final AtomicInteger calls;
+
+		private RecordingStrategy(Set<TimeMarketDataSet> snapshots, AtomicInteger calls) {
+			this.snapshots = snapshots;
+			this.calls = calls;
+		}
+
+		@Override
+		public List<Order> afterClose(TimeMarketDataSet data, Account account) {
+			snapshots.add(data);
+			calls.incrementAndGet();
+			return List.of();
+		}
 	}
 
 	private static final class OptimizedStrategy extends Strategy {

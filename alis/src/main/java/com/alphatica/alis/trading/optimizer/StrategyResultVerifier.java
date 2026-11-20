@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 final class StrategyResultVerifier {
 
@@ -25,6 +26,7 @@ final class StrategyResultVerifier {
 	private final Supplier<AccountScorer> scorerFactory;
 	private final Consumer<Exception> exceptionHandler;
 	private final ReducedMarketDataFactory reducedMarketDataFactory = new ReducedMarketDataFactory();
+	private volatile List<MarketData> reducedMarketData;
 
 	StrategyResultVerifier(Supplier<Strategy> strategyFactory, MarketData marketData,
 						   Supplier<StrategyExecutor> executorFactory, Supplier<AccountScorer> scorerFactory,
@@ -47,10 +49,30 @@ final class StrategyResultVerifier {
 
 	private Optional<ScoredAccount> verifyReducedMarkets(Map<String, Object> parameters) throws IllegalAccessException {
 		List<ScoredAccount> scores = new ArrayList<>();
-		while (scores.size() < VERIFICATION_RUNS) {
-			execute(parameters, reducedMarketDataFactory.create(marketData), ignored -> { }).ifPresent(scores::add);
+		for (MarketData reduced : reducedMarketData()) {
+			execute(parameters, reduced, ignored -> { }).ifPresent(scores::add);
 		}
 		return median(scores);
+	}
+
+	/**
+	 * The same reduced variants are used for every set of parameters, so their cached snapshots (and values cached in
+	 * them) are reused across the whole optimization and all sets of parameters are scored on the same markets.
+	 */
+	private List<MarketData> reducedMarketData() {
+		List<MarketData> result = reducedMarketData;
+		if (result == null) {
+			synchronized (this) {
+				result = reducedMarketData;
+				if (result == null) {
+					result = Stream.generate(() -> reducedMarketDataFactory.create(marketData))
+							.limit(VERIFICATION_RUNS)
+							.toList();
+					reducedMarketData = result;
+				}
+			}
+		}
+		return result;
 	}
 
 	private Optional<ScoredAccount> verifyReducedOrders(Map<String, Object> parameters) throws IllegalAccessException {
