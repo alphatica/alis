@@ -1,6 +1,7 @@
 package com.alphatica.alis.studio.logic.trading.signals;
 
 import com.alphatica.alis.data.market.MarketData;
+import com.alphatica.alis.data.market.SnapshotCursor;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.studio.logic.table.Column;
@@ -50,11 +51,12 @@ public final class SignalsProvider {
 	private static List<Object[]> signals(Strategy strategy, MarketData marketData, Time startTime,
 	                                      List<AccountAction> accountActions, Account account) throws AccountActionException {
 		List<Object[]> rows = new ArrayList<>();
+		SnapshotCursor snapshots = marketData.snapshotCursor();
 		for (Time time : marketData.getTimes()) {
 			if (time.isBefore(startTime)) {
 				continue;
 			}
-			TimeMarketDataSet data = marketData.snapshotAt(time);
+			TimeMarketDataSet data = snapshots.at(time);
 			performActionsForTime(time, accountActions, account);
 			account.updateLastKnown(data);
 			List<Order> orders = strategy.afterClose(data, account);

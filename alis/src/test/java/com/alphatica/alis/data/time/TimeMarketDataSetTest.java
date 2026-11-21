@@ -47,6 +47,33 @@ class TimeMarketDataSetTest {
 	}
 
 	@Test
+	void shouldListMarketsInNameOrder() {
+		TimeMarketData a = marketData(A, 2);
+		TimeMarketData b = marketData(B, 1);
+		TimeMarketData c = marketData(C, 2);
+
+		TimeMarketDataSet full = new TimeMarketDataSet(Map.of(C, c, A, a, B, b), new Time(2));
+
+		assertEquals(List.of(a, b, c), full.listAllKnownMarkets(m -> true));
+		assertEquals(List.of(a, c), full.listUpToDateMarkets(m -> true));
+		assertEquals(List.of(c), full.listUpToDateMarkets(m -> m.getMarketName().equals(C)));
+	}
+
+	@Test
+	void shouldSkipMarketsWithoutData() {
+		TimeMarketData b = marketData(B, 2);
+		TimeMarketDataSet full = new TimeMarketDataSet(Map.of(A, 0, B, 1, C, 2), new TimeMarketData[]{null, b, null},
+				new Time(2));
+
+		assertNull(full.get(A));
+		assertSame(b, full.get(B));
+		assertNull(full.get(new MarketName("x")));
+		assertEquals(List.of(b), full.listAllKnownMarkets(m -> true));
+		assertEquals(List.of(b), full.listUpToDateMarkets(m -> true));
+		assertThrows(UnsupportedOperationException.class, () -> full.listAllKnownMarkets(m -> true).add(b));
+	}
+
+	@Test
 	void shouldAccumulateExclusionsOfNestedViews() {
 		TimeMarketDataSet full = new TimeMarketDataSet(Map.of(A, marketData(A, 1), B, marketData(B, 1)), new Time(1));
 

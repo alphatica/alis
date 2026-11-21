@@ -1,32 +1,41 @@
 package com.alphatica.alis.data.loader.stooq;
 
 import com.alphatica.alis.data.market.Market;
+import com.alphatica.alis.data.market.MarketCursor;
 import com.alphatica.alis.data.market.MarketName;
 import com.alphatica.alis.data.market.MarketType;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
-import com.alphatica.alis.data.FloatArraySlice;
 
+import java.util.AbstractList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
+import java.util.RandomAccess;
 
 public class StooqMarket implements Market {
-	private final TreeMap<Time, List<FloatArraySlice>> ranges;
 	private final MarketName name;
 	private final MarketType marketType;
+	private final int[] times;
+	private final float[][] columns;
+	private final List<Time> timeList;
 
-	@SuppressWarnings("java:S1319")
-	public StooqMarket(TreeMap<Time, List<FloatArraySlice>> ranges, MarketName name, MarketType marketType) {
-		this.ranges = ranges;
+	public StooqMarket(MarketName name, MarketType marketType, int[] times, float[][] columns) {
+		for (float[] column : columns) {
+			if (column.length != times.length) {
+				throw new IllegalArgumentException("Every layer must have a value for every time");
+			}
+		}
 		this.name = name;
 		this.marketType = marketType;
+		this.times = times;
+		this.columns = columns;
+		this.timeList = new TimeList(times);
 	}
 
 	@Override
 	public List<Time> getTimes() {
-		return ranges.keySet().stream().sorted().toList();
+		return timeList;
 	}
 
 	@Override
@@ -41,32 +50,36 @@ public class StooqMarket implements Market {
 
 	@Override
 	public TimeMarketData getAtOrPrevious(Time time) {
-		Map.Entry<Time, List<FloatArraySlice>> entry = ranges.floorEntry(time);
-		if (entry != null) {
-			return new TimeMarketData(name, marketType, entry.getKey(), entry.getValue());
-		} else {
-			return null;
-		}
+		return dataAt(floorIndex(time.time()));
 	}
 
 	@Override
 	public TimeMarketData getAtOrNext(Time time) {
-		Map.Entry<Time, List<FloatArraySlice>> entry = ranges.ceilingEntry(time);
-		if (entry != null) {
-			return new TimeMarketData(name, marketType, entry.getKey(), entry.getValue());
-		} else {
-			return null;
-		}
+		int index = Arrays.binarySearch(times, time.time());
+		return dataAt(index >= 0 ? index : -index - 1);
 	}
 
 	@Override
 	public TimeMarketData getAt(Time time) {
-		List<FloatArraySlice> data = ranges.get(time);
-		if (data == null) {
+		int index = Arrays.binarySearch(times, time.time());
+		return index >= 0 ? dataAt(index) : null;
+	}
+
+	@Override
+	public MarketCursor cursor() {
+		return new Cursor();
+	}
+
+	private int floorIndex(int time) {
+		int index = Arrays.binarySearch(times, time);
+		return index >= 0 ? index : -index - 2;
+	}
+
+	private TimeMarketData dataAt(int index) {
+		if (index < 0 || index >= times.length) {
 			return null;
-		} else {
-			return new TimeMarketData(name, marketType, time, data);
 		}
+		return new TimeMarketData(name, marketType, new Time(times[index]), columns, times.length - 1 - index);
 	}
 
 	@Override
@@ -80,5 +93,52 @@ public class StooqMarket implements Market {
 	@Override
 	public int hashCode() {
 		return Objects.hash(name, marketType);
+	}
+
+	private final class Cursor implements MarketCursor {
+		private int index = -1;
+		private TimeMarketData current;
+
+		@Override
+		public TimeMarketData atOrPrevious(Time time) {
+			int found = indexFor(time.time());
+			if (found != index) {
+				index = found;
+				current = dataAt(found);
+			}
+			return current;
+		}
+
+		private int indexFor(int time) {
+			if (index >= 0 && times[index] > time) {
+				return floorIndex(time);
+			}
+			int following = index + 1;
+			if (following >= times.length || times[following] > time) {
+				return index;
+			}
+			if (following + 1 >= times.length || times[following + 1] > time) {
+				return following;
+			}
+			return floorIndex(time);
+		}
+	}
+
+	private static final class TimeList extends AbstractList<Time> implements RandomAccess {
+		private final int[] times;
+
+		TimeList(int[] times) {
+			this.times = times;
+		}
+
+		@Override
+		public Time get(int index) {
+			return new Time(times[index]);
+		}
+
+		@Override
+		public int size() {
+			return times.length;
+		}
 	}
 }

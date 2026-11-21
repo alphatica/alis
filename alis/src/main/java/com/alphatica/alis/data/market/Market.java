@@ -17,4 +17,8 @@ public interface Market {
 	TimeMarketData getAtOrNext(Time time);
 
 	TimeMarketData getAt(Time time);
+
+	default MarketCursor cursor() {
+		return this::getAtOrPrevious;
+	}
 }

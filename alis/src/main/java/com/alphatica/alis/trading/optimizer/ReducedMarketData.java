@@ -5,6 +5,7 @@ import com.alphatica.alis.data.market.Delistings;
 import com.alphatica.alis.data.market.Market;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
+import com.alphatica.alis.data.market.SnapshotCursor;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 
@@ -65,8 +66,19 @@ final class ReducedMarketData implements MarketData {
 	}
 
 	@Override
+	public TimeMarketDataSet snapshotAt(Time time) {
+		return base.snapshotAt(time).without(excluded);
+	}
+
+	@Override
 	public TimeMarketDataSet cachedSnapshotAt(Time time) {
 		return snapshotCache.computeIfAbsent(time, t -> base.cachedSnapshotAt(t).without(excluded));
+	}
+
+	@Override
+	public SnapshotCursor snapshotCursor() {
+		SnapshotCursor baseCursor = base.snapshotCursor();
+		return time -> baseCursor.at(time).without(excluded);
 	}
 
 	private static List<Time> collectTimes(List<Market> markets) {

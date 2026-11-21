@@ -3,6 +3,7 @@ package com.alphatica.alis.trading.strategy;
 import com.alphatica.alis.data.market.Delisting;
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
+import com.alphatica.alis.data.market.SnapshotCursor;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
 import com.alphatica.alis.trading.account.Account;
@@ -101,10 +102,11 @@ public class StrategyExecutor {
 		}
 		List<Order> pendingOrders = new ArrayList<>();
 		account.getAccountHistory().addAction(new AccountAction(times.getFirst(), new Deposit(initialCash)));
+		SnapshotCursor snapshots = snapshots(marketData);
 		for (Time time : times) {
 			logger.log("____________________________________________________________________________");
 			logger.log("Starting time: %s", time);
-			TimeMarketDataSet current = getTimeMarketDataSet(marketData, time);
+			TimeMarketDataSet current = snapshots.at(time);
 			logger.log("Pending orders: %d", pendingOrders.size());
 			tradeExecutor.executeSells(pendingOrders, current, account);
 			logger.log("Finished selling. Cash available: %.2f", account.getCash());
@@ -133,12 +135,8 @@ public class StrategyExecutor {
 		}
 	}
 
-	private TimeMarketDataSet getTimeMarketDataSet(MarketData marketData, Time time) {
-		if (useCachedMarketData) {
-			return marketData.cachedSnapshotAt(time);
-		} else {
-			return marketData.snapshotAt(time);
-		}
+	private SnapshotCursor snapshots(MarketData marketData) {
+		return useCachedMarketData ? marketData::cachedSnapshotAt : marketData.snapshotCursor();
 	}
 
 	private List<Order> getNewPendingOrders(Strategy strategy, TimeMarketDataSet current, Account account,

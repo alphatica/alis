@@ -2,6 +2,9 @@ package com.alphatica.alis.data.time;
 
 import com.alphatica.alis.data.market.MarketName;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -11,17 +14,34 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 public class TimeMarketDataSet {
-	private final Map<MarketName, TimeMarketData> set;
+	private final Map<MarketName, Integer> positions;
+	private final TimeMarketData[] markets;
 	private final Time time;
 	private final Set<MarketName> excluded;
 	private final Map<Object, Object> cache = new ConcurrentHashMap<>();
 
 	public TimeMarketDataSet(Map<MarketName, TimeMarketData> set, Time time) {
-		this(set, time, Set.of());
+		List<MarketName> names = set.keySet().stream().sorted().toList();
+		Map<MarketName, Integer> namePositions = HashMap.newHashMap(names.size());
+		TimeMarketData[] data = new TimeMarketData[names.size()];
+		for (int i = 0; i < data.length; i++) {
+			namePositions.put(names.get(i), i);
+			data[i] = set.get(names.get(i));
+		}
+		this.positions = namePositions;
+		this.markets = data;
+		this.time = time;
+		this.excluded = Set.of();
 	}
 
-	private TimeMarketDataSet(Map<MarketName, TimeMarketData> set, Time time, Set<MarketName> excluded) {
-		this.set = set;
+	public TimeMarketDataSet(Map<MarketName, Integer> positions, TimeMarketData[] markets, Time time) {
+		this(positions, markets, time, Set.of());
+	}
+
+	private TimeMarketDataSet(Map<MarketName, Integer> positions, TimeMarketData[] markets, Time time,
+							  Set<MarketName> excluded) {
+		this.positions = positions;
+		this.markets = markets;
 		this.time = time;
 		this.excluded = excluded;
 	}
@@ -33,18 +53,19 @@ public class TimeMarketDataSet {
 	public TimeMarketDataSet without(Set<MarketName> marketsToExclude) {
 		if (excluded.isEmpty()) {
 			// Set.copyOf returns an unmodifiable set as is, so views made with the same set share it
-			return new TimeMarketDataSet(set, time, Set.copyOf(marketsToExclude));
+			return new TimeMarketDataSet(positions, markets, time, Set.copyOf(marketsToExclude));
 		}
 		Set<MarketName> allExcluded = new HashSet<>(excluded);
 		allExcluded.addAll(marketsToExclude);
-		return new TimeMarketDataSet(set, time, Set.copyOf(allExcluded));
+		return new TimeMarketDataSet(positions, markets, time, Set.copyOf(allExcluded));
 	}
 
 	public TimeMarketData get(MarketName name) {
-		if (excluded.contains(name)) {
+		Integer position = positions.get(name);
+		if (position == null || excluded.contains(name)) {
 			return null;
 		}
-		return set.get(name);
+		return markets[position];
 	}
 
 	public Time getTime() {
@@ -52,11 +73,23 @@ public class TimeMarketDataSet {
 	}
 
 	public List<TimeMarketData> listUpToDateMarkets(Predicate<TimeMarketData> filter) {
-		return set.values().stream().filter(this::isIncluded).filter(filter).filter(m -> m.getTime().equals(time)).toList();
+		List<TimeMarketData> result = new ArrayList<>();
+		for (TimeMarketData marketData : markets) {
+			if (marketData != null && marketData.getTime().equals(time) && isIncluded(marketData) && filter.test(marketData)) {
+				result.add(marketData);
+			}
+		}
+		return Collections.unmodifiableList(result);
 	}
 
 	public List<TimeMarketData> listAllKnownMarkets(Predicate<TimeMarketData> filter) {
-		return set.values().stream().filter(this::isIncluded).filter(filter).toList();
+		List<TimeMarketData> result = new ArrayList<>();
+		for (TimeMarketData marketData : markets) {
+			if (marketData != null && isIncluded(marketData) && filter.test(marketData)) {
+				result.add(marketData);
+			}
+		}
+		return Collections.unmodifiableList(result);
 	}
 
 	@SuppressWarnings("unchecked")

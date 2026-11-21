@@ -1,6 +1,5 @@
 package com.alphatica.alis.studio.logic.trading.walkforward;
 
-import com.alphatica.alis.data.FloatArraySlice;
 import com.alphatica.alis.data.StandardMarketData;
 import com.alphatica.alis.data.loader.stooq.StooqMarket;
 import com.alphatica.alis.data.market.Market;
@@ -15,7 +14,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.IntToDoubleFunction;
 
 /** Stocks quoted on every weekday from 2018 to 2021, each with its own daily growth factor in every year. */
@@ -44,13 +42,10 @@ final class TestMarkets {
 				price *= growth.applyAsDouble(times.get(i).year());
 				newestFirst[times.size() - 1 - i] = (float) price;
 			}
-			TreeMap<Time, List<FloatArraySlice>> ranges = new TreeMap<>();
-			for (int i = 0; i < times.size(); i++) {
-				FloatArraySlice prices = new FloatArraySlice(newestFirst, times.size() - 1 - i);
-				ranges.put(times.get(i), Collections.nCopies(6, prices));
-			}
+			float[][] columns = Collections.nCopies(6, newestFirst).toArray(float[][]::new);
+			int[] sessions = times.stream().mapToInt(Time::time).toArray();
 			MarketName marketName = new MarketName(name);
-			markets.put(marketName, new StooqMarket(ranges, marketName, MarketType.STOCK));
+			markets.put(marketName, new StooqMarket(marketName, MarketType.STOCK, sessions, columns));
 		});
 		StandardMarketData data = new StandardMarketData();
 		data.addMarkets(markets);

@@ -1,6 +1,7 @@
 package com.alphatica.alis.trading.account;
 
 import com.alphatica.alis.data.market.MarketData;
+import com.alphatica.alis.data.market.SnapshotCursor;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.trading.account.actions.AccountAction;
 import com.alphatica.alis.trading.account.actions.AccountActionException;
@@ -47,10 +48,11 @@ public final class AccountReplayer {
 			List<AccountAction> originalActions,
 			AfterTime afterTime) throws AccountActionException {
 		List<AccountAction> actions = new ArrayList<>(originalActions);
+		SnapshotCursor snapshots = marketData == null ? null : marketData.snapshotCursor();
 		for (Time time : simulationTimes(actions, marketData)) {
 			performActionsForTime(time, actions, account);
-			if (marketData != null) {
-				account.updateLastKnown(marketData.snapshotAt(time));
+			if (snapshots != null) {
+				account.updateLastKnown(snapshots.at(time));
 			}
 			afterTime.accept(time);
 		}

@@ -2,6 +2,7 @@ package com.alphatica.alis.trading.datamining.betterexits;
 
 import com.alphatica.alis.data.market.MarketData;
 import com.alphatica.alis.data.market.MarketName;
+import com.alphatica.alis.data.market.SnapshotCursor;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
@@ -35,11 +36,12 @@ public final class BetterExitSimulation {
 	}
 
 	public Optional<BetterExitSimulationResult> run() throws AccountActionException {
+		SnapshotCursor snapshots = marketData.snapshotCursor();
 		for (Time time : times) {
 			simulatedAccount.executePendingSells(time, marketData);
 			simulatedAccount.performActionsForTime(time).forEach(marketStateSet::delete);
 			simulatedAccount.reduceExtraCash(time);
-			TimeMarketDataSet currentData = marketData.snapshotAt(time);
+			TimeMarketDataSet currentData = snapshots.at(time);
 			simulatedAccount.account().updateLastKnown(currentData);
 			evaluateOpenPositions(currentData);
 		}

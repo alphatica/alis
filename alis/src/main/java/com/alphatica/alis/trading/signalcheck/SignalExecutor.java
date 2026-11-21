@@ -1,6 +1,7 @@
 package com.alphatica.alis.trading.signalcheck;
 
 import com.alphatica.alis.data.market.MarketData;
+import com.alphatica.alis.data.market.SnapshotCursor;
 import com.alphatica.alis.data.time.Time;
 import com.alphatica.alis.data.time.TimeMarketData;
 import com.alphatica.alis.data.time.TimeMarketDataSet;
@@ -77,25 +78,22 @@ public class SignalExecutor {
 				.toList();
 		SignalTradeDiscovery discovery = new SignalTradeDiscovery(marketData, commissionRate,
 				tradeSecondarySignals, positionReporter, sourceId, verbose);
+		SnapshotCursor snapshots = useCachedMarketData ? marketData::cachedSnapshotAt : marketData.snapshotCursor();
 		for (int eventIndex = 0; eventIndex < executionTimes.size(); eventIndex++) {
-			processTime(marketData, signalGeneratorFactory, discovery, executionTimes.get(eventIndex), eventIndex);
+			processTime(marketData, snapshots, signalGeneratorFactory, discovery, executionTimes.get(eventIndex), eventIndex);
 		}
 		discovery.closeLastTrades(executionTimes.size());
 		return new SignalExecutionResult(timeFrom, timeTo, executionTimes, discovery.opportunities());
 	}
 
-	private void processTime(MarketData marketData, Supplier<SignalGenerator> signalGeneratorFactory,
+	private void processTime(MarketData marketData, SnapshotCursor snapshots, Supplier<SignalGenerator> signalGeneratorFactory,
 			SignalTradeDiscovery discovery, Time time, int eventIndex) {
-		TimeMarketDataSet marketDataSet = getTimeMarketDataSet(marketData, time);
+		TimeMarketDataSet marketDataSet = snapshots.at(time);
 		List<TimeMarketData> currentMarkets = marketDataSet.listUpToDateMarkets(marketFilter).stream()
 				.sorted(Comparator.comparing(TimeMarketData::getMarketName))
 				.toList();
 		discovery.process(time, marketDataSet, currentMarkets, signalGeneratorFactory, eventIndex);
 		discovery.processDelistings(marketData.getDelistingsAt(time), time, eventIndex);
-	}
-
-	private TimeMarketDataSet getTimeMarketDataSet(MarketData marketData, Time time) {
-		return useCachedMarketData ? marketData.cachedSnapshotAt(time) : marketData.snapshotAt(time);
 	}
 
 }

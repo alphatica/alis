@@ -62,6 +62,10 @@ public interface MarketData {
 		return snapshotAt(time);
 	}
 
+	default SnapshotCursor snapshotCursor() {
+		return this::snapshotAt;
+	}
+
 	default MarketData fromSingle(Market market) {
 		return new MarketData() {
 			private final TimeMarketDataSetCache snapshotCache = new TimeMarketDataSetCache(this);

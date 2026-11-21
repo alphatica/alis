@@ -17,13 +17,26 @@ public class TimeMarketData {
 	private final MarketName marketName;
 	private final MarketType marketType;
 	private final Time time;
-	private final List<FloatArraySlice> data;
+	private final List<FloatArraySlice> slices;
+	private final float[][] columns;
+	private final int row;
 
 	public TimeMarketData(MarketName marketName, MarketType marketType, Time time, List<FloatArraySlice> data) {
+		this(marketName, marketType, time, data, null, 0);
+	}
+
+	public TimeMarketData(MarketName marketName, MarketType marketType, Time time, float[][] columns, int row) {
+		this(marketName, marketType, time, null, columns, row);
+	}
+
+	private TimeMarketData(MarketName marketName, MarketType marketType, Time time, List<FloatArraySlice> slices,
+						   float[][] columns, int row) {
 		this.marketName = marketName;
 		this.marketType = marketType;
 		this.time = time;
-		this.data = data;
+		this.slices = slices;
+		this.columns = columns;
+		this.row = row;
 	}
 
 	public MarketName getMarketName() {
@@ -39,7 +52,15 @@ public class TimeMarketData {
 	}
 
 	public float getData(Layer layer, int index) {
-		return data.get(layer.getIndex()).get(index);
+		if (slices != null) {
+			return slices.get(layer.getIndex()).get(index);
+		}
+		float[] column = columns[layer.getIndex()];
+		int size = column.length - row;
+		if (index < 0 || index >= size) {
+			throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+		}
+		return column[row + index];
 	}
 
 	public float getAveragePrice(int index) {
@@ -47,6 +68,9 @@ public class TimeMarketData {
 	}
 
 	public FloatArraySlice getLayer(Layer layer) {
-		return data.get(layer.getIndex());
+		if (slices != null) {
+			return slices.get(layer.getIndex());
+		}
+		return new FloatArraySlice(columns[layer.getIndex()], row);
 	}
 }
