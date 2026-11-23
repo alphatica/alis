@@ -522,6 +522,13 @@ export function EquityChart(props: {
   return (
     <div class="equity-chart">
       <div ref={container} class="chart" onContextMenu={showMenu} />
+      <For each={PANELS}>
+        {(panel) => (
+          <Show when={isOpen(panel)}>
+            <PanelChart panel={panel} equity={props.equity} group={group} fileName={props.fileName} />
+          </Show>
+        )}
+      </For>
       <div class="chart-panel-toggles" role="group" aria-label="More charts">
         <For each={PANELS}>
           {(panel) => (
@@ -539,13 +546,6 @@ export function EquityChart(props: {
           )}
         </For>
       </div>
-      <For each={PANELS}>
-        {(panel) => (
-          <Show when={isOpen(panel)}>
-            <PanelChart panel={panel} equity={props.equity} group={group} fileName={props.fileName} />
-          </Show>
-        )}
-      </For>
     </div>
   );
 }
