@@ -28,6 +28,14 @@ export type Equity = {
   closed: number[];
   /** Cumulative time-weighted return of the closed equity. */
   closedReturnPercent: number[];
+  /** Positions over NAV in %. */
+  exposurePercent: number[];
+  /** 0 or negative. */
+  drawdownPercent: number[];
+  /** 0 or negative: NAV below the highest closed equity. */
+  downsideDrawdownPercent: number[];
+  /** Open positions: markets held. */
+  positionCount: number[];
 };
 
 export type PortfolioData = {

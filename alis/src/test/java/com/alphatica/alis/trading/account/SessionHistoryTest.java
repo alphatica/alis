@@ -42,6 +42,20 @@ class SessionHistoryTest {
 	}
 
 	@Test
+	void shouldRecordExposureDrawdownsAndPositionsAtEverySession() throws AccountActionException {
+		Account account = accountWithPosition();
+
+		account.updateLastKnown(prices(55, 1)); // 1050: 550 in the position
+		account.updateLastKnown(prices(44, 2)); // 940: 440 in the position, closed equity 1000
+
+		SessionHistory sessions = account.getAccountHistory().getSessions();
+		assertArrayEquals(new double[]{100 * 550.0 / 1050, 100 * 440.0 / 940}, sessions.exposurePercent(), DELTA);
+		assertArrayEquals(new double[]{0, 100 * (940.0 / 1050 - 1)}, sessions.drawdownPercent(), DELTA);
+		assertArrayEquals(new double[]{0, -6}, sessions.downsideDrawdownPercent(), DELTA);
+		assertArrayEquals(new int[]{1, 1}, sessions.positionCount());
+	}
+
+	@Test
 	void shouldCountDepositAtStartOfNextSession() throws AccountActionException {
 		Account account = accountWithPosition();
 		account.updateLastKnown(prices(50, 1)); // 1000

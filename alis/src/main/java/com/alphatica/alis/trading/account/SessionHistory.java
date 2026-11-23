@@ -21,6 +21,9 @@ public final class SessionHistory {
 	private double[] positions = new double[64];
 	private double[] closed = new double[64];
 	private double[] netDeposits = new double[64];
+	private double[] drawdown = new double[64];
+	private double[] downsideDrawdown = new double[64];
+	private int[] positionCount = new int[64];
 	private double pendingFlow;
 
 	SessionHistory(double startValue) {
@@ -36,11 +39,11 @@ public final class SessionHistory {
 	 *
 	 * @param closedValue {@link Account#getClosedEquity() closed equity}
 	 */
-	void record(Time time, double value, double positionsValue, double closedValue) {
+	void record(Time time, double value, double positionsValue, double closedValue, SessionState state) {
 		if (!times.isEmpty()) {
 			int comparison = time.compareTo(times.getLast());
 			if (comparison == 0) {
-				revalueLast(value, positionsValue, closedValue);
+				revalueLast(value, positionsValue, closedValue, state);
 				return;
 			}
 			if (comparison < 0) {
@@ -53,17 +56,23 @@ public final class SessionHistory {
 			positions = Arrays.copyOf(positions, index * 2);
 			closed = Arrays.copyOf(closed, index * 2);
 			netDeposits = Arrays.copyOf(netDeposits, index * 2);
+			drawdown = Arrays.copyOf(drawdown, index * 2);
+			downsideDrawdown = Arrays.copyOf(downsideDrawdown, index * 2);
+			positionCount = Arrays.copyOf(positionCount, index * 2);
 		}
 		times.add(time);
 		nav[index] = value;
 		positions[index] = positionsValue;
 		closed[index] = closedValue;
 		netDeposits[index] = pendingFlow;
+		drawdown[index] = state.drawdown();
+		downsideDrawdown[index] = state.downside();
+		positionCount[index] = state.positions();
 		pendingFlow = 0;
 	}
 
 	/** Values the last session again, e.g. after selling at a delisting; nothing without sessions. */
-	void revalueLast(double value, double positionsValue, double closedValue) {
+	void revalueLast(double value, double positionsValue, double closedValue, SessionState state) {
 		if (times.isEmpty()) {
 			return;
 		}
@@ -72,6 +81,9 @@ public final class SessionHistory {
 		positions[last] = positionsValue;
 		closed[last] = closedValue;
 		netDeposits[last] += pendingFlow;
+		drawdown[last] = state.drawdown();
+		downsideDrawdown[last] = state.downside();
+		positionCount[last] = state.positions();
 		pendingFlow = 0;
 	}
 
@@ -88,6 +100,26 @@ public final class SessionHistory {
 	/** {@link Account#getClosedEquity() Closed equity} at the end of every session: the effect of closed positions. */
 	public double[] closedEquity() {
 		return Arrays.copyOf(closed, times.size());
+	}
+
+	public double[] exposurePercent() {
+		double[] result = new double[times.size()];
+		for (int i = 0; i < result.length; i++) {
+			result[i] = nav[i] > 0 ? 100 * positions[i] / nav[i] : 0;
+		}
+		return result;
+	}
+
+	public double[] drawdownPercent() {
+		return Arrays.copyOf(drawdown, times.size());
+	}
+
+	public double[] downsideDrawdownPercent() {
+		return Arrays.copyOf(downsideDrawdown, times.size());
+	}
+
+	public int[] positionCount() {
+		return Arrays.copyOf(positionCount, times.size());
 	}
 
 	/**
@@ -180,5 +212,8 @@ public final class SessionHistory {
 			growth *= 1 + returns[i];
 		}
 		return (growth - 1) * 100;
+	}
+
+	record SessionState(double drawdown, double downside, int positions) {
 	}
 }

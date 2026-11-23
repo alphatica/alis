@@ -1,9 +1,10 @@
-import { createEffect, onCleanup, onMount } from 'solid-js';
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import { numberFormat } from '../format';
 import { type Equity, formatStat, type Stat } from '../state';
 import { showError } from '../toasts';
+import { ChartGroup } from './chartGroup';
 import { openContextMenu } from './ContextMenu';
 import { AMOUNT_LOG, type ChartScale, type LogAxis, logSplits, RETURN_LOG, toPositions } from './logAxis';
 import { ScaleSwitch, Segmented, type SegmentedOption } from './Segmented';
@@ -55,23 +56,38 @@ function formatDate(seconds: number) {
 }
 
 /** Moves the cursor to the nearest session's point on the line, so the crosshair shows actual values. */
-function snapToPoint(u: uPlot, left: number, top: number): [number, number] {
-  if (left < 0) {
-    return [left, top];
-  }
-  const idx = u.posToIdx(left);
-  const y = u.data[MAIN][idx];
-  if (y == null) {
-    return [left, top];
-  }
-  return [Math.round(u.valToPos(u.data[0][idx], 'x')), Math.round(u.valToPos(y, 'y'))];
+function snapToPoint(series: number) {
+  return (u: uPlot, left: number, top: number): [number, number] => {
+    if (left < 0) {
+      return [left, top];
+    }
+    const idx = u.posToIdx(left);
+    const y = u.data[series][idx];
+    if (y == null) {
+      return [left, top];
+    }
+    return [Math.round(u.valToPos(u.data[0][idx], 'x')), Math.round(u.valToPos(y, 'y'))];
+  };
+}
+
+function cursor(group: ChartGroup, series: number): uPlot.Cursor {
+  return { drag: { x: true, y: false }, move: snapToPoint(series), sync: { key: group.key, scales: ['x', null] } };
+}
+
+function zoomHooks(group: ChartGroup): uPlot.Hooks.Arrays {
+  return { setScale: [(u, key) => key === 'x' && group.zoomed(u)] };
 }
 
 /**
  * Date and value of the point under the cursor, shown on the axes where the crosshair meets them, and the closed positions
  * line's value at its height, unless it would cover the main line's label.
  */
-function cursorLabels(formatValue: (value: number) => string): uPlot.Plugin {
+function cursorLabels(
+  formatValue: (value: number) => string,
+  series: number,
+  closedSeries?: number,
+  showDate = true,
+): uPlot.Plugin {
   const xLabel = document.createElement('div');
   const yLabel = document.createElement('div');
   const closedLabel = document.createElement('div');
@@ -85,9 +101,10 @@ function cursorLabels(formatValue: (value: number) => string): uPlot.Plugin {
       },
       setCursor: (u) => {
         const { left, top, idx } = u.cursor;
-        const y = idx == null ? null : u.data[MAIN][idx];
+        const y = idx == null ? null : u.data[series][idx];
         const visible = left != null && top != null && left >= 0 && y != null;
         xLabel.hidden = yLabel.hidden = closedLabel.hidden = !visible;
+        xLabel.hidden ||= !showDate;
         if (!visible) {
           return;
         }
@@ -102,7 +119,7 @@ function cursorLabels(formatValue: (value: number) => string): uPlot.Plugin {
         yLabel.textContent = formatValue(y);
         yLabel.style.left = `${plotLeft}px`;
         yLabel.style.top = `${plotTop + top}px`;
-        const closed = u.data[CLOSED][idx!];
+        const closed = closedSeries == null ? null : u.data[closedSeries][idx!];
         const closedTop = closed == null ? null : u.valToPos(closed, 'y');
         closedLabel.hidden = closedTop == null || Math.abs(closedTop - top) < yLabel.offsetHeight;
         if (!closedLabel.hidden) {
@@ -202,12 +219,27 @@ function widestCursorLabel(lines: (number | null)[][], format: (value: number) =
   return Math.max(cursorLabelWidth(format(min)), cursorLabelWidth(format(max)));
 }
 
+function valueAxisSize(group: ChartGroup, cursorLabelSpace: number, font: string) {
+  return (u: uPlot, ticks: string[] | null) =>
+    group.valueAxisWidth(
+      u,
+      Math.ceil(
+        Math.max(
+          VALUE_AXIS_MIN_WIDTH,
+          cursorLabelSpace,
+          TICK_SPACE + Math.max(0, ...(ticks ?? []).map((tick) => textWidth(tick, font))),
+        ),
+      ),
+    );
+}
+
 function options(
   width: number,
   height: number,
   mode: EquityMode,
   scale: ChartScale,
   values: Plotted,
+  group: ChartGroup,
 ): uPlot.Options {
   const muted = color('--text-muted');
   const grid = { stroke: color('--border'), width: 1 };
@@ -224,23 +256,16 @@ function options(
   const formatCursor = mode === 'nav' ? format : (v: number) => `${formatCursorPercent.format(value(v))} %`;
   // The cursor's label sits left of the plot, over the axis: the axis is wide enough for any value, so it is not cut off
   const cursorLabelSpace = CURSOR_LABEL_GAP + widestCursorLabel([values.main, values.closed], formatCursor);
-  const valueAxisSize = (_: uPlot, ticks: string[] | null) =>
-    Math.ceil(
-      Math.max(
-        VALUE_AXIS_MIN_WIDTH,
-        cursorLabelSpace,
-        TICK_SPACE + Math.max(0, ...(ticks ?? []).map((tick) => textWidth(tick, axisFont))),
-      ),
-    );
   return {
     width,
     height,
     // Sessions are dates, not instants: show them the same in every time zone.
     tzDate: (seconds) => uPlot.tzDate(new Date(seconds * 1000), 'Etc/UTC'),
     legend: { show: false },
-    cursor: { drag: { x: true, y: false }, move: snapToPoint },
+    cursor: cursor(group, MAIN),
+    hooks: zoomHooks(group),
     plugins: [
-      cursorLabels(formatCursor),
+      cursorLabels(formatCursor, MAIN, CLOSED),
       legend([
         { label: mainLabel, color: accent },
         { label: 'Closed positions', color: closedColor },
@@ -249,7 +274,12 @@ function options(
     scales: { x: { time: true } },
     axes: [
       axis,
-      { ...axis, size: valueAxisSize, splits: log && logSplits(log), values: (_, values) => values.map(format) },
+      {
+        ...axis,
+        size: valueAxisSize(group, cursorLabelSpace, axisFont),
+        splits: log && logSplits(log),
+        values: (_, values) => values.map(format),
+      },
     ],
     series: [
       {},
@@ -446,26 +476,36 @@ export function EquityChart(props: {
 }) {
   let container!: HTMLDivElement;
   let plot: uPlot | undefined;
+  const group = new ChartGroup();
 
   onMount(() => {
     // Rebuilt when the data, the mode or the scale change: axis formats and series differ between them.
     createEffect(() => {
       const values = plotted(props.equity, props.mode, props.scale);
-      plot?.destroy();
+      group.use(props.equity);
+      destroyPlot();
       plot = new uPlot(
-        options(container.clientWidth, container.clientHeight, props.mode, props.scale, values),
+        options(container.clientWidth, container.clientHeight, props.mode, props.scale, values, group),
         [props.equity.times.map(toSeconds), values.closed, values.main],
         container,
       );
+      group.add(plot);
     });
     const resize = new ResizeObserver(() => plot?.setSize({ width: container.clientWidth, height: container.clientHeight }));
     resize.observe(container);
     onCleanup(() => {
       resize.disconnect();
-      plot?.destroy();
-      plot = undefined;
+      destroyPlot();
     });
   });
+
+  const destroyPlot = () => {
+    if (plot) {
+      group.remove(plot);
+      plot.destroy();
+      plot = undefined;
+    }
+  };
 
   const showMenu = (event: MouseEvent) => {
     const u = plot;
@@ -479,7 +519,193 @@ export function EquityChart(props: {
     ]);
   };
 
-  return <div ref={container} class="chart" onContextMenu={showMenu} />;
+  return (
+    <div class="equity-chart">
+      <div ref={container} class="chart" onContextMenu={showMenu} />
+      <div class="chart-panel-toggles" role="group" aria-label="More charts">
+        <For each={PANELS}>
+          {(panel) => (
+            <button
+              type="button"
+              aria-expanded={isOpen(panel)}
+              title={panel.title}
+              onClick={() => toggle(panel)}
+            >
+              <span class="chart-panel-arrow" aria-hidden="true">
+                ▸
+              </span>
+              {panel.label}
+            </button>
+          )}
+        </For>
+      </div>
+      <For each={PANELS}>
+        {(panel) => (
+          <Show when={isOpen(panel)}>
+            <PanelChart panel={panel} equity={props.equity} group={group} fileName={props.fileName} />
+          </Show>
+        )}
+      </For>
+    </div>
+  );
+}
+
+type Panel = {
+  id: string;
+  label: string;
+  title: string;
+  color: string;
+  values: (equity: Equity) => number[];
+  range: (min: number, max: number) => [number, number];
+  format: (value: number) => string;
+  formatCursor: (value: number) => string;
+  incrs?: number[];
+  stepped?: boolean;
+};
+
+const percent = {
+  format: (v: number) => `${formatPercent.format(v)} %`,
+  formatCursor: (v: number) => `${formatCursorPercent.format(v)} %`,
+};
+
+const formatCount = numberFormat(0);
+
+const drawdownRange = (min: number): [number, number] => [Math.min(-1, 1.05 * min), 0];
+
+const PANELS: Panel[] = [
+  {
+    id: 'exposure',
+    label: 'Exposure',
+    title: 'Positions at the session\'s prices as % of NAV',
+    color: '--accent',
+    values: (equity) => equity.exposurePercent,
+    range: (_, max) => [0, 1.05 * Math.max(100, max)],
+    ...percent,
+  },
+  {
+    id: 'drawdown',
+    label: 'Drawdown',
+    title: 'Decline from the highest value, not affected by deposits and withdrawals',
+    color: '--loss',
+    values: (equity) => equity.drawdownPercent,
+    range: drawdownRange,
+    ...percent,
+  },
+  {
+    id: 'positions',
+    label: 'Positions',
+    title: 'Number of markets held, whatever their value',
+    color: '--series-2',
+    values: (equity) => equity.positionCount,
+    range: (_, max) => [0, Math.max(1, Math.ceil(1.05 * max))],
+    format: (v) => formatCount.format(v),
+    formatCursor: (v) => formatCount.format(v),
+    incrs: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000],
+    stepped: true,
+  },
+  {
+    id: 'downside-drawdown',
+    label: 'Downside drawdown',
+    title: 'NAV below the highest closed equity: giving back unrealized profit is not a drawdown',
+    color: '--loss',
+    values: (equity) => equity.downsideDrawdownPercent,
+    range: drawdownRange,
+    ...percent,
+  },
+];
+
+const [openPanels, setOpenPanels] = createSignal<string[]>([]);
+
+const isOpen = (panel: Panel) => openPanels().includes(panel.id);
+
+const toggle = (panel: Panel) =>
+  setOpenPanels((open) => (open.includes(panel.id) ? open.filter((id) => id !== panel.id) : [...open, panel.id]));
+
+function panelOptions(width: number, height: number, panel: Panel, values: number[], group: ChartGroup): uPlot.Options {
+  const muted = color('--text-muted');
+  const grid = { stroke: color('--border'), width: 1 };
+  const stroke = color(panel.color);
+  const axisFont = `11px ${color('--font-ui')}`;
+  const axis = { stroke: muted, grid, ticks: grid, font: axisFont };
+  const { format, formatCursor } = panel;
+  const cursorLabelSpace = CURSOR_LABEL_GAP + widestCursorLabel([values], formatCursor);
+  return {
+    width,
+    height,
+    tzDate: (seconds) => uPlot.tzDate(new Date(seconds * 1000), 'Etc/UTC'),
+    legend: { show: false },
+    cursor: cursor(group, 1),
+    hooks: zoomHooks(group),
+    plugins: [cursorLabels(formatCursor, 1, undefined, false), legend([{ label: panel.label, color: stroke }])],
+    scales: { x: { time: true }, y: { range: (_, min, max) => panel.range(min, max) } },
+    axes: [
+      { ...axis, ticks: { show: false }, size: 4, values: (_, ticks) => ticks.map(() => '') },
+      {
+        ...axis,
+        size: valueAxisSize(group, cursorLabelSpace, axisFont),
+        incrs: panel.incrs,
+        values: (_, ticks) => ticks.map(format),
+      },
+    ],
+    series: [
+      {},
+      {
+        label: panel.label,
+        stroke,
+        width: 1.25,
+        fill: `${stroke}1f`,
+        fillTo: 0,
+        paths: panel.stepped ? uPlot.paths.stepped!({ align: 1 }) : undefined,
+      },
+    ],
+  };
+}
+
+function PanelChart(props: { panel: Panel; equity: Equity; group: ChartGroup; fileName: string }) {
+  let container!: HTMLDivElement;
+  let plot: uPlot | undefined;
+
+  const destroyPlot = () => {
+    if (plot) {
+      props.group.remove(plot);
+      plot.destroy();
+      plot = undefined;
+    }
+  };
+
+  onMount(() => {
+    createEffect(() => {
+      const values = props.panel.values(props.equity);
+      props.group.use(props.equity);
+      destroyPlot();
+      plot = new uPlot(
+        panelOptions(container.clientWidth, container.clientHeight, props.panel, values, props.group),
+        [props.equity.times.map(toSeconds), values],
+        container,
+      );
+      props.group.add(plot);
+    });
+    const resize = new ResizeObserver(() => plot?.setSize({ width: container.clientWidth, height: container.clientHeight }));
+    resize.observe(container);
+    onCleanup(() => {
+      resize.disconnect();
+      destroyPlot();
+    });
+  });
+
+  const showMenu = (event: MouseEvent) => {
+    const u = plot;
+    if (!u) {
+      return;
+    }
+    const fileName = `${props.fileName}-${props.panel.id}.png`;
+    openContextMenu(event, [
+      { label: 'Copy image', run: () => copyImage(u, []) },
+      { label: 'Save image…', run: () => saveImage(u, [], fileName) },
+    ]);
+  };
+
+  return <div ref={container} class="chart-panel" onContextMenu={showMenu} />;
 }
 
 const EQUITY_MODES: SegmentedOption<EquityMode>[] = [

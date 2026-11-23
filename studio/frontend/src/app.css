@@ -1020,7 +1020,7 @@ h2 {
 	min-height: 240px;
 }
 
-.chart-with-stats > .chart,
+.chart-with-stats > .equity-chart,
 .chart-with-stats > .chart-placeholder {
 	flex: 1 1 0;
 	min-width: 0;
@@ -1040,7 +1040,80 @@ h2 {
 }
 
 /* uPlot's selection box when dragging to zoom */
-.chart .u-select {
+.equity-chart {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.equity-chart > .chart {
+	flex: 3 1 0;
+	min-height: 160px;
+}
+
+.chart-panel {
+	flex: 1 1 0;
+	min-height: 90px;
+	max-height: 160px;
+	overflow: hidden;
+}
+
+.chart-panel + .chart-panel {
+	margin-top: var(--space-2);
+}
+
+.chart-panel-toggles {
+	display: flex;
+	flex-wrap: wrap;
+	flex: none;
+	margin-bottom: var(--space-1);
+	border-top: 1px solid var(--border);
+}
+
+.chart-panel-toggles button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	height: 26px;
+	padding: 0 var(--space-3) 0 var(--space-2);
+	background: none;
+	border: 1px solid var(--border);
+	border-top: none;
+	color: var(--text-muted);
+	font: 500 var(--text-xs) var(--font-ui);
+	cursor: pointer;
+}
+
+.chart-panel-toggles button + button {
+	border-left: none;
+}
+
+.chart-panel-toggles button:hover {
+	color: var(--text);
+}
+
+.chart-panel-toggles button[aria-expanded="true"] {
+	background: var(--surface-raised);
+	color: var(--text);
+}
+
+.chart-panel-toggles button:focus-visible {
+	outline: 1px solid var(--accent);
+	outline-offset: -1px;
+}
+
+.chart-panel-arrow {
+	font-size: 9px;
+	transition: transform 0.15s;
+}
+
+.chart-panel-toggles button[aria-expanded="true"] .chart-panel-arrow {
+	transform: rotate(90deg);
+}
+
+.chart .u-select,
+.chart-panel .u-select {
 	background: rgb(77 141 255 / 15%);
 }
 
@@ -1135,8 +1208,14 @@ h2 {
 		flex-direction: column;
 	}
 
-	.chart-with-stats > .chart {
+	.equity-chart,
+	.equity-chart > .chart {
 		flex: none;
+	}
+
+	.chart-panel {
+		flex: none;
+		height: 140px;
 	}
 
 	.stat-table {
